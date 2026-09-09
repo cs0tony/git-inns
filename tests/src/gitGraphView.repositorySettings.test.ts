@@ -62,6 +62,7 @@ vi.mock("../../src/config", () => ({
     muteCommitsMergeCommits: () => false,
     muteCommitsNotAncestorsOfHead: () => false,
     commitOrdering: () => "date",
+    customBranchGlobPatterns: () => [],
     showCurrentBranchByDefault: () => false,
     showRecentActions: () => true,
     dialogDefaults: () => ({})

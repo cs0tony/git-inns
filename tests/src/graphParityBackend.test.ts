@@ -18,9 +18,11 @@ vi.mock("vscode", () => ({
 }));
 
 vi.mock("../../src/config", () => ({
+  CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX: "--glob=",
   getConfig: vi.fn(() => ({
     dateType: () => "Author Date",
     fetchAndPruneTags: () => configValues.fetchAndPruneTags,
+    customBranchGlobArguments: () => [],
     includeCommitsMentionedByReflogs: () => configValues.includeCommitsMentionedByReflogs,
     onlyFollowFirstParent: () => configValues.onlyFollowFirstParent,
     showSignatureStatus: () => configValues.showSignatureStatus,

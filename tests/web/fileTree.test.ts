@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
+const webviewMessages =
+  ((globalThis as Record<string, unknown>).webviewMessages as Record<string, string> | undefined) ??
+  {};
+webviewMessages["file.reviewed"] = "Reviewed";
+(globalThis as Record<string, unknown>).webviewMessages = webviewMessages;
+
 import type { GitFileChange } from "../../src/types";
 import {
   generateGitFileListHtml,
@@ -28,6 +34,9 @@ function parseHtml(html: string): DocumentFragment {
   template.innerHTML = html;
   return template.content;
 }
+
+((globalThis as Record<string, unknown>).webviewMessages as Record<string, string>)["file.reviewed"] =
+  "Reviewed";
 
 /* ------------------------------------------------------------------ */
 /* S1: generateGitFileListHtml (fileTree-test.md)                     */
@@ -594,5 +603,34 @@ describe("generateGitFileTree", () => {
     const tree = generateGitFileTree(files);
     const foo = asFolder(tree.contents["foo"]);
     expect(foo.contents["bar"].type).toBe("file");
+  });
+});
+
+describe("reviewed file rendering", () => {
+  const reviewedFiles = ["src/file.ts"];
+  const file = [makeFile()];
+
+  it("renders reviewed state in list view with an explicit accessibility attribute", () => {
+    const fragment = parseHtml(generateGitFileListHtml(file, reviewedFiles));
+    const row = fragment.querySelector("li.gitFile");
+
+    expect(row).not.toBeNull();
+    expect(row!.classList.contains("gitFileReviewed")).toBe(true);
+    expect(row!.getAttribute("aria-reviewed")).toBe("true");
+    expect(row!.getAttribute("aria-label")).toContain("Reviewed");
+    expect(row!.querySelector(".gitFileReviewedCheck")).not.toBeNull();
+  });
+
+  it("renders reviewed state in tree view and leaves other files unchanged", () => {
+    const files = [
+      makeFile({ oldFilePath: "a-reviewed.ts", newFilePath: "a-reviewed.ts" }),
+      makeFile({ oldFilePath: "b-unreviewed.ts", newFilePath: "b-unreviewed.ts" })
+    ];
+    const folder = generateGitFileTree(files);
+    const fragment = parseHtml(generateGitFileTreeHtml(folder, files, ["a-reviewed.ts"]));
+    const rows = fragment.querySelectorAll("li.gitFile");
+
+    expect(rows[0].classList.contains("gitFileReviewed")).toBe(true);
+    expect(rows[0].getAttribute("aria-reviewed")).toBe("true");
   });
 });

@@ -12,6 +12,7 @@ export const svgIcons = {
   arrowUp: '<span class="codicon codicon-arrow-up"></span>',
   branch: '<span class="codicon codicon-git-branch"></span>',
   cdv: '<span class="codicon codicon-eye"></span>',
+  check: '<span class="codicon codicon-check"></span>',
   close: '<span class="codicon codicon-close"></span>',
   closedFolder: '<span class="codicon codicon-folder"></span>',
   current: '<span class="codicon codicon-target"></span>',

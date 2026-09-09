@@ -419,6 +419,21 @@ body.unableToLoad p {
 .gitFile.gitDiffPossible {
   cursor: pointer;
 }
+.gitFileReviewed {
+  color: var(--vscode-descriptionForeground);
+}
+.gitFileReviewed.gitDiffPossible:hover,
+.gitFileReviewed:focus-visible {
+  color: var(--vscode-list-hoverForeground, var(--vscode-editor-foreground));
+}
+.gitFileReviewed .gitFileIcon {
+  opacity: 0.65;
+}
+.gitFileReviewedCheck {
+  display: inline-flex;
+  margin-left: 6px;
+  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, currentColor));
+}
 .gitFileAddDel,
 .gitFileRename {
   color: var(--vscode-editor-foreground);
@@ -450,6 +465,11 @@ body.unableToLoad p {
 .gitFileAction {
   cursor: pointer;
   padding: 0 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gitFileActions {
+    transition: none;
+  }
 }
 /* Avatar */
 .commit .avatar > img {

@@ -28,6 +28,7 @@ function createMockGitKeizuView(): GitKeizuViewAPI {
     hideCommitDetails: vi.fn(),
     showCommitDetails: vi.fn(),
     showCompareResult: vi.fn(),
+    updateReviewedFiles: vi.fn(),
     loadAvatar: vi.fn(),
     loadBranches: vi.fn(),
     loadCommits: vi.fn(),
@@ -851,7 +852,7 @@ describe("handleMessage commitDetails try/catch (S10)", () => {
 
     // Then: showCommitDetails is called once with the details and tree; no error path runs
     expect(gitKeizu.showCommitDetails).toHaveBeenCalledTimes(1);
-    expect(gitKeizu.showCommitDetails).toHaveBeenCalledWith(commitDetails, fileTree);
+    expect(gitKeizu.showCommitDetails).toHaveBeenCalledWith(commitDetails, fileTree, []);
     expect(gitKeizu.hideCommitDetails).not.toHaveBeenCalled();
     expect(showErrorDialog).not.toHaveBeenCalled();
   });
@@ -1023,5 +1024,58 @@ describe("drop, reset file, and archive response handling", () => {
 
     expect(showErrorDialog).toHaveBeenCalledWith("error.createArchive", "invalid archive path", null);
     expect(gitKeizu.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("reviewed file response handling", () => {
+  let gitKeizu: GitKeizuViewAPI;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    gitKeizu = createMockGitKeizuView();
+  });
+
+  it("updates only the expanded file section on success", () => {
+    handleMessage(
+      {
+        command: "fileReviewed",
+        repo: "/test/repo",
+        commitHash: "abc123",
+        filePath: "src/file.ts",
+        reviewed: true,
+        reviewedFiles: ["src/file.ts"],
+        status: null
+      },
+      gitKeizu
+    );
+
+    expect(gitKeizu.updateReviewedFiles).toHaveBeenCalledWith("/test/repo", "abc123", [
+      "src/file.ts"
+    ]);
+    expect(gitKeizu.refresh).not.toHaveBeenCalled();
+    expect(showErrorDialog).not.toHaveBeenCalled();
+  });
+
+  it("shows a localized error and does not rerender on failure", () => {
+    handleMessage(
+      {
+        command: "fileReviewed",
+        repo: "/test/repo",
+        commitHash: "abc123",
+        filePath: "../file.ts",
+        reviewed: true,
+        reviewedFiles: [],
+        status: "Invalid file path."
+      },
+      gitKeizu
+    );
+
+    expect(gitKeizu.updateReviewedFiles).not.toHaveBeenCalled();
+    expect(gitKeizu.refresh).not.toHaveBeenCalled();
+    expect(showErrorDialog).toHaveBeenCalledWith(
+      "error.setFileReviewed",
+      "Invalid file path.",
+      null
+    );
   });
 });

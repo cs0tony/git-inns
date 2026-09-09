@@ -112,7 +112,12 @@ const CONTEXT_MENU_ACTION_IDS: Record<ContextMenuGroup, readonly ContextMenuActi
     "commit.drop",
     "commit.copyHash"
   ],
-  file: ["file.openFile", "file.resetToRevision"],
+  file: [
+    "file.openFile",
+    "file.markReviewed",
+    "file.markNotReviewed",
+    "file.resetToRevision"
+  ],
   remoteBranch: [
     "ref.checkoutBranch",
     "ref.mergeBranch",

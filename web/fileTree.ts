@@ -46,7 +46,12 @@ export function generateGitFileTree(gitFiles: GitFileChange[]) {
  * @param gitFile - The file change data
  * @param displayName - Already-escaped display name (basename for tree view, full path for list view)
  */
-function buildFileItemHtml(gitFile: GitFileChange, displayName: string): string {
+function buildFileItemHtml(
+  gitFile: GitFileChange,
+  displayName: string,
+  reviewedFiles: readonly string[] = []
+): string {
+  const isReviewed = reviewedFiles.includes(gitFile.newFilePath);
   const diffPossible = gitFile.additions !== null && gitFile.deletions !== null;
   const binaryTitle = diffPossible ? "" : BINARY_FILE_TITLE;
   const typeLabel =
@@ -80,10 +85,20 @@ function buildFileItemHtml(gitFile: GitFileChange, displayName: string): string 
       : "";
   const oldPath = encodeURIComponent(gitFile.oldFilePath);
   const newPath = encodeURIComponent(gitFile.newFilePath);
-  return `<li class="gitFile ${gitFile.type}${diffPossible ? " gitDiffPossible" : ""}" role="treeitem" tabindex="0" aria-label="${accessibilityLabel}" data-oldfilepath="${oldPath}" data-newfilepath="${newPath}" data-type="${gitFile.type}"${binaryTitle}><span class="gitFileIcon">${svgIcons.file}</span>${displayName}${renameHtml}${addDelHtml}${fileActionsHtml}</li>`;
+  const accessibilityAttributes = isReviewed
+    ? ` aria-reviewed="true" aria-label="${accessibilityLabel}, ${t("file.reviewed")}"`
+    : ` aria-label="${accessibilityLabel}"`;
+  const reviewedHtml = isReviewed
+    ? `<span class="gitFileReviewedCheck" title="${t("file.reviewed")}">${svgIcons.check}</span>`
+    : "";
+  return `<li class="gitFile ${gitFile.type}${diffPossible ? " gitDiffPossible" : ""}${isReviewed ? " gitFileReviewed" : ""}" role="treeitem" tabindex="0"${accessibilityAttributes} data-oldfilepath="${oldPath}" data-newfilepath="${newPath}" data-type="${gitFile.type}"${binaryTitle}><span class="gitFileIcon">${svgIcons.file}</span>${displayName}${renameHtml}${addDelHtml}${reviewedHtml}${fileActionsHtml}</li>`;
 }
 
-export function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChange[]) {
+export function generateGitFileTreeHtml(
+  folder: GitFolder,
+  gitFiles: GitFileChange[],
+  reviewedFiles: readonly string[] = []
+) {
   let html =
       (folder.name !== ""
         ? `<span class="gitFolder" role="treeitem" tabindex="0" aria-expanded="${folder.open}" aria-label="${escapeHtml(folder.name)}, folder" data-folderpath="${encodeURIComponent(folder.folderPath)}"><span class="gitFolderIcon">${folder.open ? svgIcons.openFolder : svgIcons.closedFolder}</span><span class="gitFolderName">${escapeHtml(folder.name)}</span></span>`
@@ -110,17 +125,20 @@ export function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChan
       html += `<li role="none"${!gitFolder.open ? ' class="closed"' : ""}>${generateGitFileTreeHtml(gitFolder, gitFiles)}</li>`;
     } else {
       gitFile = gitFiles[(<GitFile>folder.contents[keys[i]]).index];
-      html += buildFileItemHtml(gitFile, escapeHtml(folder.contents[keys[i]].name));
+      html += buildFileItemHtml(gitFile, escapeHtml(folder.contents[keys[i]].name), reviewedFiles);
     }
   }
   return `${html}</ul>`;
 }
 
-export function generateGitFileListHtml(gitFiles: GitFileChange[]) {
+export function generateGitFileListHtml(
+  gitFiles: GitFileChange[],
+  reviewedFiles: readonly string[] = []
+) {
   const sorted = [...gitFiles].sort((a, b) => a.newFilePath.localeCompare(b.newFilePath));
   let html = '<ul class="gitFolderContents" role="tree">';
   for (const gitFile of sorted) {
-    html += buildFileItemHtml(gitFile, escapeHtml(gitFile.newFilePath));
+    html += buildFileItemHtml(gitFile, escapeHtml(gitFile.newFilePath), reviewedFiles);
   }
   return `${html}</ul>`;
 }

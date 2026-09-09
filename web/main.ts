@@ -1530,6 +1530,7 @@ class GitKeizuView {
       compareWithSrcElem: null,
       commitDetails: null,
       fileTree: null,
+      reviewedFiles: [],
       loading: true
     };
     sourceElem.classList.add("commitDetailsOpen");
@@ -1605,7 +1606,11 @@ class GitKeizuView {
       this.renderGraph();
     }
   }
-  public showCommitDetails(commitDetails: GG.GitCommitDetails, fileTree: GitFolder) {
+  public showCommitDetails(
+    commitDetails: GG.GitCommitDetails,
+    fileTree: GitFolder,
+    reviewedFiles?: string[]
+  ) {
     if (
       this.expandedCommit === null ||
       this.expandedCommit.srcElem === null ||
@@ -1616,6 +1621,9 @@ class GitKeizuView {
     const isCompareMode = this.expandedCommit.compareWithHash !== null;
     this.expandedCommit.commitDetails = commitDetails;
     this.expandedCommit.fileTree = fileTree;
+    if (reviewedFiles !== undefined) {
+      this.expandedCommit.reviewedFiles = reviewedFiles;
+    }
     this.expandedCommit.loading = false;
     this.expandedCommit.srcElem.classList.add("commitDetailsOpen");
     this.saveState();
@@ -1630,7 +1638,8 @@ class GitKeizuView {
     const filesSectionHtml = this.buildFilesSectionHtml(
       fileViewType,
       commitDetails.fileChanges,
-      fileTree
+      fileTree,
+      this.expandedCommit.reviewedFiles
     );
 
     const html =
@@ -1732,10 +1741,42 @@ class GitKeizuView {
   private buildFilesSectionHtml(
     fileViewType: FileViewType,
     fileChanges: GG.GitFileChange[],
-    fileTree: GitFolder
+    fileTree: GitFolder,
+    reviewedFiles: readonly string[] = []
   ): string {
-    const innerHtml = this.buildFilesSectionInnerHtml(fileViewType, fileChanges, fileTree);
+    const innerHtml = this.buildFilesSectionInnerHtml(
+      fileViewType,
+      fileChanges,
+      fileTree,
+      reviewedFiles
+    );
     return `<div id="commitDetailsFiles">${innerHtml}</div>`;
+  }
+  public updateReviewedFiles(
+    repo: string,
+    commitHash: string,
+    reviewedFiles: readonly string[]
+  ): void {
+    const filesDiv = document.getElementById("commitDetailsFiles");
+    if (
+      this.currentRepo !== repo ||
+      this.expandedCommit === null ||
+      this.expandedCommit.hash !== commitHash ||
+      this.expandedCommit.commitDetails === null ||
+      this.expandedCommit.fileTree === null ||
+      filesDiv === null
+    ) {
+      return;
+    }
+
+    this.expandedCommit.reviewedFiles = [...reviewedFiles];
+    filesDiv.innerHTML = this.buildFilesSectionInnerHtml(
+      this.getRepoFileViewType(),
+      this.expandedCommit.commitDetails.fileChanges,
+      this.expandedCommit.fileTree,
+      this.expandedCommit.reviewedFiles
+    );
+    this.bindFileViewListeners();
   }
   private scrollToExpandedCommit(detailsElem: HTMLElement) {
     if (this.expandedCommit === null || this.expandedCommit.srcElem === null) return;
@@ -1779,7 +1820,8 @@ class GitKeizuView {
       filesDiv.innerHTML = this.buildFilesSectionInnerHtml(
         newMode,
         this.expandedCommit.commitDetails.fileChanges,
-        this.expandedCommit.fileTree!
+        this.expandedCommit.fileTree!,
+        this.expandedCommit.reviewedFiles
       );
       this.bindFileViewListeners();
     }
@@ -1793,12 +1835,13 @@ class GitKeizuView {
   private buildFilesSectionInnerHtml(
     fileViewType: FileViewType,
     fileChanges: GG.GitFileChange[],
-    fileTree: GitFolder
+    fileTree: GitFolder,
+    reviewedFiles: readonly string[] = []
   ): string {
     const fileListHtml =
       fileViewType === FILE_VIEW_LIST
-        ? generateGitFileListHtml(fileChanges)
-        : generateGitFileTreeHtml(fileTree, fileChanges);
+        ? generateGitFileListHtml(fileChanges, reviewedFiles)
+        : generateGitFileTreeHtml(fileTree, fileChanges, reviewedFiles);
     const { icon, title } = getFileViewToggle(fileViewType);
     return `<span id="fileViewToggle" class="fileViewToggleBtn" title="${title}">${icon}</span>${fileListHtml}`;
   }

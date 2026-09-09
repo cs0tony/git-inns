@@ -6165,6 +6165,8 @@ describe("file row context menu handler", () => {
     setupTestDOM();
     setupViewState();
     const webviewMessages = globalThis.webviewMessages as Record<string, string>;
+    webviewMessages["context.markReviewed"] = "Mark as Reviewed";
+    webviewMessages["context.markNotReviewed"] = "Mark as Not Reviewed";
     webviewMessages["context.resetFile"] = "Reset File to Revision...";
 
     const utilsMod = await import("../../web/utils");
@@ -6232,11 +6234,13 @@ describe("file row context menu handler", () => {
     // Then: showContextMenu is called with the two-action file menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(items[0]).not.toBeNull();
     expect(items[1]).not.toBeNull();
+    expect(items[2]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
-    expect(items[1]!.title).toBe("Reset File to Revision...");
+    expect(items[1]!.title).toBe("Mark as Reviewed");
+    expect(items[2]!.title).toBe("Reset File to Revision...");
     // sourceElem is the .gitFile row
     const sourceElem = vi.mocked(liveShowContextMenu).mock.calls[0][2];
     expect(sourceElem).toBe(fileRow);
@@ -6255,11 +6259,12 @@ describe("file row context menu handler", () => {
     // Then: showContextMenu is called with the same two-action menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(items[0]).not.toBeNull();
     expect(items[1]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
-    expect(items[1]!.title).toBe("Reset File to Revision...");
+    expect(items[1]!.title).toBe("Mark as Reviewed");
+    expect(items[2]!.title).toBe("Reset File to Revision...");
   });
 
   // TC-209: right click 時に preventDefault/stopPropagation が適用され viewDiff が送られない
@@ -6291,11 +6296,12 @@ describe("file row context menu handler", () => {
     // Then: showContextMenu is still called with the two-action menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(items[0]).not.toBeNull();
     expect(items[1]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
-    expect(items[1]!.title).toBe("Reset File to Revision...");
+    expect(items[1]!.title).toBe("Mark as Reviewed");
+    expect(items[2]!.title).toBe("Reset File to Revision...");
   });
 
   // TC-211: menu item の onClick で openFile payload が送られ viewDiff は送られない
@@ -6363,10 +6369,45 @@ describe("file row context menu handler", () => {
 
     // Then: items array has exactly 2 non-null actions and no dividers
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(items.every((item) => item !== null)).toBe(true);
     expect(items[0]!.title).toBe("Open File");
-    expect(items[1]!.title).toBe("Reset File to Revision...");
+    expect(items[1]!.title).toBe("Mark as Reviewed");
+    expect(items[2]!.title).toBe("Reset File to Revision...");
+  });
+
+  it("rerenders only the file section when a reviewed-file response arrives", () => {
+    expandCommitWithFiles(COMMIT_HASH_1, TREE_FILE_HTML);
+    const summaryHtml = document.getElementById("commitDetailsSummary")!.innerHTML;
+
+    vi.mocked(liveFileTreeHtml).mockReturnValueOnce(
+      '<ul><li class="gitFile gitFileReviewed" aria-reviewed="true" data-newfilepath="src%2Ffile.ts">src/file.ts</li></ul>'
+    );
+    dispatchMessage({
+      command: "fileReviewed",
+      repo: TEST_REPO,
+      commitHash: COMMIT_HASH_1,
+      filePath: "src/file.ts",
+      reviewed: true,
+      reviewedFiles: ["src/file.ts"],
+      status: null
+    });
+
+    const row = document.querySelector(".gitFile");
+    expect(document.getElementById("commitDetailsSummary")!.innerHTML).toBe(summaryHtml);
+    expect(row!.classList.contains("gitFileReviewed")).toBe(true);
+    expect(row!.getAttribute("aria-reviewed")).toBe("true");
+
+    dispatchMessage({
+      command: "fileReviewed",
+      repo: TEST_REPO,
+      commitHash: COMMIT_HASH_1,
+      filePath: "src/file.ts",
+      reviewed: false,
+      reviewedFiles: [],
+      status: null
+    });
+    expect(document.querySelector(".gitFileReviewed")).toBeNull();
   });
 });
 
@@ -7619,6 +7660,6 @@ describe("context-menu action visibility routing", () => {
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
     const fileItems = vi.mocked(liveShowContextMenu).mock.calls[1][1];
-    expectTitles(fileItems, ["Reset File to Revision..."]);
+    expectTitles(fileItems, ["Mark as Reviewed", "Reset File to Revision..."]);
   });
 });

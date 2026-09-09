@@ -18,8 +18,13 @@ export type RefreshMode = "soft" | "forceRender" | "hard";
 
 export interface GitKeizuViewAPI {
   hideCommitDetails(): void;
-  showCommitDetails(commitDetails: GitCommitDetails, fileTree: GitFolder): void;
+  showCommitDetails(
+    commitDetails: GitCommitDetails,
+    fileTree: GitFolder,
+    reviewedFiles?: string[]
+  ): void;
   showCompareResult(fileChanges: GitFileChange[], fromHash: string, toHash: string): void;
+  updateReviewedFiles(repo: string, commitHash: string, reviewedFiles: readonly string[]): void;
   loadAvatar(email: string, image: string): void;
   loadBranches(branches: string[], head: string | null, hard: boolean, isRepo: boolean): void;
   loadCommits(
@@ -92,7 +97,7 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       } else {
         try {
           const fileTree = generateGitFileTree(msg.commitDetails.fileChanges);
-          gitKeizu.showCommitDetails(msg.commitDetails, fileTree);
+          gitKeizu.showCommitDetails(msg.commitDetails, fileTree, msg.reviewedFiles ?? []);
         } catch (error: unknown) {
           gitKeizu.hideCommitDetails();
           showErrorDialog(
@@ -101,6 +106,13 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
             null
           );
         }
+      }
+      break;
+    case "fileReviewed":
+      if (msg.status !== null) {
+        showErrorDialog(t("error.setFileReviewed"), msg.status, null);
+      } else {
+        gitKeizu.updateReviewedFiles(msg.repo, msg.commitHash, msg.reviewedFiles);
       }
       break;
     case "compareCommits":

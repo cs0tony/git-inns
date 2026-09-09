@@ -31,6 +31,8 @@ const mocks = vi.hoisted(() => ({
   repoFileWatcherStart: vi.fn(),
   repoFileWatcherStop: vi.fn(),
   addTag: vi.fn(),
+  commitDetails: vi.fn(),
+  getUncommittedDetails: vi.fn(),
   resolveRefToHash: vi.fn(),
   reveal: vi.fn(),
   panelDisposeHandler: null as (() => void) | null,
@@ -4307,5 +4309,229 @@ describe("GitKeizuView createOrShow reveal persists lastActiveRepo (S23)", () =>
     expect(mockSetLastActiveRepo.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.reveal.mock.invocationCallOrder[0]
     );
+  });
+});
+
+describe("GitKeizuView reviewed-file message routing", () => {
+  const COMMIT_HASH = "abc1234567890abcdef1234567890abcdef123456";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.messageHandler.current = null;
+    GitKeizuView.currentPanel = undefined;
+
+    mocks.getRepos.mockReturnValue({ [TEST_REPO]: "Test Repo" });
+    mocks.executeCommand.mockResolvedValue(undefined);
+
+    const mockDataSource = {
+      commitDetails: mocks.commitDetails,
+      getUncommittedDetails: mocks.getUncommittedDetails
+    } as unknown as DataSource;
+
+    const mockAvatarManager = {
+      registerView: vi.fn(),
+      deregisterView: vi.fn()
+    } as unknown as AvatarManager;
+
+    const mockRepoManager = {
+      getRepos: mocks.getRepos,
+      registerViewCallback: vi.fn(),
+      deregisterViewCallback: vi.fn(),
+      setRepoState: vi.fn(),
+      checkReposExist: vi.fn()
+    } as unknown as RepoManager;
+
+    GitKeizuView.createOrShow(
+      "/test/extension",
+      mockDataSource,
+      createReviewedStateMock(),
+      mockAvatarManager,
+      mockRepoManager
+    );
+  });
+
+  afterEach(() => {
+    GitKeizuView.currentPanel?.dispose();
+    GitKeizuView.currentPanel = undefined;
+  });
+
+  function createReviewedStateMock(reviewedFiles: string[] = []) {
+    return {
+      getLastActiveRepo: vi.fn(() => null),
+      getReviewedFiles: vi.fn(() => reviewedFiles),
+      setFileReviewed: vi.fn(async () => true),
+      isAvatarStorageAvailable: vi.fn(() => false),
+      waitForAvatarStorage: vi.fn().mockResolvedValue(undefined),
+      setLastActiveRepo: vi.fn()
+    } as unknown as ExtensionState;
+  }
+
+  it("includes persisted reviewed files with normal commit details", async () => {
+    const extensionState = createReviewedStateMock([
+      "src/already-reviewed.ts",
+      "src/reviewed.ts"
+    ]);
+    GitKeizuView.currentPanel?.dispose();
+    GitKeizuView.currentPanel = undefined;
+    mocks.messageHandler.current = null;
+    GitKeizuView.createOrShow(
+      "/test/extension",
+      {
+        commitDetails: mocks.commitDetails,
+        getUncommittedDetails: mocks.getUncommittedDetails
+      } as unknown as DataSource,
+      extensionState,
+      {
+        registerView: vi.fn(),
+        deregisterView: vi.fn()
+      } as unknown as AvatarManager,
+      {
+        getRepos: mocks.getRepos,
+        registerViewCallback: vi.fn(),
+        deregisterViewCallback: vi.fn(),
+        setRepoState: vi.fn(),
+        checkReposExist: vi.fn()
+      } as unknown as RepoManager
+    );
+    mocks.commitDetails.mockResolvedValue(null);
+
+    await mocks.messageHandler.current!({
+      command: "commitDetails",
+      repo: TEST_REPO,
+      commitHash: COMMIT_HASH,
+      hasParents: true,
+      isStash: false
+    });
+
+    expect(mocks.commitDetails).toHaveBeenCalledWith(
+      TEST_REPO,
+      COMMIT_HASH,
+      true,
+      false
+    );
+    expect(sentMessages("commitDetails")).toEqual([
+      {
+        command: "commitDetails",
+        commitDetails: null,
+        reviewedFiles: ["src/already-reviewed.ts", "src/reviewed.ts"]
+      }
+    ]);
+  });
+
+  it("omits reviewed files for uncommitted details", async () => {
+    mocks.getUncommittedDetails.mockResolvedValue(null);
+
+    await mocks.messageHandler.current!({
+      command: "commitDetails",
+      repo: TEST_REPO,
+      commitHash: "*",
+      hasParents: false,
+      isStash: false
+    });
+
+    const response = sentMessages("commitDetails")[0] as Record<string, unknown>;
+    expect(mocks.getUncommittedDetails).toHaveBeenCalledWith(TEST_REPO);
+    expect("reviewedFiles" in response).toBe(false);
+  });
+
+  it("persists a reviewed-file change and returns the updated sorted list without refreshing", async () => {
+    const extensionState = createReviewedStateMock();
+    GitKeizuView.currentPanel?.dispose();
+    GitKeizuView.currentPanel = undefined;
+    mocks.messageHandler.current = null;
+    const mockRepoManager = {
+      getRepos: mocks.getRepos,
+      registerViewCallback: vi.fn(),
+      deregisterViewCallback: vi.fn(),
+      setRepoState: vi.fn(),
+      checkReposExist: vi.fn()
+    } as unknown as RepoManager;
+
+    GitKeizuView.createOrShow(
+      "/test/extension",
+      {
+        commitDetails: mocks.commitDetails,
+        getUncommittedDetails: mocks.getUncommittedDetails
+      } as unknown as DataSource,
+      extensionState,
+      {
+        registerView: vi.fn(),
+        deregisterView: vi.fn()
+      } as unknown as AvatarManager,
+      mockRepoManager
+    );
+    (extensionState.getReviewedFiles as ReturnType<typeof vi.fn>).mockReturnValue([
+      "src/a.ts",
+      "src/new-file.ts",
+      "src/z.ts"
+    ]);
+
+    await mocks.messageHandler.current!({
+      command: "setFileReviewed",
+      repo: TEST_REPO,
+      commitHash: COMMIT_HASH,
+      filePath: "src/new-file.ts",
+      reviewed: true
+    });
+
+    expect(extensionState.setFileReviewed).toHaveBeenCalledWith(
+      TEST_REPO,
+      COMMIT_HASH,
+      "src/new-file.ts",
+      true
+    );
+    expect(sentMessages("fileReviewed")).toEqual([
+      {
+        command: "fileReviewed",
+        repo: TEST_REPO,
+        commitHash: COMMIT_HASH,
+        filePath: "src/new-file.ts",
+        reviewed: true,
+        reviewedFiles: ["src/a.ts", "src/new-file.ts", "src/z.ts"],
+        status: null
+      }
+    ]);
+    expect(mocks.getCommits).not.toHaveBeenCalled();
+  });
+
+  it("returns a nonempty status when reviewed-file persistence fails", async () => {
+    const extensionState = createReviewedStateMock();
+    GitKeizuView.currentPanel?.dispose();
+    GitKeizuView.currentPanel = undefined;
+    mocks.messageHandler.current = null;
+    const mockRepoManager = {
+      getRepos: mocks.getRepos,
+      registerViewCallback: vi.fn(),
+      deregisterViewCallback: vi.fn(),
+      setRepoState: vi.fn(),
+      checkReposExist: vi.fn()
+    } as unknown as RepoManager;
+
+    GitKeizuView.createOrShow(
+      "/test/extension",
+      {
+        commitDetails: mocks.commitDetails,
+        getUncommittedDetails: mocks.getUncommittedDetails
+      } as unknown as DataSource,
+      extensionState,
+      {
+        registerView: vi.fn(),
+        deregisterView: vi.fn()
+      } as unknown as AvatarManager,
+      mockRepoManager
+    );
+    (extensionState.setFileReviewed as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+
+    await mocks.messageHandler.current!({
+      command: "setFileReviewed",
+      repo: TEST_REPO,
+      commitHash: COMMIT_HASH,
+      filePath: "../outside.ts",
+      reviewed: true
+    });
+
+    const response = sentMessages("fileReviewed")[0] as { status: string };
+    expect(response.status).not.toBe("");
+    expect(mocks.getCommits).not.toHaveBeenCalled();
   });
 });

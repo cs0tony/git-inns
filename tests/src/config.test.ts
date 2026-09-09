@@ -1138,6 +1138,8 @@ describe("contextMenuActionsVisibility", () => {
 
     // Then: all actions use their visible default
     expect(result.file).toEqual({
+      "file.markNotReviewed": true,
+      "file.markReviewed": true,
       "file.openFile": true,
       "file.resetToRevision": true
     });

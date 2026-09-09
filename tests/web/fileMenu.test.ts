@@ -10,6 +10,7 @@ vi.mock("../../web/dialogs", () => ({
 }));
 
 import { recordRecentAction } from "../../web/contextMenu";
+import { filterContextMenuItems } from "../../web/contextMenuVisibility";
 import { showConfirmationDialog } from "../../web/dialogs";
 import { buildFileContextMenuItems, resolveFileRow, sendOpenFileAction } from "../../web/fileMenu";
 import { vscode } from "../../web/utils";
@@ -23,6 +24,8 @@ const COMMIT_HASH = "abc123def456";
 
 (globalThis as Record<string, unknown>).webviewMessages = {
   ...((globalThis as Record<string, unknown>).webviewMessages as Record<string, string>),
+  "context.markReviewed": "Mark as Reviewed",
+  "context.markNotReviewed": "Mark as Not Reviewed",
   "context.resetFile": "Reset File to Revision..."
 };
 
@@ -41,7 +44,7 @@ function makeFileRow(dataset: Record<string, string> = {}, type = "M"): HTMLElem
 }
 
 function makeExpandedCommit(hash = COMMIT_HASH) {
-  return { hash };
+  return { hash, compareWithHash: null, reviewedFiles: [] };
 }
 
 function findMenuItem(items: ContextMenuElement[], title: string): ContextMenuItem {
@@ -177,10 +180,11 @@ describe("buildFileContextMenuItems", () => {
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
     // Then: both file actions are present
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(items[0]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
-    expect(items[1]!.title).toBe("Reset File to Revision...");
+    expect(items[1]!.title).toBe("Mark as Reviewed");
+    expect(items[2]!.title).toBe("Reset File to Revision...");
   });
 
   // TC-008: deleted file row でも both file actions を返す
@@ -193,8 +197,9 @@ describe("buildFileContextMenuItems", () => {
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
     // Then: still returns both items
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(findMenuItem(items, "Open File")).toBeDefined();
+    expect(findMenuItem(items, "Mark as Reviewed")).toBeDefined();
     expect(findMenuItem(items, "Reset File to Revision...")).toBeDefined();
   });
 
@@ -260,7 +265,7 @@ describe("buildFileContextMenuItems recent action metadata (S3)", () => {
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
     // Then: the Open File item is recent-enabled with file.openFile
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(items[0]!.recentActionId).toBe("file.openFile");
   });
 
@@ -348,5 +353,83 @@ describe("Reset File to Revision menu action", () => {
     findMenuItem(items, "Reset File to Revision...").onClick();
 
     expect(vscode.postMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("reviewed file context action", () => {
+  beforeEach(() => {
+    vi.mocked(vscode.postMessage).mockClear();
+  });
+
+  it("sends the unreviewed file path when marking a single-commit file", () => {
+    const row = makeFileRow({ newfilepath: encodeURIComponent("src/file.ts") });
+    const commit = makeExpandedCommit();
+
+    const items = buildFileContextMenuItems(row, commit, TEST_REPO);
+    const reviewedItem = findMenuItem(items, "Mark as Reviewed");
+    expect(reviewedItem.actionId).toBe("file.markReviewed");
+
+    reviewedItem.onClick();
+
+    expect(vscode.postMessage).toHaveBeenCalledWith({
+      command: "setFileReviewed",
+      repo: TEST_REPO,
+      commitHash: COMMIT_HASH,
+      filePath: "src/file.ts",
+      reviewed: true
+    });
+  });
+
+  it("offers not-reviewed when the file is already reviewed", () => {
+    const row = makeFileRow({ newfilepath: encodeURIComponent("src/file.ts") });
+    const commit = { ...makeExpandedCommit(), reviewedFiles: ["src/file.ts"] };
+
+    const item = findMenuItem(buildFileContextMenuItems(row, commit, TEST_REPO), "Mark as Not Reviewed");
+    item.onClick();
+
+    expect(vscode.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewed: false })
+    );
+  });
+
+  it("does not offer review actions for comparison mode or uncommitted changes", () => {
+    const row = makeFileRow({ newfilepath: encodeURIComponent("src/file.ts") });
+
+    const compareItems = buildFileContextMenuItems(
+      row,
+      { ...makeExpandedCommit(), compareWithHash: "bbb222" },
+      TEST_REPO
+    );
+    expect(compareItems.find((item) => item?.title === "Mark as Reviewed")).toBeUndefined();
+
+    const uncommittedItems = buildFileContextMenuItems(
+      row,
+      { ...makeExpandedCommit("*") },
+      TEST_REPO
+    );
+    expect(uncommittedItems.find((item) => item?.title === "Mark as Reviewed")).toBeUndefined();
+  });
+
+  it("honors the persisted context-menu visibility setting", () => {
+    const row = makeFileRow({ newfilepath: encodeURIComponent("src/file.ts") });
+    const items = buildFileContextMenuItems(
+      row,
+      { ...makeExpandedCommit(), reviewedFiles: ["src/file.ts"] },
+      TEST_REPO
+    );
+    const visible = filterContextMenuItems(items, "file", {
+      branch: {},
+      commit: {},
+      file: { "file.markReviewed": false },
+      remoteBranch: {},
+      stash: {},
+      tag: {},
+      uncommitted: {}
+    });
+
+    expect(visible.find((item) => item?.title === "Mark as Reviewed")).toBeUndefined();
+    expect(visible.some((item) => item?.actionId === "file.markNotReviewed")).toBe(true);
+    expect(visible.some((item) => item?.actionId === "file.markReviewed")).toBe(false);
+    expect(findMenuItem(visible, "Open File")).toBeDefined();
   });
 });

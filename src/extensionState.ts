@@ -9,9 +9,10 @@ import {
   GitRepoSet,
   GitRepoState,
   RecentActionId,
-  RepositorySettingsIssueLinks
+  RepositorySettingsIssueLinks,
+  ReviewedFilesByRepo
 } from "./types";
-import { getPathFromStr } from "./utils";
+import { getPathFromStr, isValidCommitHash } from "./utils";
 
 const AVATAR_STORAGE_FOLDER = "avatars";
 const AVATAR_CACHE = "avatarCache";
@@ -19,6 +20,7 @@ const LAST_ACTIVE_REPO = "lastActiveRepo";
 const REPO_STATES = "repoStates";
 const REPOSITORY_SETTINGS_ISSUE_LINKS = "repositorySettingsIssueLinks";
 const MAX_RECENT_ACTIONS = 5;
+const REVIEWED_FILES = "reviewedFiles";
 const EMPTY_ISSUE_LINKS: RepositorySettingsIssueLinks = {
   enabled: false,
   regex: "",
@@ -95,6 +97,59 @@ export class ExtensionState {
     this.workspaceState.update(REPOSITORY_SETTINGS_ISSUE_LINKS, settings);
   }
 
+  /* Reviewed Files */
+  public getReviewedFiles(repo: string, commitHash: string): string[] {
+    if (repo === "" || !isValidCommitHash(commitHash)) return [];
+
+    const reviewedFiles = this.readReviewedFiles()[repo]?.[commitHash];
+    return reviewedFiles === undefined ? [] : normalizeReviewedFilePaths(reviewedFiles);
+  }
+
+  public async setFileReviewed(
+    repo: string,
+    commitHash: string,
+    filePath: string,
+    reviewed: boolean
+  ): Promise<boolean> {
+    if (repo === "" || !isValidCommitHash(commitHash)) return false;
+
+    const normalizedPath = normalizeReviewedFilePath(filePath);
+    if (normalizedPath === null) return false;
+
+    const reviewedFiles = this.readReviewedFiles();
+    const commits = { ...reviewedFiles[repo] };
+    const currentFiles = normalizeReviewedFilePaths(commits[commitHash] ?? []);
+    const currentSet = new Set(currentFiles);
+    const isChanged = reviewed ? !currentSet.has(normalizedPath) : currentSet.has(normalizedPath);
+
+    if (isChanged) {
+      if (reviewed) {
+        currentSet.add(normalizedPath);
+      } else {
+        currentSet.delete(normalizedPath);
+      }
+    }
+
+    if (currentSet.size === 0) {
+      delete commits[commitHash];
+    } else {
+      commits[commitHash] = [...currentSet].sort((a, b) => a.localeCompare(b));
+    }
+
+    if (Object.keys(commits).length === 0) {
+      delete reviewedFiles[repo];
+    } else {
+      reviewedFiles[repo] = commits;
+    }
+
+    try {
+      await this.workspaceState.update(REVIEWED_FILES, reviewedFiles);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /* Avatars */
   public waitForAvatarStorage(): Promise<void> {
     return this.avatarStorageInit;
@@ -127,6 +182,10 @@ export class ExtensionState {
     } catch {
       // Directory may not exist; nothing to clean up
     }
+  }
+
+  private readReviewedFiles(): ReviewedFilesByRepo {
+    return readReviewedFileMap(this.workspaceState.get<ReviewedFilesByRepo>(REVIEWED_FILES, {}));
   }
 
   private normalizeRepoSet(gitRepoSet: GitRepoSet): GitRepoSet {
@@ -201,4 +260,54 @@ function normalizeIssueLinks(value: unknown): RepositorySettingsIssueLinks {
     regex: typeof settings.regex === "string" ? settings.regex : "",
     urlTemplate: typeof settings.urlTemplate === "string" ? settings.urlTemplate : ""
   };
+}
+
+function readReviewedFileMap(value: unknown): ReviewedFilesByRepo {
+  if (typeof value !== "object" || value === null) return {};
+  return value as ReviewedFilesByRepo;
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint === undefined || codePoint < 32 || codePoint === 127) return true;
+  }
+  return false;
+}
+
+function normalizeReviewedFilePath(filePath: string): string | null {
+  const normalizedPath = getPathFromStr(filePath);
+  if (
+    normalizedPath === "" ||
+    normalizedPath.startsWith("/") ||
+    normalizedPath.endsWith("/") ||
+    /^[a-z]:/i.test(normalizedPath) ||
+    normalizedPath === "." ||
+    normalizedPath.includes("//") ||
+    hasControlCharacter(normalizedPath)
+  ) {
+    return null;
+  }
+
+  const segments = normalizedPath.split("/");
+  if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    return null;
+  }
+
+  return normalizedPath;
+}
+
+function normalizeReviewedFilePaths(filePaths: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const normalizedPaths: string[] = [];
+
+  for (const filePath of filePaths) {
+    if (typeof filePath !== "string") continue;
+    const normalizedPath = normalizeReviewedFilePath(filePath);
+    if (normalizedPath === null || seen.has(normalizedPath)) continue;
+    seen.add(normalizedPath);
+    normalizedPaths.push(normalizedPath);
+  }
+
+  return normalizedPaths.sort((a, b) => a.localeCompare(b));
 }

@@ -101,6 +101,8 @@ export type ContextMenuActionId =
   | "commit.drop"
   | "commit.exportArchive"
   | "commit.revert"
+  | "file.markReviewed"
+  | "file.markNotReviewed"
   | "file.resetToRevision"
   | "ref.copyName"
   | "ref.copyWorktreePath"
@@ -135,6 +137,8 @@ export type ContextMenuActionsVisibility = Readonly<
 >;
 
 export type GitRepoSet = { [repo: string]: GitRepoState };
+export type ReviewedFilesByCommit = Record<string, string[]>;
+export type ReviewedFilesByRepo = Record<string, ReviewedFilesByCommit>;
 export interface GitRepoState {
   columnWidths: number[] | null;
   commitOrdering?: RepoCommitOrdering;
@@ -376,6 +380,24 @@ export interface RequestCommitDetails {
 export interface ResponseCommitDetails {
   command: "commitDetails";
   commitDetails: GitCommitDetails | null;
+  reviewedFiles?: string[];
+}
+
+export interface RequestSetFileReviewed {
+  command: "setFileReviewed";
+  repo: string;
+  commitHash: string;
+  filePath: string;
+  reviewed: boolean;
+}
+export interface ResponseFileReviewed {
+  command: "fileReviewed";
+  repo: string;
+  commitHash: string;
+  filePath: string;
+  reviewed: boolean;
+  reviewedFiles: string[];
+  status: GitCommandStatus;
 }
 
 export interface RequestCopyToClipboard {
@@ -901,6 +923,7 @@ export type RequestMessage =
   | RequestResetToCommit
   | RequestResetFileToRevision
   | RequestResetUncommitted
+  | RequestSetFileReviewed
   | RequestRevealWorktreeInOS
   | RequestRevertCommit
   | RequestSaveRepoState
@@ -948,6 +971,7 @@ export type ResponseMessage =
   | ResponseRemoveWorktree
   | ResponseSelectRepo
   | ResponseSetShowRecentActions
+  | ResponseFileReviewed
   | ResponseRenameBranch
   | ResponseResetToCommit
   | ResponseResetFileToRevision

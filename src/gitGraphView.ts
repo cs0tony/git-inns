@@ -247,9 +247,8 @@ export class GitKeizuView {
               });
               break;
             case "commitDetails":
-              this.sendMessage({
-                command: "commitDetails",
-                commitDetails:
+              {
+                const commitDetails =
                   msg.commitHash === UNCOMMITTED_CHANGES_HASH
                     ? await this.dataSource.getUncommittedDetails(msg.repo)
                     : await this.dataSource.commitDetails(
@@ -257,9 +256,39 @@ export class GitKeizuView {
                         msg.commitHash,
                         msg.hasParents,
                         msg.isStash
-                      )
+                      );
+                this.sendMessage({
+                  command: "commitDetails",
+                  commitDetails,
+                  ...(msg.commitHash === UNCOMMITTED_CHANGES_HASH
+                    ? {}
+                    : {
+                        reviewedFiles: this.extensionState.getReviewedFiles(
+                          msg.repo,
+                          msg.commitHash
+                        )
+                      })
+                });
+              }
+              break;
+            case "setFileReviewed": {
+              const success = await this.extensionState.setFileReviewed(
+                msg.repo,
+                msg.commitHash,
+                msg.filePath,
+                msg.reviewed
+              );
+              this.sendMessage({
+                command: "fileReviewed",
+                repo: msg.repo,
+                commitHash: msg.commitHash,
+                filePath: msg.filePath,
+                reviewed: msg.reviewed,
+                reviewedFiles: this.extensionState.getReviewedFiles(msg.repo, msg.commitHash),
+                status: success ? null : "Unable to update reviewed file status."
               });
               break;
+            }
             case "compareCommits":
               this.sendMessage({
                 command: "compareCommits",

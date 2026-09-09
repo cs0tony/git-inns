@@ -1,7 +1,7 @@
 import { recordRecentAction } from "./contextMenu";
 import { showConfirmationDialog } from "./dialogs";
 import { t } from "./i18n";
-import { abbrevCommit, escapeHtml, sendMessage } from "./utils";
+import { abbrevCommit, escapeHtml, sendMessage, UNCOMMITTED_CHANGES_HASH } from "./utils";
 
 /** CSS selector for file row elements in both tree and list views. */
 const GIT_FILE_SELECTOR = ".gitFile";
@@ -11,6 +11,12 @@ const DATASET_NEW_FILE_PATH_KEY = "newfilepath";
 
 /** Label for the Open File context menu item. */
 const OPEN_FILE_LABEL = t("context.openFile");
+
+interface FileMenuExpandedCommit {
+  hash: string;
+  compareWithHash?: string | null;
+  reviewedFiles?: readonly string[];
+}
 
 /**
  * Resolve the closest `.gitFile` ancestor from a DOM target.
@@ -48,13 +54,34 @@ export function sendOpenFileAction(
  */
 export function buildFileContextMenuItems(
   fileRow: HTMLElement | null,
-  expandedCommit: { hash: string } | null,
+  expandedCommit: FileMenuExpandedCommit | null,
   repo: string | null
 ): ContextMenuElement[] {
   if (fileRow === null || expandedCommit === null || repo === null) return [];
   const encodedPath = fileRow.dataset[DATASET_NEW_FILE_PATH_KEY];
   if (encodedPath === undefined) return [];
   const filePath = decodeURIComponent(encodedPath);
+  const canSetReviewed =
+    expandedCommit.hash !== UNCOMMITTED_CHANGES_HASH &&
+    expandedCommit.compareWithHash === null;
+  const isReviewed = expandedCommit.reviewedFiles?.includes(filePath) === true;
+
+  const reviewedMenuItem: ContextMenuItem | null = canSetReviewed
+    ? {
+        title: isReviewed ? t("context.markNotReviewed") : t("context.markReviewed"),
+        actionId: isReviewed ? "file.markNotReviewed" : "file.markReviewed",
+        onClick: () => {
+          sendMessage({
+            command: "setFileReviewed",
+            repo,
+            commitHash: expandedCommit.hash,
+            filePath,
+            reviewed: !isReviewed
+          });
+        }
+      }
+    : null;
+
   return [
     {
       title: OPEN_FILE_LABEL,
@@ -65,6 +92,7 @@ export function buildFileContextMenuItems(
         sendOpenFileAction(fileRow, expandedCommit, repo);
       }
     },
+    reviewedMenuItem,
     {
       title: t("context.resetFile"),
       actionId: "file.resetToRevision",

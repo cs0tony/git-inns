@@ -6077,6 +6077,8 @@ describe("file row context menu handler", () => {
     dropdownCallCount = 0;
     setupTestDOM();
     setupViewState();
+    const webviewMessages = globalThis.webviewMessages as Record<string, string>;
+    webviewMessages["context.resetFile"] = "Reset File to Revision...";
 
     const utilsMod = await import("../../web/utils");
     liveVscode = utilsMod.vscode;
@@ -6131,7 +6133,7 @@ describe("file row context menu handler", () => {
     '<table><tr class="gitFile D" data-oldfilepath="src%2Fdeleted.ts" data-newfilepath="src%2Fdeleted.ts" data-type="D"><td></td></tr></table>';
 
   // TC-207: tree 表示の .gitFile 行を右クリックで showContextMenu が呼ばれる
-  it("shows context menu with single 'Open File' item on tree row right click (TC-207)", () => {
+  it("shows context menu with 'Open File' and 'Reset File to Revision' on tree row right click (TC-207)", () => {
     // Given: a commit is expanded with a tree view file list
     expandCommitWithFiles(COMMIT_HASH_1, TREE_FILE_HTML);
 
@@ -6140,19 +6142,21 @@ describe("file row context menu handler", () => {
     expect(fileRow).not.toBeNull();
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
-    // Then: showContextMenu is called with 1 item titled "Open File"
+    // Then: showContextMenu is called with the two-action file menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(1);
+    expect(items).toHaveLength(2);
     expect(items[0]).not.toBeNull();
+    expect(items[1]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
+    expect(items[1]!.title).toBe("Reset File to Revision...");
     // sourceElem is the .gitFile row
     const sourceElem = vi.mocked(liveShowContextMenu).mock.calls[0][2];
     expect(sourceElem).toBe(fileRow);
   });
 
   // TC-208: list 表示の .gitFile 行を右クリックでも同じ menu が出る
-  it("shows context menu with single 'Open File' item on list row right click (TC-208)", () => {
+  it("shows context menu with 'Open File' and 'Reset File to Revision' on list row right click (TC-208)", () => {
     // Given: a commit is expanded with a list view file list
     expandCommitWithFiles(COMMIT_HASH_1, LIST_FILE_HTML);
 
@@ -6161,11 +6165,14 @@ describe("file row context menu handler", () => {
     expect(fileRow).not.toBeNull();
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
-    // Then: showContextMenu is called with the same single-item menu
+    // Then: showContextMenu is called with the same two-action menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(1);
+    expect(items).toHaveLength(2);
+    expect(items[0]).not.toBeNull();
+    expect(items[1]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
+    expect(items[1]!.title).toBe("Reset File to Revision...");
   });
 
   // TC-209: right click 時に preventDefault/stopPropagation が適用され viewDiff が送られない
@@ -6184,7 +6191,7 @@ describe("file row context menu handler", () => {
     );
   });
 
-  // TC-210: deleted file row でも showContextMenu が呼ばれ items は 1 件
+  // TC-210: deleted file row でも showContextMenu が呼ばれ items は 2 件
   it("shows context menu for deleted file row without openFile icon (TC-210)", () => {
     // Given: a commit is expanded with a deleted file row (no .openFile icon)
     expandCommitWithFiles(COMMIT_HASH_1, DELETED_FILE_HTML);
@@ -6194,11 +6201,14 @@ describe("file row context menu handler", () => {
     expect(fileRow).not.toBeNull();
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
-    // Then: showContextMenu is still called with 1 item
+    // Then: showContextMenu is still called with the two-action menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(1);
+    expect(items).toHaveLength(2);
+    expect(items[0]).not.toBeNull();
+    expect(items[1]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
+    expect(items[1]!.title).toBe("Reset File to Revision...");
   });
 
   // TC-211: menu item の onClick で openFile payload が送られ viewDiff は送られない
@@ -6254,8 +6264,8 @@ describe("file row context menu handler", () => {
     );
   });
 
-  // TC-213: items が Open File のみで divider や追加 action を含まない
-  it("menu items contain only 'Open File' with no dividers or extras (TC-213)", () => {
+  // TC-213: items が Open File と Reset File to Revision で divider や他 action を含まない
+  it("menu items contain 'Open File' and 'Reset File to Revision' with no dividers or extras (TC-213)", () => {
     // Given: a valid file row with expanded commit
     expandCommitWithFiles(COMMIT_HASH_1, TREE_FILE_HTML);
 
@@ -6264,11 +6274,12 @@ describe("file row context menu handler", () => {
     expect(fileRow).not.toBeNull();
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
-    // Then: items array has exactly 1 non-null element and no dividers
+    // Then: items array has exactly 2 non-null actions and no dividers
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(1);
+    expect(items).toHaveLength(2);
     expect(items.every((item) => item !== null)).toBe(true);
     expect(items[0]!.title).toBe("Open File");
+    expect(items[1]!.title).toBe("Reset File to Revision...");
   });
 });
 

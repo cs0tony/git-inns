@@ -207,6 +207,26 @@ class Config {
     return this.workspaceConfiguration.get("repository.commits.order", "date");
   }
 
+  public fetchAndPruneTags(): boolean {
+    return this.workspaceConfiguration.get("repository.fetchAndPruneTags", false);
+  }
+
+  public includeCommitsMentionedByReflogs(): boolean {
+    return this.workspaceConfiguration.get("includeCommitsMentionedByReflogs", false);
+  }
+
+  public onlyFollowFirstParent(): boolean {
+    return this.workspaceConfiguration.get("onlyFollowFirstParent", false);
+  }
+
+  public useMailmap(): boolean {
+    return this.workspaceConfiguration.get("useMailmap", false);
+  }
+
+  public showSignatureStatus(): boolean {
+    return this.workspaceConfiguration.get("showSignatureStatus", false);
+  }
+
   public muteCommitsMergeCommits(): boolean {
     return this.workspaceConfiguration.get("repository.commits.mute.mergeCommits", true);
   }

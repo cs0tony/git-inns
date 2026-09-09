@@ -532,6 +532,33 @@ export class GitKeizuView {
                 status: await this.dataSource.fetch(msg.repo)
               });
               break;
+            case "dropCommit":
+              this.sendMessage({
+                command: "dropCommit",
+                status: await this.dataSource.dropCommit(msg.repo, msg.commitHash)
+              });
+              break;
+            case "resetFileToRevision":
+              this.sendMessage({
+                command: "resetFileToRevision",
+                status: await this.dataSource.resetFileToRevision(
+                  msg.repo,
+                  msg.revision,
+                  msg.filePath
+                )
+              });
+              break;
+            case "createArchive":
+              this.sendMessage({
+                command: "createArchive",
+                status: await this.dataSource.createArchive(
+                  msg.repo,
+                  msg.commitHash,
+                  msg.format,
+                  msg.outputPath
+                )
+              });
+              break;
             case "saveRepoState":
               this.repoManager.setRepoState(msg.repo, msg.state);
               break;

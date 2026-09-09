@@ -5,6 +5,7 @@ import { getConfig } from "./config";
 import { DEFAULT_GIT_PATH, resolveGitExecutable } from "./gitExecutable";
 import { isSafeRemoteName, isValidRefName } from "./refValidation";
 import {
+  ArchiveFormat,
   CheckoutBranchResult,
   CommitOrdering,
   GitCommandStatus,
@@ -15,6 +16,7 @@ import {
   GitFileChangeType,
   GitRefData,
   GitResetMode,
+  GitSignatureStatus,
   GitStash,
   GitUnsavedChanges,
   PushPreparation,
@@ -33,6 +35,8 @@ const REGEX_META_CHARS = /[.*+?^${}()|[\]\\]/g;
 const gitLogSeparator = "XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb";
 const NO_QUOTE_PATH_CONFIG = ["-c", "core.quotePath=false"];
 const LOG_FORMAT_FIELD_COUNT = 6;
+const SIGNATURE_FIELD_COUNT = 6;
+const COMMIT_DETAILS_FIELD_COUNT = 7;
 const STASH_FORMAT_FIELD_COUNT = 7;
 const STASH_SHOW_INCLUDE_UNTRACKED_OPTION = "-u";
 const DIFF_FILTER_AMDR_OPTION = "--diff-filter=AMDR";
@@ -104,6 +108,15 @@ function isRefNameSafe(refName: string): boolean {
 
 const VALID_RESET_MODES = new Set(["soft", "mixed", "hard"]);
 
+const ARCHIVE_FORMAT_EXTENSIONS: Readonly<Record<ArchiveFormat, string>> = {
+  zip: ".zip",
+  tar: ".tar",
+  "tar.gz": ".tar.gz"
+};
+const INVALID_ARCHIVE_PATH_MESSAGE = "Invalid archive output path.";
+const INVALID_FILE_PATH_MESSAGE = "Invalid file path.";
+const INVALID_REVISION_MESSAGE = "Invalid revision.";
+
 function parseGitLogCommits(stdout: string): GitCommit[] {
   const lines = stdout.split(eolRegex);
   const gitCommits: GitCommit[] = [];
@@ -120,6 +133,66 @@ function parseGitLogCommits(stdout: string): GitCommit[] {
     });
   }
   return gitCommits;
+}
+
+export function parseGitSignatureStatus(fields: readonly string[]): GitSignatureStatus | null {
+  if (fields.length < SIGNATURE_FIELD_COUNT) return null;
+  const [status, key, signer, fingerprint, primaryKeyFingerprint, trustLevel] = fields;
+  if (status === "" || status.length !== 1) return null;
+  return {
+    status,
+    key,
+    signer,
+    fingerprint,
+    primaryKeyFingerprint,
+    trustLevel
+  };
+}
+
+function isSafeRepositoryRelativePath(filePath: string): boolean {
+  if (
+    filePath === "" ||
+    filePath.includes("\0") ||
+    filePath.includes("\\") ||
+    path.isAbsolute(filePath)
+  ) {
+    return false;
+  }
+
+  const normalizedPath = path.normalize(filePath);
+  if (normalizedPath === ".." || normalizedPath.startsWith("../")) return false;
+  return normalizedPath.split("/").every((segment) => segment !== ".git");
+}
+
+function isSafeRevision(revision: string): boolean {
+  return isValidCommitHash(revision) || isValidRefName(revision);
+}
+
+function containsUnsafePathCharacters(value: string): boolean {
+  if (value.includes("\0")) return true;
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
+}
+
+function isSafeArchiveOutputPath(repo: string, outputPath: string, format: ArchiveFormat): boolean {
+  if (outputPath === "" || containsUnsafePathCharacters(outputPath) || !path.isAbsolute(outputPath)) {
+    return false;
+  }
+
+  const expectedExtension = ARCHIVE_FORMAT_EXTENSIONS[format];
+  if (!outputPath.toLowerCase().endsWith(expectedExtension)) return false;
+
+  const resolvedOutputPath = path.resolve(outputPath);
+  const resolvedRepoPath = path.resolve(repo);
+  const relativeToRepo = path.relative(resolvedRepoPath, resolvedOutputPath);
+  if (relativeToRepo === "" || (!relativeToRepo.startsWith("..") && !path.isAbsolute(relativeToRepo))) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -150,9 +223,33 @@ export class DataSource {
 
   public generateGitCommandFormats() {
     let dateType = getConfig().dateType() === "Author Date" ? "%at" : "%ct";
-    this.gitLogFormat = ["%H", "%P", "%an", "%ae", dateType, "%s"].join(gitLogSeparator);
-    this.gitStashFormat = ["%H", "%P", "%gD", "%an", "%ae", dateType, "%s"].join(gitLogSeparator);
-    const commitDetailsFields = ["%H", "%P", "%an", "%ae", dateType, "%cn", "%ce"];
+    const config = getConfig();
+    const authorName = config.useMailmap() ? "%aN" : "%an";
+    const authorEmail = config.useMailmap() ? "%aE" : "%ae";
+    const committerName = config.useMailmap() ? "%cN" : "%cn";
+    const committerEmail = config.useMailmap() ? "%cE" : "%ce";
+    this.gitLogFormat = ["%H", "%P", authorName, authorEmail, dateType, "%s"].join(gitLogSeparator);
+    this.gitStashFormat = [
+      "%H",
+      "%P",
+      "%gD",
+      authorName,
+      authorEmail,
+      dateType,
+      "%s"
+    ].join(gitLogSeparator);
+    const commitDetailsFields = [
+      "%H",
+      "%P",
+      authorName,
+      authorEmail,
+      dateType,
+      committerName,
+      committerEmail
+    ];
+    if (config.showSignatureStatus()) {
+      commitDetailsFields.push("%G?", "%GK", "%GS", "%GF", "%GP", "%GT");
+    }
     this.gitCommitDetailsFormat = `${commitDetailsFields.join(gitLogSeparator)}%n%B`;
   }
 
@@ -308,6 +405,7 @@ export class DataSource {
     if (!isValidCommitHash(commitHash)) {
       return null;
     }
+    const parseSignature = getConfig().showSignatureStatus();
     try {
       const nameStatusArgs = this.buildDiffArgs(
         isStash,
@@ -340,7 +438,10 @@ export class DataSource {
               committer: commitInfo[COMMIT_DETAILS_FIELD.COMMITTER],
               committerEmail: commitInfo[COMMIT_DETAILS_FIELD.COMMITTER_EMAIL] ?? "",
               body: lines.slice(1, lastLine + 1).join("\n"),
-              fileChanges: []
+              fileChanges: [],
+              signature: parseSignature
+                ? parseGitSignatureStatus(commitInfo.slice(COMMIT_DETAILS_FIELD_COUNT))
+                : null
             };
           },
           null
@@ -972,6 +1073,56 @@ export class DataSource {
     );
   }
 
+  public async dropCommit(repo: string, commitHash: string): Promise<GitCommandStatus> {
+    if (!isValidCommitHash(commitHash)) {
+      return INVALID_COMMIT_HASH_MESSAGE;
+    }
+
+    const parents = await this.runGitQuery(["rev-list", "--parents", "-1", commitHash], repo);
+    if (parents.kind === "error") {
+      return "Unable to read the commit's parents.";
+    }
+
+    const hashes = parents.stdout.split(eolRegex)[0]?.split(" ").filter(Boolean) ?? [];
+    if (hashes.length !== 2) {
+      return "Only non-merge commits with a parent can be dropped.";
+    }
+
+    return this.runGitCommandSpawn(["rebase", "--onto", `${commitHash}^`, commitHash], repo);
+  }
+
+  public resetFileToRevision(
+    repo: string,
+    revision: string,
+    filePath: string
+  ): Promise<GitCommandStatus> {
+    if (!isSafeRevision(revision)) {
+      return Promise.resolve(INVALID_REVISION_MESSAGE);
+    }
+    if (!isSafeRepositoryRelativePath(filePath)) {
+      return Promise.resolve(INVALID_FILE_PATH_MESSAGE);
+    }
+    return this.runGitCommandSpawn(["checkout", revision, "--", filePath], repo);
+  }
+
+  public createArchive(
+    repo: string,
+    commitHash: string,
+    format: ArchiveFormat,
+    outputPath: string
+  ): Promise<GitCommandStatus> {
+    if (!isValidCommitHash(commitHash)) {
+      return Promise.resolve(INVALID_COMMIT_HASH_MESSAGE);
+    }
+    if (!isSafeArchiveOutputPath(repo, outputPath, format)) {
+      return Promise.resolve(INVALID_ARCHIVE_PATH_MESSAGE);
+    }
+    return this.runGitCommandSpawn(
+      ["archive", `--format=${format}`, `--output=${outputPath}`, commitHash],
+      repo
+    );
+  }
+
   public resetToCommit(repo: string, commitHash: string, resetMode: GitResetMode) {
     if (!isValidCommitHash(commitHash)) {
       return Promise.resolve(INVALID_COMMIT_HASH_MESSAGE);
@@ -1114,7 +1265,9 @@ export class DataSource {
   }
 
   public fetch(repo: string) {
-    return this.runGitCommandSpawn(["fetch", "--all", "--prune"], repo);
+    const args = ["fetch", "--all", "--prune"];
+    if (getConfig().fetchAndPruneTags()) args.push("--prune-tags");
+    return this.runGitCommandSpawn(args, repo);
   }
 
   public getWorktrees(repo: string) {
@@ -1187,12 +1340,15 @@ export class DataSource {
     authors: string[],
     commitOrdering: CommitOrdering
   ) {
+    const config = getConfig();
     const args = [
       "log",
       `--max-count=${num}`,
       `--format=${this.gitLogFormat}`,
       COMMIT_ORDER_FLAGS[commitOrdering]
     ];
+    if (config.onlyFollowFirstParent()) args.push("--first-parent");
+    if (config.includeCommitsMentionedByReflogs() && branches.length === 0) args.push("--reflog");
     for (const author of authors) {
       args.push(`--author=${escapeRegExp(author)}`);
     }

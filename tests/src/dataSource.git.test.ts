@@ -17,7 +17,12 @@ vi.mock("../../src/config", () => ({
   getConfig: vi.fn(() => ({
     gitPath: () => ["git"],
     dateType: () => "Author Date",
-    showUncommittedChanges: () => false
+    showUncommittedChanges: () => false,
+    fetchAndPruneTags: () => false,
+    includeCommitsMentionedByReflogs: () => false,
+    onlyFollowFirstParent: () => false,
+    useMailmap: () => false,
+    showSignatureStatus: () => false
   }))
 }));
 

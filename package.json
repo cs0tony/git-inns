@@ -339,6 +339,31 @@
           "default": false,
           "description": "%config.repository.commits.mute.commitsThatAreNotAncestorsOfHead.description%"
         },
+        "git-keizu.repository.fetchAndPruneTags": {
+          "type": "boolean",
+          "default": false,
+          "description": "Fetch and prune tags in addition to pruning branches."
+        },
+        "git-keizu.includeCommitsMentionedByReflogs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include commits that are only reachable from reflogs when all branches are shown."
+        },
+        "git-keizu.onlyFollowFirstParent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Follow only the first parent when loading commit history."
+        },
+        "git-keizu.useMailmap": {
+          "type": "boolean",
+          "default": false,
+          "description": "Display author and committer names and emails using Git's mailmap."
+        },
+        "git-keizu.showSignatureStatus": {
+          "type": "boolean",
+          "default": false,
+          "description": "Parse and show the commit signature status when loading commit details."
+        },
         "git-keizu.openNewTabEditorGroup": {
           "type": "string",
           "enum": [

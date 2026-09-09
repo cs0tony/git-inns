@@ -15,7 +15,12 @@ vi.mock("../../src/config", () => ({
   getConfig: vi.fn(() => ({
     gitPath: () => ["git"],
     dateType: () => "Author Date",
-    showUncommittedChanges: () => false
+    showUncommittedChanges: () => false,
+    fetchAndPruneTags: () => false,
+    includeCommitsMentionedByReflogs: () => false,
+    onlyFollowFirstParent: () => false,
+    useMailmap: () => false,
+    showSignatureStatus: () => false
   }))
 }));
 
@@ -3763,7 +3768,12 @@ describe("getWorktrees collection and pinned detached commits (S47)", () => {
   const DEFAULT_CONFIG = {
     gitPath: () => ["git"],
     dateType: () => "Author Date",
-    showUncommittedChanges: () => false
+    showUncommittedChanges: () => false,
+    fetchAndPruneTags: () => false,
+    includeCommitsMentionedByReflogs: () => false,
+    onlyFollowFirstParent: () => false,
+    useMailmap: () => false,
+    showSignatureStatus: () => false
   } as unknown as ReturnType<typeof getConfig>;
 
   const BRANCH_AND_DETACHED_PORCELAIN = [
@@ -4214,7 +4224,12 @@ describe("getWorktrees collection and pinned detached commits (S47)", () => {
     vi.mocked(getConfig).mockReturnValue({
       gitPath: () => ["git"],
       dateType: () => "Author Date",
-      showUncommittedChanges: () => true
+      showUncommittedChanges: () => true,
+      fetchAndPruneTags: () => false,
+      includeCommitsMentionedByReflogs: () => false,
+      onlyFollowFirstParent: () => false,
+      useMailmap: () => false,
+      showSignatureStatus: () => false
     } as unknown as ReturnType<typeof getConfig>);
     const stashHash = "eee5555";
     setupDetachedSpawn({

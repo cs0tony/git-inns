@@ -47,6 +47,16 @@ export interface GitCommitDetails {
   committerEmail: string;
   body: string;
   fileChanges: GitFileChange[];
+  signature?: GitSignatureStatus | null;
+}
+
+export interface GitSignatureStatus {
+  status: string;
+  key: string;
+  signer: string;
+  fingerprint: string;
+  primaryKeyFingerprint: string;
+  trustLevel: string;
 }
 
 export interface GitRef {
@@ -184,6 +194,7 @@ export interface WorktreeCollection {
 
 export type CommitOrdering = "date" | "topo" | "author-date";
 export type RepoCommitOrdering = CommitOrdering | "default";
+export type ArchiveFormat = "zip" | "tar" | "tar.gz";
 export type GitResetMode = "soft" | "mixed" | "hard";
 export type GitFileChangeType = "A" | "M" | "D" | "R";
 
@@ -649,6 +660,39 @@ export interface ResponseFetch {
   status: GitCommandStatus;
 }
 
+export interface RequestDropCommit {
+  command: "dropCommit";
+  repo: string;
+  commitHash: string;
+}
+export interface ResponseDropCommit {
+  command: "dropCommit";
+  status: GitCommandStatus;
+}
+
+export interface RequestResetFileToRevision {
+  command: "resetFileToRevision";
+  repo: string;
+  revision: string;
+  filePath: string;
+}
+export interface ResponseResetFileToRevision {
+  command: "resetFileToRevision";
+  status: GitCommandStatus;
+}
+
+export interface RequestCreateArchive {
+  command: "createArchive";
+  repo: string;
+  commitHash: string;
+  format: ArchiveFormat;
+  outputPath: string;
+}
+export interface ResponseCreateArchive {
+  command: "createArchive";
+  status: GitCommandStatus;
+}
+
 export interface RequestPull {
   command: "pull";
   repo: string;
@@ -713,11 +757,13 @@ export type RequestMessage =
   | RequestCommitDetails
   | RequestCreateWorktree
   | RequestCompareCommits
+  | RequestCreateArchive
   | RequestCopyToClipboard
   | RequestCreateBranch
   | RequestDeleteBranch
   | RequestDeleteRemoteBranch
   | RequestDeleteTag
+  | RequestDropCommit
   | RequestDropStash
   | RequestFetch
   | RequestFetchAvatar
@@ -738,6 +784,7 @@ export type RequestMessage =
   | RequestRemoveWorktree
   | RequestRenameBranch
   | RequestResetToCommit
+  | RequestResetFileToRevision
   | RequestResetUncommitted
   | RequestRevealWorktreeInOS
   | RequestRevertCommit
@@ -755,11 +802,13 @@ export type ResponseMessage =
   | ResponseCommitDetails
   | ResponseCreateWorktree
   | ResponseCompareCommits
+  | ResponseCreateArchive
   | ResponseCopyToClipboard
   | ResponseCreateBranch
   | ResponseDeleteBranch
   | ResponseDeleteRemoteBranch
   | ResponseDeleteTag
+  | ResponseDropCommit
   | ResponseDropStash
   | ResponseFetch
   | ResponseFetchAvatar
@@ -783,6 +832,7 @@ export type ResponseMessage =
   | ResponseSetShowRecentActions
   | ResponseRenameBranch
   | ResponseResetToCommit
+  | ResponseResetFileToRevision
   | ResponseResetUncommitted
   | ResponseRevealWorktreeInOS
   | ResponseRevertCommit

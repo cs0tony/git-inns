@@ -76,6 +76,11 @@ describe("Config fallback defaults vs package.json", () => {
         "repository.commits.mute.commitsThatAreNotAncestorsOfHead",
         (c) => c.muteCommitsNotAncestorsOfHead()
       ],
+      ["TC-057a", "repository.fetchAndPruneTags", (c) => c.fetchAndPruneTags()],
+      ["TC-057b", "includeCommitsMentionedByReflogs", (c) => c.includeCommitsMentionedByReflogs()],
+      ["TC-057c", "onlyFollowFirstParent", (c) => c.onlyFollowFirstParent()],
+      ["TC-057d", "useMailmap", (c) => c.useMailmap()],
+      ["TC-057e", "showSignatureStatus", (c) => c.showSignatureStatus()],
       ["TC-058", "dialog.merge.noFastForward", (c) => c.dialogDefaults().merge.noFastForward],
       ["TC-059", "dialog.merge.squashCommits", (c) => c.dialogDefaults().merge.squashCommits],
       ["TC-060", "dialog.merge.noCommit", (c) => c.dialogDefaults().merge.noCommit],

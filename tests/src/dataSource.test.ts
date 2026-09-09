@@ -3,6 +3,8 @@ import { EventEmitter } from "node:events";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const customBranchGlobArgumentsMock = vi.hoisted(() => vi.fn(() => [] as string[]));
+
 vi.mock("vscode", () => ({
   workspace: {
     getConfiguration: vi.fn(() => ({
@@ -12,6 +14,7 @@ vi.mock("vscode", () => ({
 }));
 
 vi.mock("../../src/config", () => ({
+  CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX: "--glob=",
   getConfig: vi.fn(() => ({
     gitPath: () => ["git"],
     dateType: () => "Author Date",
@@ -20,7 +23,8 @@ vi.mock("../../src/config", () => ({
     includeCommitsMentionedByReflogs: () => false,
     onlyFollowFirstParent: () => false,
     useMailmap: () => false,
-    showSignatureStatus: () => false
+    showSignatureStatus: () => false,
+    customBranchGlobArguments: customBranchGlobArgumentsMock
   }))
 }));
 
@@ -3773,7 +3777,8 @@ describe("getWorktrees collection and pinned detached commits (S47)", () => {
     includeCommitsMentionedByReflogs: () => false,
     onlyFollowFirstParent: () => false,
     useMailmap: () => false,
-    showSignatureStatus: () => false
+    showSignatureStatus: () => false,
+    customBranchGlobArguments: () => []
   } as unknown as ReturnType<typeof getConfig>;
 
   const BRANCH_AND_DETACHED_PORCELAIN = [
@@ -4229,7 +4234,8 @@ describe("getWorktrees collection and pinned detached commits (S47)", () => {
       includeCommitsMentionedByReflogs: () => false,
       onlyFollowFirstParent: () => false,
       useMailmap: () => false,
-      showSignatureStatus: () => false
+      showSignatureStatus: () => false,
+      customBranchGlobArguments: () => []
     } as unknown as ReturnType<typeof getConfig>);
     const stashHash = "eee5555";
     setupDetachedSpawn({
@@ -5729,5 +5735,119 @@ describe("renameBranch ref name guard (S40)", () => {
     expect(result).toBeNull();
     expect(spawnMock).toHaveBeenCalledTimes(1);
     expect(spawnMock.mock.calls[0][1]).toEqual(["branch", "-m", "old", "feature/renamed"]);
+  });
+});
+
+describe("getGitLog custom branch glob selection", () => {
+  let ds: DataSource;
+  const spawnMock = vi.mocked(cp.spawn);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    customBranchGlobArgumentsMock.mockReturnValue([]);
+    ds = new DataSource();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function getLogArgs(): string[] {
+    const logCall = spawnMock.mock.calls.find((c) => (c[1] as string[])[0] === "log");
+    expect(logCall).toBeDefined();
+    return logCall![1] as string[];
+  }
+
+  it("passes a validated branch and does not pass a glob when none is configured", async () => {
+    // Given: no custom globs and a selected ordinary branch
+    setupSpawnForCommits({ logOutput: "\n", stashOutput: "" });
+
+    // When: commits are loaded
+    await ds.getCommits(REPO, ["feature/x"], 10, false, [], "date");
+
+    // Then: only the branch is sent and all-branch flags remain inactive
+    const args = getLogArgs();
+    expect(args).toContain("feature/x");
+    expect(args).not.toContain("--glob=refs/heads/feature/*");
+    expect(args).not.toContain("--branches");
+  });
+
+  it("passes an exact configured glob", async () => {
+    // Given: one configured glob is selected
+    customBranchGlobArgumentsMock.mockReturnValue(["--glob=refs/heads/feature/*"]);
+    setupSpawnForCommits({ logOutput: "\n", stashOutput: "" });
+
+    // When: commits are loaded
+    await ds.getCommits(REPO, ["--glob=refs/heads/feature/*"], 10, false, [], "date");
+
+    // Then: the exact argument is sent and all-branch flags remain inactive
+    const args = getLogArgs();
+    expect(args).toContain("--glob=refs/heads/feature/*");
+    expect(args).not.toContain("--branches");
+  });
+
+  it("passes mixed validated branches and configured globs", async () => {
+    // Given: a branch and a configured glob are selected
+    customBranchGlobArgumentsMock.mockReturnValue(["--glob=refs/heads/release/*"]);
+    setupSpawnForCommits({ logOutput: "\n", stashOutput: "" });
+
+    // When: commits are loaded
+    await ds.getCommits(
+      REPO,
+      ["feature/x", "--glob=refs/heads/release/*"],
+      10,
+      false,
+      [],
+      "date"
+    );
+
+    // Then: both exact values are sent in selection order
+    const args = getLogArgs();
+    expect(args).toEqual(expect.arrayContaining(["feature/x", "--glob=refs/heads/release/*"]));
+    expect(args.indexOf("feature/x")).toBeLessThan(args.indexOf("--glob=refs/heads/release/*"));
+    expect(args).not.toContain("--branches");
+  });
+
+  it("rejects unsafe branches and unconfigured or malicious glob values", async () => {
+    // Given: a configured safe glob and a selection containing unsafe values
+    customBranchGlobArgumentsMock.mockReturnValue(["--glob=refs/heads/release/*"]);
+    setupSpawnForCommits({ logOutput: "\n", stashOutput: "" });
+
+    // When: commits are loaded with mixed safe and unsafe values
+    await ds.getCommits(
+      REPO,
+      [
+        "feature/x",
+        "main\0",
+        "--glob=refs/heads/other/*",
+        "--upload-pack=evil",
+        "--glob=refs/heads/release/*"
+      ],
+      10,
+      false,
+      [],
+      "date"
+    );
+
+    // Then: only the valid branch and exact configured glob are sent
+    const args = getLogArgs();
+    expect(args).toEqual(expect.arrayContaining(["feature/x", "--glob=refs/heads/release/*"]));
+    expect(args).not.toContain("main\0");
+    expect(args).not.toContain("--glob=refs/heads/other/*");
+    expect(args).not.toContain("--upload-pack=evil");
+  });
+
+  it("keeps all-branch arguments for an empty selection", async () => {
+    // Given: no branch or glob is selected
+    setupSpawnForCommits({ logOutput: "\n", stashOutput: "" });
+
+    // When: commits are loaded without remotes
+    await ds.getCommits(REPO, [], 10, false, [], "date");
+
+    // Then: branches and tags are activated, but remotes are not
+    const args = getLogArgs();
+    expect(args).toContain("--branches");
+    expect(args).toContain("--tags");
+    expect(args).not.toContain("--remotes");
   });
 });

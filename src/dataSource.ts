@@ -1,7 +1,7 @@
 import * as cp from "node:child_process";
 import * as path from "node:path";
 
-import { getConfig } from "./config";
+import { CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX, getConfig } from "./config";
 import { ExtensionState } from "./extensionState";
 import { DEFAULT_GIT_PATH, resolveGitExecutable } from "./gitExecutable";
 import { isSafeRemoteName, isValidRefName } from "./refValidation";
@@ -1559,6 +1559,13 @@ export class DataSource {
     commitOrdering: CommitOrdering
   ) {
     const config = getConfig();
+    const configuredGlobArguments = new Set(config.customBranchGlobArguments());
+    const validBranches = branches.filter((branch) => {
+      if (branch.startsWith(CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX)) {
+        return configuredGlobArguments.has(branch);
+      }
+      return isValidRefName(branch);
+    });
     const args = [
       "log",
       `--max-count=${num}`,
@@ -1570,11 +1577,13 @@ export class DataSource {
     for (const author of authors) {
       args.push(`--author=${escapeRegExp(author)}`);
     }
-    if (branches.length > 0) {
-      args.push(...branches);
-    } else {
+    if (validBranches.length > 0) {
+      args.push(...validBranches);
+    } else if (branches.length === 0) {
       args.push("--branches", "--tags");
       if (showRemoteBranches) args.push("--remotes");
+    } else {
+      return Promise.resolve<GitCommit[]>([]);
     }
 
     return this.spawnGit<GitCommit[]>(args, repo, parseGitLogCommits, []);

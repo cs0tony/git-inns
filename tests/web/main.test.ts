@@ -990,6 +990,7 @@ function setupViewState(): void {
     repos: { [TEST_REPO]: { columnWidths: null } },
     lastActiveRepo: TEST_REPO,
     dateFormat: "Date & Time",
+    customBranchGlobPatterns: [],
     fetchAvatars: false,
     graphColours: ["#0085d9"],
     graphStyle: "rounded",
@@ -5160,6 +5161,7 @@ function setupViewStateWithOrdering(globalOrdering: string, repoOrdering?: strin
     lastActiveRepo: TEST_REPO,
     commitOrdering: globalOrdering,
     dateFormat: "Date & Time",
+    customBranchGlobPatterns: [],
     fetchAvatars: false,
     graphColours: ["#0085d9"],
     graphStyle: "rounded",
@@ -7266,5 +7268,144 @@ describe("expanded commit restore loading resend (S45)", () => {
       .mocked(liveVscode.postMessage)
       .mock.calls.filter((call) => (call[0] as { command?: string }).command === "commitDetails");
     expect(commitDetailsCalls).toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* S46: custom branch glob filters                                     */
+/* ------------------------------------------------------------------ */
+
+describe("custom branch glob filters (S46)", () => {
+  const GLOB_PATTERN = { name: "Feature", glob: "refs/heads/feature/*" };
+  const GLOB_ARGUMENT = "--glob=refs/heads/feature/*";
+  let liveVscode: typeof vscode;
+
+  async function loadViewWithGlobPatterns(): Promise<void> {
+    vi.resetModules();
+    setupTestDOM();
+    dropdownCallCount = 0;
+    capturedBranchCallback = null;
+    setupViewState();
+    ((globalThis as Record<string, unknown>).viewState as Record<string, unknown>)
+      .customBranchGlobPatterns = [GLOB_PATTERN];
+    vi.mocked(vscode.getState).mockClear();
+    vi.mocked(vscode.getState).mockReturnValue(null);
+    const utils = await import("../../web/utils");
+    liveVscode = utils.vscode;
+    await import("../../web/main");
+  }
+
+  function branchOptions(): { name: string; value: string }[] {
+    const call = mockBranchDropdownInstance.setOptions.mock.calls.at(-1);
+    expect(call).toBeDefined();
+    return call![0] as { name: string; value: string }[];
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(vscode.postMessage).mockClear();
+  });
+
+  it("appends localized glob options after real branch options", async () => {
+    // Given: the webview has one configured custom branch glob
+    await loadViewWithGlobPatterns();
+
+    // When: real branches arrive
+    dispatchMessage({
+      command: "loadBranches",
+      branches: ["main", "develop"],
+      head: "main",
+      hard: false,
+      isRepo: true
+    });
+
+    // Then: the localized glob option is appended after all real branches with an exact Git argument
+    const options = branchOptions();
+    expect(options.slice(-2)).toEqual([
+      { name: "develop", value: "develop" },
+      { name: "Glob: Feature", value: GLOB_ARGUMENT }
+    ]);
+    expect(mockBranchDropdownInstance.setOptions).toHaveBeenCalledWith(options, []);
+  });
+
+  it("keeps a configured glob selected when branches refresh", async () => {
+    // Given: a mixed branch and glob selection has been applied
+    await loadViewWithGlobPatterns();
+    dispatchMessage({
+      command: "loadBranches",
+      branches: ["main", "develop", "new-branch"],
+      head: "main",
+      hard: false,
+      isRepo: true
+    });
+    capturedBranchCallback!(["main", GLOB_ARGUMENT]);
+    dispatchMessage({
+      command: "loadCommits",
+      commits: MOCK_COMMITS,
+      head: COMMIT_HASH_1,
+      moreCommitsAvailable: false,
+      hard: true
+    });
+    const commitRequest = vi
+      .mocked(liveVscode.postMessage)
+      .mock.calls.map((call) => call[0] as Record<string, unknown>)
+      .filter((message) => message.command === "loadCommits")
+      .at(-1);
+    expect(commitRequest?.branches).toEqual(["main", GLOB_ARGUMENT]);
+    vi.clearAllMocks();
+
+    // When: the branch list is refreshed without the glob being a real branch
+    dispatchMessage({ command: "refresh" });
+    dispatchMessage({
+      command: "loadBranches",
+      branches: ["main", "develop"],
+      head: "main",
+      hard: false,
+      isRepo: true
+    });
+
+    // Then: both the real branch and configured glob remain selected
+    expect(mockBranchDropdownInstance.setOptions).toHaveBeenCalledWith(expect.any(Array), [
+      "main",
+      GLOB_ARGUMENT
+    ]);
+  });
+
+  it("drops a glob selection after it is no longer configured", async () => {
+    // Given: a glob was selected while it was configured
+    await loadViewWithGlobPatterns();
+    dispatchMessage({
+      command: "loadBranches",
+      branches: ["main", "new-branch"],
+      head: "main",
+      hard: false,
+      isRepo: true
+    });
+    capturedBranchCallback!([GLOB_ARGUMENT]);
+    dispatchMessage({
+      command: "loadCommits",
+      commits: MOCK_COMMITS,
+      head: COMMIT_HASH_1,
+      moreCommitsAvailable: false,
+      hard: true
+    });
+    vi.clearAllMocks();
+
+    // When: configuration no longer exposes any glob patterns and branches refresh
+    const configuredPatterns = (
+      (globalThis as Record<string, unknown>).viewState as Record<string, unknown>
+    ).customBranchGlobPatterns as unknown[];
+    configuredPatterns.length = 0;
+    dispatchMessage({ command: "refresh" });
+    dispatchMessage({
+      command: "loadBranches",
+      branches: ["main"],
+      head: "main",
+      hard: false,
+      isRepo: true
+    });
+
+    // Then: the stale selection is removed and Show All becomes active
+    expect(mockBranchDropdownInstance.setOptions).toHaveBeenCalledWith(expect.any(Array), []);
   });
 });

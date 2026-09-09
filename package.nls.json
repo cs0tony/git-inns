@@ -7,6 +7,7 @@
   "config.dateFormat.enum.dateOnly": "Show the date only, for example \"19 Mar 2019\"",
   "config.dateFormat.enum.relative": "Show relative times, for example \"5 minutes ago\"",
   "config.dateFormat.description": "Specifies the date format to be used in the date column of Git Keizu.",
+  "config.customBranchGlobPatterns.description": "Custom branch filters shown after real branches in the branch dropdown. Each filter is passed to Git as --glob=<glob> when selected.",
   "config.dateType.enum.authorDate": "Use the author date of a commit",
   "config.dateType.enum.commitDate": "Use the committer date of a commit",
   "config.dateType.description": "Specifies the date type to be displayed throughout Git Keizu.",

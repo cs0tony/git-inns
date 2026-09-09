@@ -675,6 +675,7 @@ export class GitKeizuView {
     await this.extensionState.waitForAvatarStorage();
     const viewState: GitKeizuViewState = {
       commitOrdering: config.commitOrdering(),
+      customBranchGlobPatterns: config.customBranchGlobPatterns(),
       dateFormat: config.dateFormat(),
       dialogDefaults: config.dialogDefaults(),
       fetchAvatars: config.fetchAvatars() && this.extensionState.isAvatarStorageAvailable(),

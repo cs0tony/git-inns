@@ -70,6 +70,11 @@ export interface GitRefData {
   refs: GitRef[];
 }
 
+export interface CustomBranchGlobPattern {
+  readonly name: string;
+  readonly glob: string;
+}
+
 export type RecentActionId =
   | "commit.addTag"
   | "commit.cherryPick"
@@ -137,6 +142,7 @@ export interface DialogDefaults {
 
 export interface GitKeizuViewState {
   commitOrdering: CommitOrdering;
+  customBranchGlobPatterns: CustomBranchGlobPattern[];
   dateFormat: DateFormat;
   dialogDefaults: DialogDefaults;
   fetchAvatars: boolean;

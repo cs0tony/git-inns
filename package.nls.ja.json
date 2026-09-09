@@ -7,6 +7,7 @@
   "config.dateFormat.enum.dateOnly": "日付のみを表示します。例: \"19 Mar 2019\"",
   "config.dateFormat.enum.relative": "相対時刻を表示します。例: \"5 minutes ago\"",
   "config.dateFormat.description": "Git Keizu の日付列で使用する日付形式を指定します。",
+  "config.customBranchGlobPatterns.description": "ブランチドロップダウンの実ブランチの後に表示されるカスタムブランチフィルター。選択すると、各フィルターは --glob=<glob> として Git に渡されます。",
   "config.dateType.enum.authorDate": "コミットの author date を使用します",
   "config.dateType.enum.commitDate": "コミットの committer date を使用します",
   "config.dateType.description": "Git Keizu 全体で表示する日付種別を指定します。",

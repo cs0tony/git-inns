@@ -29,6 +29,7 @@
   "toolbar.allAuthors": "All Authors",
   "toolbar.repos": "Repos",
   "toolbar.branches": "Branches",
+  "toolbar.branchGlob": "Glob: {0}",
   "toolbar.authors": "Authors",
   "toolbar.switchToTreeView": "Switch to Tree View",
   "toolbar.switchToListView": "Switch to List View",

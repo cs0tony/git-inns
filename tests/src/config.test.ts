@@ -23,7 +23,12 @@ vi.mock("vscode", () => ({
   }
 }));
 
-import { getConfig, parseKeybinding } from "../../src/config";
+import {
+  getConfig,
+  isValidBranchGlobPattern,
+  normalizeCustomBranchGlobPatterns,
+  parseKeybinding
+} from "../../src/config";
 
 // S1: parseKeybinding() ショートカット設定値パース
 describe("parseKeybinding", () => {
@@ -985,5 +990,105 @@ describe("gitPath", () => {
 
     // Then: only the string elements remain in input order
     expect(result).toEqual(["/usr/bin/git"]);
+  });
+});
+
+describe("customBranchGlobPatterns", () => {
+  beforeEach(() => {
+    mockGet.mockReset();
+  });
+
+  it("trims and returns valid patterns in configured order", () => {
+    // Given: two unique, nonempty pattern names and globs
+    mockGet.mockImplementation((key: string, defaultValue: unknown) =>
+      key === "customBranchGlobPatterns"
+        ? [
+            { name: " Feature ", glob: " refs/heads/feature/* " },
+            { name: "Release", glob: "refs/heads/release/*" }
+          ]
+        : defaultValue
+    );
+
+    // When: the setting is read
+    const result = getConfig().customBranchGlobPatterns();
+
+    // Then: values are trimmed, typed, and ordered
+    expect(result).toEqual([
+      { name: "Feature", glob: "refs/heads/feature/*" },
+      { name: "Release", glob: "refs/heads/release/*" }
+    ]);
+    expect(getConfig().customBranchGlobArguments()).toEqual([
+      "--glob=refs/heads/feature/*",
+      "--glob=refs/heads/release/*"
+    ]);
+  });
+
+  it("ignores malformed entries and unsafe or empty globs", () => {
+    // Given: entries with wrong shapes, empty values, options, separators, and control characters
+    const value = [
+      null,
+      "release/*",
+      {},
+      { name: 1, glob: "refs/heads/release/*" },
+      { name: "", glob: "refs/heads/release/*" },
+      { name: "Empty", glob: "   " },
+      { name: "Option", glob: "--upload-pack=evil" },
+      { name: "Glob Option", glob: "--glob=refs/heads/release/*" },
+      { name: "Pathspec", glob: ":(top)" },
+      { name: "Whitespace", glob: "refs/heads/release/* extra" },
+      { name: "NUL", glob: "refs/heads/release\0/*" },
+      { name: "Range", glob: "refs/heads/release..main" },
+      { name: "Empty Segment", glob: "refs//heads/release/*" }
+    ];
+    mockGet.mockImplementation((key: string, fallback: unknown) =>
+      key === "customBranchGlobPatterns" ? value : fallback
+    );
+
+    // When: the setting is read
+    const result = getConfig().customBranchGlobPatterns();
+
+    // Then: every malformed or unsafe entry is ignored
+    expect(result).toEqual([]);
+  });
+
+  it("rejects duplicate normalized names and duplicate normalized globs", () => {
+    // Given: two duplicate names and two duplicate globs surround unique entries
+    const value = [
+      { name: "Feature", glob: "refs/heads/feature/*" },
+      { name: " Feature ", glob: "refs/heads/feature-2/*" },
+      { name: "Feature Alias", glob: " refs/heads/feature/* " },
+      { name: "Release", glob: "refs/heads/release/*" }
+    ];
+
+    // When: the raw setting is normalized
+    const result = normalizeCustomBranchGlobPatterns(value);
+
+    // Then: only first occurrences survive
+    expect(result).toEqual([
+      { name: "Feature", glob: "refs/heads/feature/*" },
+      { name: "Release", glob: "refs/heads/release/*" }
+    ]);
+  });
+
+  it.each([
+    "refs/heads/feature/*",
+    "refs/heads/release/[0-9].*"
+  ])("accepts safe glob %s", (glob) => {
+    expect(isValidBranchGlobPattern(glob)).toBe(true);
+  });
+
+  it.each([
+    "",
+    "-release",
+    ":release",
+    "/release",
+    "release/",
+    "release extra",
+    "release\0",
+    "release..main",
+    "release@{1}",
+    "refs//release"
+  ])("rejects unsafe glob %s", (glob) => {
+    expect(isValidBranchGlobPattern(glob)).toBe(false);
   });
 });

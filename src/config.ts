@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 
 import {
   CommitOrdering,
+  CustomBranchGlobPattern,
   DateFormat,
   DateType,
   DialogDefaults,
@@ -37,6 +38,46 @@ const DEFAULT_GRAPH_COLOURS: readonly string[] = [
 
 export const GRAPH_COLOUR_PATTERN =
   /^\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8}|rgb\s*\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)|rgba\s*\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(0(\.\d+)?|1(\.0+)?)\s*\))\s*$/;
+
+export const CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX = "--glob=";
+const CUSTOM_BRANCH_GLOB_CONTROL_OR_WHITESPACE = /[\p{Cc}\s]/u;
+
+export function isValidBranchGlobPattern(glob: string): boolean {
+  return (
+    glob !== "" &&
+    !glob.startsWith("-") &&
+    !glob.startsWith(":") &&
+    !glob.startsWith("/") &&
+    !glob.endsWith("/") &&
+    !CUSTOM_BRANCH_GLOB_CONTROL_OR_WHITESPACE.test(glob) &&
+    !glob.includes("..") &&
+    !glob.includes("@{") &&
+    glob.split("/").every((segment) => segment !== "")
+  );
+}
+
+export function normalizeCustomBranchGlobPatterns(value: unknown): CustomBranchGlobPattern[] {
+  if (!Array.isArray(value)) return [];
+
+  const patterns: CustomBranchGlobPattern[] = [];
+  const names = new Set<string>();
+  const globs = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const candidate = entry as Record<string, unknown>;
+    if (typeof candidate.name !== "string" || typeof candidate.glob !== "string") continue;
+
+    const name = candidate.name.trim();
+    const glob = candidate.glob.trim();
+    if (name === "" || !isValidBranchGlobPattern(glob)) continue;
+    if (names.has(name) || globs.has(glob)) continue;
+
+    names.add(name);
+    globs.add(glob);
+    patterns.push({ name, glob });
+  }
+  return patterns;
+}
 
 export type OpenNewTabEditorGroupValue =
   | "Active"
@@ -205,6 +246,18 @@ class Config {
 
   public commitOrdering(): CommitOrdering {
     return this.workspaceConfiguration.get("repository.commits.order", "date");
+  }
+
+  public customBranchGlobPatterns(): CustomBranchGlobPattern[] {
+    return normalizeCustomBranchGlobPatterns(
+      this.workspaceConfiguration.get<unknown>("customBranchGlobPatterns", [])
+    );
+  }
+
+  public customBranchGlobArguments(): string[] {
+    return this.customBranchGlobPatterns().map(
+      (pattern) => `${CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX}${pattern.glob}`
+    );
   }
 
   public fetchAndPruneTags(): boolean {

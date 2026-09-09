@@ -53,6 +53,7 @@ describe("Config fallback defaults vs package.json", () => {
   describe("Group 1: simple value comparison", () => {
     const settings: Array<[string, string, (c: ConfigInstance) => unknown]> = [
       ["TC-042", "dateFormat", (c) => c.dateFormat()],
+      ["TC-042a", "customBranchGlobPatterns", (c) => c.customBranchGlobPatterns()],
       ["TC-043", "dateType", (c) => c.dateType()],
       ["TC-044", "fetchAvatars", (c) => c.fetchAvatars()],
       ["TC-045", "graphStyle", (c) => c.graphStyle()],
@@ -223,6 +224,19 @@ describe("package.json contributes.configuration schema", () => {
     const schema = getPackageProperty("loadMoreCommits");
     // Then: minimum is 1
     expect(schema?.minimum).toBe(1);
+  });
+
+  it("customBranchGlobPatterns is a required name/glob object array", () => {
+    // Given: the custom glob setting schema
+    const schema = getPackageProperty("customBranchGlobPatterns") as Record<string, unknown>;
+    const item = schema.items as Record<string, unknown>;
+
+    // When: inspecting its type, default, and item requirements
+    // Then: it is a defaulted array of objects requiring both strings
+    expect(schema.type).toBe("array");
+    expect(schema.default).toEqual([]);
+    expect(item.type).toBe("object");
+    expect(item.required).toEqual(["name", "glob"]);
   });
 
   describe("graphColours.items.pattern", () => {

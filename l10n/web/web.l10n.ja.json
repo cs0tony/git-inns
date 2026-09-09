@@ -29,6 +29,7 @@
   "toolbar.allAuthors": "すべての作者",
   "toolbar.repos": "リポジトリ",
   "toolbar.branches": "ブランチ",
+  "toolbar.branchGlob": "Glob: {0}",
   "toolbar.authors": "作者",
   "toolbar.switchToTreeView": "ツリー表示に切り替え",
   "toolbar.switchToListView": "リスト表示に切り替え",

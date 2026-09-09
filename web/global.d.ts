@@ -13,6 +13,7 @@ declare global {
 
   interface Config {
     fetchAvatars: boolean;
+    customBranchGlobPatterns: GG.CustomBranchGlobPattern[];
     graphColours: string[];
     graphStyle: "rounded" | "angular";
     grid: { x: number; y: number; offsetX: number; offsetY: number; expandY: number };
@@ -131,6 +132,7 @@ declare global {
 
   interface WebViewState {
     gitRepos: GG.GitRepoSet;
+    customBranchGlobPatterns: GG.CustomBranchGlobPattern[];
     gitBranches: string[];
     gitBranchHead: string | null;
     commits: GG.GitCommitNode[];

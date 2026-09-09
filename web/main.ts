@@ -435,7 +435,11 @@ class GitKeizuView {
     this.gitBranchHead = branchHead;
 
     // Filter out branches that no longer exist
-    const validBranches = this.selectedBranches.filter((b) => this.gitBranches.includes(b));
+    const configuredGlobValues = this.config.customBranchGlobPatterns.map(
+      (pattern) => `--glob=${pattern.glob}`
+    );
+    const allowedValues = new Set([...this.gitBranches, ...configuredGlobValues]);
+    const validBranches = this.selectedBranches.filter((b) => allowedValues.has(b));
     if (validBranches.length === 0 && this.selectedBranches.length > 0) {
       // All selected branches disappeared — fallback
       this.selectedBranches =
@@ -454,6 +458,12 @@ class GitKeizuView {
           ? this.gitBranches[i].substring(REMOTE_BRANCH_PREFIX.length)
           : this.gitBranches[i],
         value: this.gitBranches[i]
+      });
+    }
+    for (const pattern of this.config.customBranchGlobPatterns) {
+      options.push({
+        name: t("toolbar.branchGlob", pattern.name),
+        value: `--glob=${pattern.glob}`
       });
     }
     this.branchDropdown.setOptions(options, this.selectedBranches);
@@ -737,6 +747,7 @@ class GitKeizuView {
   private saveState() {
     vscode.setState({
       gitRepos: this.gitRepos,
+      customBranchGlobPatterns: this.config.customBranchGlobPatterns,
       gitBranches: this.gitBranches,
       gitBranchHead: this.gitBranchHead,
       commits: this.commits,
@@ -1890,6 +1901,7 @@ let gitKeizu = new GitKeizuView(
   viewState.lastActiveRepo,
   {
     fetchAvatars: viewState.fetchAvatars,
+    customBranchGlobPatterns: viewState.customBranchGlobPatterns,
     graphColours: viewState.graphColours,
     graphStyle: viewState.graphStyle,
     grid: { x: 16, y: 24, offsetX: 8, offsetY: 12, expandY: CDV_DEFAULT_HEIGHT },

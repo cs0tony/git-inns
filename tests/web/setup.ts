@@ -135,6 +135,7 @@ vi.stubGlobal("webviewMessages", {
   "table.loadMoreCommits": "Load More Commits",
   "toolbar.allAuthors": "All Authors",
   "toolbar.authors": "Authors",
+  "toolbar.branchGlob": "Glob: {0}",
   "toolbar.branches": "Branches",
   "toolbar.repos": "Repos",
   "toolbar.showAll": "Show All",

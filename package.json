@@ -132,6 +132,23 @@
           "default": "Date & Time",
           "description": "%config.dateFormat.description%"
         },
+        "git-keizu.customBranchGlobPatterns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "glob": {
+                "type": "string"
+              }
+            },
+            "required": ["name", "glob"]
+          },
+          "default": [],
+          "description": "%config.customBranchGlobPatterns.description%"
+        },
         "git-keizu.dateType": {
           "type": "string",
           "enum": [

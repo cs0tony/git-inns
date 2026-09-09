@@ -1,6 +1,7 @@
 import { recordRecentAction } from "./contextMenu";
+import { showConfirmationDialog } from "./dialogs";
 import { t } from "./i18n";
-import { sendMessage } from "./utils";
+import { abbrevCommit, escapeHtml, sendMessage } from "./utils";
 
 /** CSS selector for file row elements in both tree and list views. */
 const GIT_FILE_SELECTOR = ".gitFile";
@@ -53,6 +54,7 @@ export function buildFileContextMenuItems(
   if (fileRow === null || expandedCommit === null || repo === null) return [];
   const encodedPath = fileRow.dataset[DATASET_NEW_FILE_PATH_KEY];
   if (encodedPath === undefined) return [];
+  const filePath = decodeURIComponent(encodedPath);
   return [
     {
       title: OPEN_FILE_LABEL,
@@ -60,6 +62,27 @@ export function buildFileContextMenuItems(
       onClick: () => {
         recordRecentAction(repo, "file.openFile");
         sendOpenFileAction(fileRow, expandedCommit, repo);
+      }
+    },
+    {
+      title: t("context.resetFile"),
+      onClick: () => {
+        showConfirmationDialog(
+          t(
+            "Reset {0} to its state at commit {1}? The working-tree and index copies will be overwritten.",
+            `<b><i>${escapeHtml(filePath)}</i></b>`,
+            `<b><i>${abbrevCommit(expandedCommit.hash)}</i></b>`
+          ),
+          () => {
+            sendMessage({
+              command: "resetFileToRevision",
+              repo,
+              revision: expandedCommit.hash,
+              filePath
+            });
+          },
+          fileRow
+        );
       }
     }
   ];

@@ -879,3 +879,54 @@ describe("worktree open/reveal response error display (S11)", () => {
     expect(gitKeizu.refresh).not.toHaveBeenCalled();
   });
 });
+
+describe("drop, reset file, and archive response handling", () => {
+  let gitKeizu: GitKeizuViewAPI;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    gitKeizu = createMockGitKeizuView();
+  });
+
+  it("soft-refreshes after a successful dropCommit", () => {
+    handleMessage({ command: "dropCommit", status: null }, gitKeizu);
+
+    expect(gitKeizu.refresh).toHaveBeenCalledWith("soft");
+    expect(showErrorDialog).not.toHaveBeenCalled();
+  });
+
+  it("shows a clear error and does not refresh when dropCommit fails", () => {
+    handleMessage({ command: "dropCommit", status: "rebase failed" }, gitKeizu);
+
+    expect(showErrorDialog).toHaveBeenCalledWith("error.dropCommit", "rebase failed", null);
+    expect(gitKeizu.refresh).not.toHaveBeenCalled();
+  });
+
+  it("soft-refreshes after a successful resetFileToRevision", () => {
+    handleMessage({ command: "resetFileToRevision", status: null }, gitKeizu);
+
+    expect(gitKeizu.refresh).toHaveBeenCalledWith("soft");
+    expect(showErrorDialog).not.toHaveBeenCalled();
+  });
+
+  it("shows a clear error and does not refresh when resetFileToRevision fails", () => {
+    handleMessage({ command: "resetFileToRevision", status: "unsafe path" }, gitKeizu);
+
+    expect(showErrorDialog).toHaveBeenCalledWith("error.resetFileToRevision", "unsafe path", null);
+    expect(gitKeizu.refresh).not.toHaveBeenCalled();
+  });
+
+  it("does not refresh after a successful createArchive", () => {
+    handleMessage({ command: "createArchive", status: null }, gitKeizu);
+
+    expect(gitKeizu.refresh).not.toHaveBeenCalled();
+    expect(showErrorDialog).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when createArchive reports a failure", () => {
+    handleMessage({ command: "createArchive", status: "invalid archive path" }, gitKeizu);
+
+    expect(showErrorDialog).toHaveBeenCalledWith("error.createArchive", "invalid archive path", null);
+    expect(gitKeizu.refresh).not.toHaveBeenCalled();
+  });
+});

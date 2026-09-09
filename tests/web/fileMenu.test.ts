@@ -5,7 +5,12 @@ vi.mock("../../web/contextMenu", () => ({
   recordRecentAction: vi.fn()
 }));
 
+vi.mock("../../web/dialogs", () => ({
+  showConfirmationDialog: vi.fn()
+}));
+
 import { recordRecentAction } from "../../web/contextMenu";
+import { showConfirmationDialog } from "../../web/dialogs";
 import { buildFileContextMenuItems, resolveFileRow, sendOpenFileAction } from "../../web/fileMenu";
 import { vscode } from "../../web/utils";
 
@@ -15,6 +20,11 @@ import { vscode } from "../../web/utils";
 
 const TEST_REPO = "/path/to/repo";
 const COMMIT_HASH = "abc123def456";
+
+(globalThis as Record<string, unknown>).webviewMessages = {
+  ...((globalThis as Record<string, unknown>).webviewMessages as Record<string, string>),
+  "context.resetFile": "Reset File to Revision..."
+};
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -32,6 +42,15 @@ function makeFileRow(dataset: Record<string, string> = {}, type = "M"): HTMLElem
 
 function makeExpandedCommit(hash = COMMIT_HASH) {
   return { hash };
+}
+
+function findMenuItem(items: ContextMenuElement[], title: string): ContextMenuItem {
+  const item = items.find(
+    (menuItem): menuItem is ContextMenuItem =>
+      menuItem !== null && "onClick" in menuItem && menuItem.title === title
+  );
+  expect(item).toBeDefined();
+  return item!;
 }
 
 /* ------------------------------------------------------------------ */
@@ -148,8 +167,8 @@ describe("buildFileContextMenuItems", () => {
     vi.mocked(vscode.postMessage).mockClear();
   });
 
-  // TC-007: 有効な row で Open File 1 項目だけ返す
-  it("returns single 'Open File' menu item for valid file row (TC-007)", () => {
+  // TC-007: 有効な row で Open File と Reset File を返す
+  it("returns Open File and Reset File items for valid file row (TC-007)", () => {
     // Given: a valid .gitFile row with expandedCommit and repo
     const row = makeFileRow({ newfilepath: "src%2Ffile.ts" });
     const commit = makeExpandedCommit();
@@ -157,14 +176,15 @@ describe("buildFileContextMenuItems", () => {
     // When: buildFileContextMenuItems is called
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
-    // Then: exactly 1 item with title "Open File"
-    expect(items).toHaveLength(1);
+    // Then: both file actions are present
+    expect(items).toHaveLength(2);
     expect(items[0]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
+    expect(items[1]!.title).toBe("Reset File to Revision...");
   });
 
-  // TC-008: deleted file row でも items が空にならず Open File 1 件を返す
-  it("returns 'Open File' for deleted file row (TC-008)", () => {
+  // TC-008: deleted file row でも both file actions を返す
+  it("returns both file actions for deleted file row (TC-008)", () => {
     // Given: a deleted file row (type=D) with data-newfilepath
     const row = makeFileRow({ newfilepath: "src%2Fdeleted.ts" }, "D");
     const commit = makeExpandedCommit();
@@ -172,9 +192,10 @@ describe("buildFileContextMenuItems", () => {
     // When: buildFileContextMenuItems is called
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
-    // Then: still returns 1 item
-    expect(items).toHaveLength(1);
-    expect(items[0]!.title).toBe("Open File");
+    // Then: still returns both items
+    expect(items).toHaveLength(2);
+    expect(findMenuItem(items, "Open File")).toBeDefined();
+    expect(findMenuItem(items, "Reset File to Revision...")).toBeDefined();
   });
 
   // TC-009: expandedCommit が null のとき空配列を返す
@@ -239,7 +260,7 @@ describe("buildFileContextMenuItems recent action metadata (S3)", () => {
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
     // Then: the Open File item is recent-enabled with file.openFile
-    expect(items).toHaveLength(1);
+    expect(items).toHaveLength(2);
     expect(items[0]!.recentActionId).toBe("file.openFile");
   });
 
@@ -277,5 +298,55 @@ describe("buildFileContextMenuItems recent action metadata (S3)", () => {
     // Then: no menu item exists and no recent action is recorded
     expect(items).toEqual([]);
     expect(recordRecentAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("Reset File to Revision menu action", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("is included for the currently expanded commit and selected file", () => {
+    const row = makeFileRow({ newfilepath: encodeURIComponent("src/file.ts") });
+    const commit = makeExpandedCommit();
+
+    const items = buildFileContextMenuItems(row, commit, TEST_REPO);
+    const resetItem = findMenuItem(items, "Reset File to Revision...");
+
+    resetItem.onClick();
+
+    expect(showConfirmationDialog).toHaveBeenCalledTimes(1);
+    const [message, confirmed, sourceElem] = vi.mocked(showConfirmationDialog).mock.calls[0];
+    expect(message).toContain("src&#x2F;file.ts");
+    expect(message).toContain("abc123de");
+    expect(message).toContain("working-tree and index copies will be overwritten");
+    expect(confirmed).toBeTypeOf("function");
+    expect(sourceElem).toBe(row);
+  });
+
+  it("sends the revision and decoded file path after explicit confirmation", () => {
+    const row = makeFileRow({ newfilepath: encodeURIComponent("src/テスト file.ts") });
+    const items = buildFileContextMenuItems(row, makeExpandedCommit(), TEST_REPO);
+
+    findMenuItem(items, "Reset File to Revision...").onClick();
+    const confirmed = vi.mocked(showConfirmationDialog).mock.calls[0][1];
+    confirmed();
+
+    expect(vscode.postMessage).toHaveBeenCalledTimes(1);
+    expect(vscode.postMessage).toHaveBeenCalledWith({
+      command: "resetFileToRevision",
+      repo: TEST_REPO,
+      revision: COMMIT_HASH,
+      filePath: "src/テスト file.ts"
+    });
+  });
+
+  it("does not send reset until confirmation is accepted", () => {
+    const row = makeFileRow({ newfilepath: "src%2Ffile.ts" });
+    const items = buildFileContextMenuItems(row, makeExpandedCommit(), TEST_REPO);
+
+    findMenuItem(items, "Reset File to Revision...").onClick();
+
+    expect(vscode.postMessage).not.toHaveBeenCalled();
   });
 });

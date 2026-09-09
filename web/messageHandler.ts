@@ -113,6 +113,11 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
     case "createWorktree":
       refreshOrError(gitKeizu, msg.status, t("error.createWorktree"));
       break;
+    case "createArchive":
+      if (msg.status !== null) {
+        showErrorDialog(t("error.createArchive"), msg.status, null);
+      }
+      break;
     case "deleteBranch":
       refreshOrError(gitKeizu, msg.status, t("error.deleteBranch"));
       break;
@@ -121,6 +126,9 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       break;
     case "deleteTag":
       refreshOrError(gitKeizu, msg.status, t("error.deleteTag"));
+      break;
+    case "dropCommit":
+      refreshOrError(gitKeizu, msg.status, t("error.dropCommit"));
       break;
     case "dropStash":
       refreshOrError(gitKeizu, msg.status, t("error.dropStash"));
@@ -212,6 +220,9 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       break;
     case "resetToCommit":
       refreshOrError(gitKeizu, msg.status, t("error.resetToCommit"));
+      break;
+    case "resetFileToRevision":
+      refreshOrError(gitKeizu, msg.status, t("error.resetFileToRevision"));
       break;
     case "resetUncommitted":
       refreshOrError(gitKeizu, msg.status, t("error.resetUncommitted"));

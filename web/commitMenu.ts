@@ -1,4 +1,4 @@
-import type { GitCommitNode, GitResetMode } from "../src/types";
+import type { ArchiveFormat, GitCommitNode, GitResetMode } from "../src/types";
 import { recordRecentAction } from "./contextMenu";
 import { showConfirmationDialog, showFormDialog, showSelectDialog } from "./dialogs";
 import { t } from "./i18n";
@@ -383,15 +383,98 @@ export function buildCommitContextMenuItems(
     }
   };
 
+  const dropCommitItem: ContextMenuItem | null =
+    parentHashes.length === 1
+      ? {
+          title: `${t("Drop Commit")}${ELLIPSIS}`,
+          onClick: () => {
+            showConfirmationDialog(
+              t(
+                "Permanently drop commit {0}? This rewrites history by rebasing later commits onto its parent. Merge commits cannot be dropped.",
+                `<b><i>${abbrevCommit(hash)}</i></b>`
+              ),
+              () => {
+                sendMessage({
+                  command: "dropCommit",
+                  repo: repo,
+                  commitHash: hash
+                });
+              },
+              sourceElem
+            );
+          }
+        }
+      : null;
+
+  const exportArchiveItem: ContextMenuItem = {
+    title: `${t("Export Archive")}${ELLIPSIS}`,
+    onClick: () => {
+      showFormDialog(
+        t(
+          "Export commit {0} as an archive. Use an absolute output path outside the repository with an extension matching the selected format; the backend validates path safety.",
+          `<b><i>${abbrevCommit(hash)}</i></b>`
+        ),
+        [
+          {
+            type: "select" as const,
+            name: t("Format: "),
+            default: "zip",
+            options: [
+              { name: "ZIP", value: "zip" },
+              { name: "TAR", value: "tar" },
+              { name: "TAR.GZ", value: "tar.gz" }
+            ]
+          },
+          {
+            type: "text" as const,
+            name: t("Output Path: "),
+            default: "",
+            placeholder: t("Absolute path, for example /tmp/archive.zip")
+          }
+        ],
+        t("Export Archive"),
+        (values) => {
+          const outputPath = values[1].trim();
+          if (outputPath === "") return;
+
+          sendMessage({
+            command: "createArchive",
+            repo: repo,
+            commitHash: hash,
+            format: values[0] as ArchiveFormat,
+            outputPath
+          });
+        },
+        sourceElem,
+        (dialogEl) => {
+          const pathInput = dialogEl.querySelector("#dialogInput1") as HTMLInputElement;
+          const actionButton = dialogEl.querySelector("#dialogAction") as HTMLElement;
+          const updateSubmissionState = () => {
+            const hasPath = pathInput.value.trim() !== "";
+            pathInput.required = true;
+            pathInput.setAttribute("aria-invalid", hasPath ? "false" : "true");
+            actionButton.setAttribute("aria-disabled", hasPath ? "false" : "true");
+            actionButton.style.pointerEvents = hasPath ? "" : "none";
+          };
+
+          pathInput.setAttribute("aria-label", t("Output Path: "));
+          pathInput.addEventListener("input", updateSubmissionState);
+          updateSubmissionState();
+        }
+      );
+    }
+  };
+
   return [
     createBranchItem,
     createWorktreeItem,
     cherryPickItem,
     mergeItem,
+    exportArchiveItem,
     null,
     {
       title: t("context.more"),
-      submenu: [addTagItem, checkoutItem, revertItem, resetItem]
+      submenu: [addTagItem, checkoutItem, revertItem, resetItem, dropCommitItem]
     },
     null,
     copyCommitHashItem

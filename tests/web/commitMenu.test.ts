@@ -878,14 +878,15 @@ describe("Commit context menu structure (S7)", () => {
     // When: the menu array is built
 
     // Then: the top-level items follow the new layout
-    expect(items).toHaveLength(8);
+    expect(items).toHaveLength(9);
     expect(items[0]?.title).toBe("Create Branch&#8230;");
     expect(items[1]?.title).toBe("Create Worktree Here&#8230;");
     expect(items[2]?.title).toBe("Cherry Pick&#8230;");
     expect(items[3]?.title).toBe("Merge into current branch&#8230;");
-    expect(items[4]).toBeNull();
-    expect(items[6]).toBeNull();
-    expect(items[7]?.title).toBe("Copy Commit Hash to Clipboard");
+    expect(items[4]?.title).toBe("Export Archive&#8230;");
+    expect(items[5]).toBeNull();
+    expect(items[7]).toBeNull();
+    expect(items[8]?.title).toBe("Copy Commit Hash to Clipboard");
   });
 
   it("TC-036: stores Add Tag, Checkout, Revert, and Reset inside the More submenu", () => {
@@ -908,7 +909,8 @@ describe("Commit context menu structure (S7)", () => {
       "Add Tag&#8230;",
       "Checkout&#8230;",
       "Revert&#8230;",
-      "Reset current branch to this Commit&#8230;"
+      "Reset current branch to this Commit&#8230;",
+      "Drop Commit&#8230;"
     ]);
   });
 
@@ -1372,5 +1374,94 @@ describe("root commit cherry-pick/revert branch (S11)", () => {
       recordOrigin: true,
       noCommit: false
     });
+  });
+});
+
+describe("Drop Commit and Export Archive graph actions", () => {
+  const ORDINARY_PARENTS = [PARENT_HASHES[0]];
+  const ROOT_PARENTS: string[] = [];
+  const MERGE_PARENTS = ["parent1234567890", "parent2234567890"];
+
+  function build(parentHashes = ORDINARY_PARENTS): ContextMenuElement[] {
+    return buildCommitContextMenuItems(REPO, HASH, parentHashes, [], {}, createMockElement());
+  }
+
+  function getDropItem(parentHashes = ORDINARY_PARENTS): ContextMenuItem {
+    const dropItem = getMoreSubmenu(build(parentHashes)).submenu.find(
+      (menuItem): menuItem is ContextMenuItem =>
+        isContextMenuItem(menuItem) && menuItem.title === "Drop Commit&#8230;"
+    );
+    expect(dropItem).toBeDefined();
+    return dropItem!;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("includes Drop Commit for an ordinary parented commit and Export Archive for every commit", () => {
+    const ordinaryItems = build();
+
+    expect(getDropItem()).toBeDefined();
+    expect(findTopLevelMenuItem(ordinaryItems, "Export Archive&#8230;")).toBeDefined();
+  });
+
+  it("excludes Drop Commit from root and merge commit menus", () => {
+    for (const parentHashes of [ROOT_PARENTS, MERGE_PARENTS]) {
+      const dropItem = getMoreSubmenu(build(parentHashes)).submenu.find(
+        (menuItem): menuItem is ContextMenuItem =>
+          isContextMenuItem(menuItem) && menuItem.title === "Drop Commit&#8230;"
+      );
+      expect(dropItem).toBeUndefined();
+    }
+  });
+
+  it("dispatches dropCommit only after a destructive confirmation", () => {
+    const item = getDropItem();
+    item.onClick();
+
+    const [message, confirmed] = vi.mocked(showConfirmationDialog).mock.calls[0];
+    expect(message).toContain("Permanently drop commit");
+    expect(message).toContain("rewrites history");
+    expect(message).toContain("Merge commits cannot be dropped");
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    confirmed();
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "dropCommit",
+      repo: REPO,
+      commitHash: HASH
+    });
+  });
+
+  it("uses a compact archive form and sends the selected format and output path", () => {
+    const item = findTopLevelMenuItem(build(), "Export Archive&#8230;");
+    item.onClick();
+
+    expect(showFormDialog).toHaveBeenCalledTimes(1);
+    const inputs = vi.mocked(showFormDialog).mock.calls[0][1];
+    expect(inputs).toHaveLength(2);
+    expect(inputs[0].type).toBe("select");
+    expect(inputs[1].type).toBe("text");
+
+    const actioned = vi.mocked(showFormDialog).mock.calls[0][3];
+    actioned(["tar.gz", "/tmp/example.tar.gz"]);
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "createArchive",
+      repo: REPO,
+      commitHash: HASH,
+      format: "tar.gz",
+      outputPath: "/tmp/example.tar.gz"
+    });
+  });
+
+  it("does not dispatch archive creation when the output path is empty", () => {
+    findTopLevelMenuItem(build(), "Export Archive&#8230;").onClick();
+    const actioned = vi.mocked(showFormDialog).mock.calls[0][3];
+
+    actioned(["zip", ""]);
+    actioned(["zip", "   "]);
+
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

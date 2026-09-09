@@ -49,6 +49,23 @@ export function generateGitFileTree(gitFiles: GitFileChange[]) {
 function buildFileItemHtml(gitFile: GitFileChange, displayName: string): string {
   const diffPossible = gitFile.additions !== null && gitFile.deletions !== null;
   const binaryTitle = diffPossible ? "" : BINARY_FILE_TITLE;
+  const typeLabel =
+    gitFile.type === "A"
+      ? "Added"
+      : gitFile.type === "D"
+        ? "Deleted"
+        : gitFile.type === "R"
+          ? "Renamed"
+          : "Modified";
+  const accessibilityLabel = [
+    displayName,
+    typeLabel,
+    diffPossible
+      ? `+${gitFile.additions} addition${gitFile.additions === 1 ? "" : "s"}, -${gitFile.deletions} deletion${gitFile.deletions === 1 ? "" : "s"}`
+      : ""
+  ]
+    .filter(Boolean)
+    .join(", ");
   const renameHtml =
     gitFile.type === "R"
       ? ` <span class="gitFileRename" title="${escapeHtml(t("file.renamed", gitFile.oldFilePath, gitFile.newFilePath))}">R</span>`
@@ -63,14 +80,15 @@ function buildFileItemHtml(gitFile: GitFileChange, displayName: string): string 
       : "";
   const oldPath = encodeURIComponent(gitFile.oldFilePath);
   const newPath = encodeURIComponent(gitFile.newFilePath);
-  return `<li class="gitFile ${gitFile.type}${diffPossible ? " gitDiffPossible" : ""}" data-oldfilepath="${oldPath}" data-newfilepath="${newPath}" data-type="${gitFile.type}"${binaryTitle}><span class="gitFileIcon">${svgIcons.file}</span>${displayName}${renameHtml}${addDelHtml}${fileActionsHtml}</li>`;
+  return `<li class="gitFile ${gitFile.type}${diffPossible ? " gitDiffPossible" : ""}" role="treeitem" tabindex="0" aria-label="${accessibilityLabel}" data-oldfilepath="${oldPath}" data-newfilepath="${newPath}" data-type="${gitFile.type}"${binaryTitle}><span class="gitFileIcon">${svgIcons.file}</span>${displayName}${renameHtml}${addDelHtml}${fileActionsHtml}</li>`;
 }
 
 export function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChange[]) {
   let html =
       (folder.name !== ""
-        ? `<span class="gitFolder" data-folderpath="${encodeURIComponent(folder.folderPath)}"><span class="gitFolderIcon">${folder.open ? svgIcons.openFolder : svgIcons.closedFolder}</span><span class="gitFolderName">${escapeHtml(folder.name)}</span></span>`
-        : "") + `<ul class="gitFolderContents${!folder.open ? " hidden" : ""}">`,
+        ? `<span class="gitFolder" role="treeitem" tabindex="0" aria-expanded="${folder.open}" aria-label="${escapeHtml(folder.name)}, folder" data-folderpath="${encodeURIComponent(folder.folderPath)}"><span class="gitFolderIcon">${folder.open ? svgIcons.openFolder : svgIcons.closedFolder}</span><span class="gitFolderName">${escapeHtml(folder.name)}</span></span>`
+        : "") +
+      `<ul class="gitFolderContents${!folder.open ? " hidden" : ""}" role="${folder.name === "" ? "tree" : "group"}">`,
     keys = Object.keys(folder.contents),
     i,
     gitFile,
@@ -89,7 +107,7 @@ export function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChan
   for (i = 0; i < keys.length; i++) {
     if (folder.contents[keys[i]].type === "folder") {
       gitFolder = <GitFolder>folder.contents[keys[i]];
-      html += `<li${!gitFolder.open ? ' class="closed"' : ""}>${generateGitFileTreeHtml(gitFolder, gitFiles)}</li>`;
+      html += `<li role="none"${!gitFolder.open ? ' class="closed"' : ""}>${generateGitFileTreeHtml(gitFolder, gitFiles)}</li>`;
     } else {
       gitFile = gitFiles[(<GitFile>folder.contents[keys[i]]).index];
       html += buildFileItemHtml(gitFile, escapeHtml(folder.contents[keys[i]].name));
@@ -100,7 +118,7 @@ export function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChan
 
 export function generateGitFileListHtml(gitFiles: GitFileChange[]) {
   const sorted = [...gitFiles].sort((a, b) => a.newFilePath.localeCompare(b.newFilePath));
-  let html = '<ul class="gitFolderContents">';
+  let html = '<ul class="gitFolderContents" role="tree">';
   for (const gitFile of sorted) {
     html += buildFileItemHtml(gitFile, escapeHtml(gitFile.newFilePath));
   }

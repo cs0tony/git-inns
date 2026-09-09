@@ -276,6 +276,54 @@ body.unableToLoad p {
   width: 54px;
   border-radius: 4px;
 }
+.signatureChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 999px;
+  background: var(--vscode-editorWidget-background, transparent);
+  color: var(--vscode-editor-foreground);
+  font-size: 11px;
+  line-height: 16px;
+  vertical-align: middle;
+}
+.signatureChipBadge {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+}
+.signatureChipLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.signatureGood {
+  color: var(--vscode-testing-iconPassed, var(--vscode-gitDecoration-addedResourceForeground));
+}
+.signatureBad {
+  color: var(--vscode-testing-iconFailed, var(--vscode-gitDecoration-deletedResourceForeground));
+}
+.signatureExpired,
+.signatureRevoked,
+.signatureCannotCheck {
+  color: var(--vscode-editorWarning-foreground, var(--vscode-editorWarning-foreground));
+}
+.signatureUnknown,
+.signatureUnsigned {
+  color: var(--vscode-descriptionForeground);
+}
 /* File list panel */
 #commitDetailsFiles {
   position: absolute;
@@ -286,8 +334,9 @@ body.unableToLoad p {
   border-right: 1px solid rgba(128, 128, 128, 0.2);
   overflow-x: hidden;
   overflow-y: scroll;
-  padding-top: 4px;
-  padding-bottom: 8px;
+  padding-top: 8px;
+  padding-right: 8px;
+  padding-bottom: 10px;
   box-sizing: border-box;
 }
 #commitDetailsFiles ul {
@@ -302,7 +351,9 @@ body.unableToLoad p {
   -webkit-padding-start: 10px;
 }
 #commitDetailsFiles li {
-  margin-top: 4px;
+  margin-top: 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow-x: hidden;
@@ -332,6 +383,7 @@ body.unableToLoad p {
   cursor: pointer;
   padding: 2px 4px;
   margin-right: 4px;
+  border-radius: 4px;
 }
 /* Git file / folder entries */
 .gitFolderContents.hidden {
@@ -339,6 +391,21 @@ body.unableToLoad p {
 }
 .gitFolder {
   cursor: pointer;
+}
+.gitFolder:hover,
+.gitFile.gitDiffPossible:hover {
+  background-color: var(--vscode-list-hoverBackground);
+  color: var(--vscode-list-hoverForeground, inherit);
+}
+.gitFolder:focus-visible,
+.gitFile:focus-visible,
+.fileViewToggleBtn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+  background-color: var(--vscode-list-focusBackground, var(--vscode-list-hoverBackground));
+}
+.gitFile:focus-visible .gitFileActions {
+  opacity: 1;
 }
 .gitFile {
   color: var(--vscode-gitDecoration-modifiedResourceForeground);

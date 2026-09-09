@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { GitCommitDetails, GitCommitNode, GitCommitStash } from "../../src/types";
+import type {
+  GitCommitDetails,
+  GitCommitNode,
+  GitCommitStash,
+  GitSignatureStatus
+} from "../../src/types";
 import { UNCOMMITTED_CHANGES_HASH } from "../../src/types";
 
 /* ------------------------------------------------------------------ */
@@ -210,6 +215,7 @@ vi.mock("../../web/fileTree", () => ({
 }));
 
 import { getBranchLabels } from "../../web/branchLabels";
+import { buildSignatureChipHtml } from "../../web/commitSignature";
 import { hideContextMenu, isContextMenuActive, showContextMenu } from "../../web/contextMenu";
 import {
   hideDialog,
@@ -246,6 +252,71 @@ function makeStash(overrides: Partial<GitCommitStash> = {}): GitCommitStash {
     ...overrides
   };
 }
+
+function parseHtml(html: string): DocumentFragment {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  return template.content;
+}
+
+describe("signature chip presentation", () => {
+  const signature: GitSignatureStatus = {
+    status: "G",
+    key: "RSA key 12345",
+    signer: "Alice <alice@example.com>",
+    fingerprint: "AAAA BBBB",
+    primaryKeyFingerprint: "CCCC DDDD",
+    trustLevel: "ultimate"
+  };
+
+  it.each([
+    ["G", "Verified", "signatureGood"],
+    ["B", "Bad", "signatureBad"],
+    ["U", "Unknown", "signatureUnknown"],
+    ["X", "Expired", "signatureExpired"],
+    ["Y", "Expired", "signatureExpired"],
+    ["R", "Revoked", "signatureRevoked"],
+    ["E", "Cannot check", "signatureCannotCheck"]
+  ] as const)("maps signature status %s to %s", (status, label, className) => {
+    const fragment = parseHtml(buildSignatureChipHtml({ ...signature, status }));
+    const chip = fragment.querySelector(".signatureChip")!;
+
+    expect(chip.textContent).toContain(label);
+    expect(chip.classList.contains(className)).toBe(true);
+  });
+
+  it("maps an unrecognized status to a non-alarming unknown chip", () => {
+    const fragment = parseHtml(buildSignatureChipHtml({ ...signature, status: "?" }));
+    const chip = fragment.querySelector(".signatureChip")!;
+
+    expect(chip.classList.contains("signatureUnknown")).toBe(true);
+    expect(chip.textContent).toContain("Unknown");
+    expect(chip.textContent).not.toContain("?");
+  });
+
+  it("renders signature metadata safely in the accessible description", () => {
+    const html = buildSignatureChipHtml({
+      ...signature,
+      signer: 'Alice & <script>alert("x")</script>'
+    });
+    const fragment = parseHtml(html);
+    const chip = fragment.querySelector(".signatureChip")!;
+
+    expect(chip.getAttribute("aria-label")).toContain("Signature: Verified");
+    expect(chip.getAttribute("title")).toContain("Signer: Alice & <script>");
+    expect(chip.getAttribute("title")).toContain("Key: RSA key 12345");
+    expect(chip.getAttribute("title")).toContain("Fingerprint: AAAA BBBB");
+    expect(chip.getAttribute("title")).toContain("Primary key fingerprint: CCCC DDDD");
+    expect(chip.getAttribute("title")).toContain("Trust: ultimate");
+    expect(html).not.toContain("<script>");
+  });
+
+  it("omits no-signature and missing signature results", () => {
+    expect(buildSignatureChipHtml({ ...signature, status: "N" })).toBe("");
+    expect(buildSignatureChipHtml(null)).toBe("");
+    expect(buildSignatureChipHtml(undefined)).toBe("");
+  });
+});
 
 /* ------------------------------------------------------------------ */
 /* Tests: Stash row rendering (Task 3.4)                              */

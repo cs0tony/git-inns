@@ -343,6 +343,35 @@ function makeFolder(name: string, contents: GitFolderContents = {}): GitFolder {
 }
 
 describe("generateGitFileTreeHtml", () => {
+  it("marks file rows as keyboard-accessible tree items", () => {
+    const files = [makeFile()];
+    const folder = makeFolder("", {
+      f: { type: "file", name: "file.ts", index: 0 }
+    });
+
+    const fragment = parseHtml(generateGitFileTreeHtml(folder, files));
+    const row = fragment.querySelector("li.gitFile")!;
+
+    expect(row.getAttribute("role")).toBe("treeitem");
+    expect(row.getAttribute("tabindex")).toBe("0");
+    expect(row.getAttribute("aria-label")).toBe("file.ts, Modified, +5 additions, -2 deletions");
+  });
+
+  it("marks folders and nested file groups as tree landmarks", () => {
+    const src = makeFolder("src");
+    const folder = makeFolder("", { src });
+
+    const fragment = parseHtml(generateGitFileTreeHtml(folder, []));
+    const tree = fragment.querySelector("ul[role='tree']")!;
+    const folderItem = fragment.querySelector("span.gitFolder")!;
+
+    expect(tree).not.toBeNull();
+    expect(folderItem.getAttribute("role")).toBe("treeitem");
+    expect(folderItem.getAttribute("tabindex")).toBe("0");
+    expect(folderItem.getAttribute("aria-expanded")).toBe("true");
+    expect(folderItem.getAttribute("aria-label")).toBe("src, folder");
+  });
+
   it("escapes angle brackets and slashes in a folder name (TC-017)", () => {
     // Case: TC-017
     // Given: an opened folder whose name is a script-injection payload

@@ -1,5 +1,6 @@
 import { getBranchLabels } from "./branchLabels";
 import { buildCommitContextMenuItems } from "./commitMenu";
+import { buildSignatureChipHtml } from "./commitSignature";
 import {
   hideContextMenu,
   hideContextMenuListener,
@@ -1568,6 +1569,7 @@ class GitKeizuView {
     const avatarHtml = hasAvatar
       ? `<span class="commitDetailsSummaryAvatar"><img src="${escapeHtml(this.avatars[commitDetails.email])}"></span>`
       : "";
+    const signatureHtml = buildSignatureChipHtml(commitDetails.signature);
 
     return (
       `<span class="commitDetailsSummaryTop${avatarClass}"><span class="commitDetailsSummaryTopRow"><span class="commitDetailsSummaryKeyValues">` +
@@ -1575,7 +1577,7 @@ class GitKeizuView {
       `<b>${t("commitDetails.parents")} </b>${parentLinks}<br>` +
       `<b>${t("commitDetails.author")} </b>${escapeHtml(commitDetails.author)} &lt;<a href="mailto:${encodeURIComponent(commitDetails.email)}">${escapeHtml(commitDetails.email)}</a>&gt;<br>` +
       `<b>${t("commitDetails.committer")} </b>${committerHtml}<br>` +
-      `<b>${t("commitDetails.date")} </b>${new Date(commitDetails.date * SECONDS_TO_MS).toString()}</span>` +
+      `<b>${t("commitDetails.date")} </b>${new Date(commitDetails.date * SECONDS_TO_MS).toString()}${signatureHtml ? `<br>${signatureHtml}` : ""}</span>` +
       avatarHtml +
       "</span></span><br><br>" +
       escapeHtml(commitDetails.body).replace(/\n/g, "<br>")
@@ -1693,6 +1695,12 @@ class GitKeizuView {
       );
       this.saveState();
     });
+    addListenerToClass("gitFolder", "keydown", (e) => {
+      const keyEvent = <KeyboardEvent>e;
+      if (keyEvent.key !== "Enter" && keyEvent.key !== " ") return;
+      keyEvent.preventDefault();
+      (<HTMLElement>keyEvent.target).click();
+    });
     addListenerToClass("openFile", "click", (e) => {
       e.stopPropagation();
       sendOpenFileAction(resolveFileRow(<Element>e.target), this.expandedCommit, this.currentRepo);
@@ -1726,6 +1734,28 @@ class GitKeizuView {
         type: <GG.GitFileChangeType>sourceElem.dataset.type,
         ...(diffCompareWithHash !== null ? { compareWithHash: diffCompareWithHash } : {})
       });
+    });
+    addListenerToClass("gitFile", "keydown", (e) => {
+      const keyEvent = <KeyboardEvent>e;
+      const sourceElem = <HTMLElement>(<Element>keyEvent.target).closest(".gitFile");
+      if (sourceElem === null) return;
+      if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+        keyEvent.preventDefault();
+        sourceElem.click();
+        return;
+      }
+      if (keyEvent.key === "ContextMenu" || (keyEvent.shiftKey && keyEvent.key === "F10")) {
+        keyEvent.preventDefault();
+        const bounds = sourceElem.getBoundingClientRect();
+        sourceElem.dispatchEvent(
+          new MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+            clientX: bounds.left + bounds.width / 2,
+            clientY: bounds.top + bounds.height / 2
+          })
+        );
+      }
     });
   }
   public showCompareResult(fileChanges: GG.GitFileChange[], fromHash: string, toHash: string) {

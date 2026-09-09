@@ -1,0 +1,229 @@
+.repo-settings {
+  display: block;
+  max-width: min(760px, calc(100% - 32px));
+  max-height: min(720px, calc(100% - 32px));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background-color: var(--vscode-editorWidget-background);
+  color: var(--vscode-editorWidget-foreground);
+  box-shadow: 0 6px 20px var(--vscode-widget-shadow);
+  animation: repo-settings-open 120ms ease-out;
+}
+
+.repo-settings:focus {
+  outline: none;
+}
+
+.repo-settings:focus-visible,
+.repo-settings :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.repo-settings-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.repo-settings-header h2 {
+  grid-column: 1 / 2;
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.repo-settings-description {
+  grid-column: 1 / 2;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.repo-settings-close {
+  grid-column: 2 / 3;
+  grid-row: 1 / 3;
+}
+
+.repo-settings-content {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.repo-settings-section {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  background-color: var(--vscode-editor-background);
+}
+
+.repo-settings-section h3,
+.repo-settings-form-title {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.repo-settings-remote-list,
+.repo-settings-remote-actions {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.repo-settings-remote-list {
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.repo-settings-remote {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+.repo-settings-remote-details {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.repo-settings-remote-name {
+  font-weight: 600;
+}
+
+.repo-settings-remote-url {
+  overflow-wrap: anywhere;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.repo-settings-remote-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.repo-settings-form {
+  display: grid;
+  gap: 10px;
+}
+
+.repo-settings-field {
+  display: grid;
+  gap: 3px;
+}
+
+.repo-settings-field label {
+  font-size: 12px;
+}
+
+.repo-settings input[type="text"],
+.repo-settings button {
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  font: inherit;
+}
+
+.repo-settings input[type="text"] {
+  min-width: 0;
+  padding: 5px 6px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+}
+
+.repo-settings input.invalid {
+  border-color: var(--vscode-inputValidation-errorBorder);
+  border-width: 2px;
+}
+
+.repo-settings button {
+  min-height: 26px;
+  padding: 3px 10px;
+  border-color: transparent;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+}
+
+.repo-settings button:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.repo-settings button.repo-settings-secondary-button {
+  border-color: var(--vscode-button-secondaryBorder);
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.repo-settings button.repo-settings-secondary-button:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.repo-settings-close {
+  min-width: 54px;
+}
+
+.repo-settings-form-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.repo-settings-checkbox {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.repo-settings-issue-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.repo-settings-error {
+  min-height: 16px;
+  margin: 0;
+  color: var(--vscode-errorForeground);
+  font-size: 12px;
+}
+
+.repo-settings-empty,
+.repo-settings-coming-soon {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.repo-settings-coming-soon {
+  font-size: 12px;
+}
+
+@keyframes repo-settings-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repo-settings,
+  .repo-settings button {
+    animation: none;
+    transition: none;
+  }
+}

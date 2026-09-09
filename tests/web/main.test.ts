@@ -7409,3 +7409,216 @@ describe("custom branch glob filters (S46)", () => {
     expect(mockBranchDropdownInstance.setOptions).toHaveBeenCalledWith(expect.any(Array), []);
   });
 });
+
+describe("context-menu action visibility routing", () => {
+  const VISIBILITY_HASH_STASH = "fff111fff111fff1";
+  const VISIBILITY_HASH_COMMIT = "aaa222aaa222aaa2";
+  let liveVscode: typeof vscode;
+  let liveFileTreeHtml: typeof generateGitFileTreeHtml;
+  let liveShowContextMenu: typeof showContextMenu;
+  let liveBuildRefContextMenuItems: typeof buildRefContextMenuItems;
+
+  beforeAll(async () => {
+    vi.resetModules();
+    dropdownCallCount = 0;
+    setupTestDOM();
+    setupViewState();
+
+    const webviewMessages = globalThis.webviewMessages as Record<string, string>;
+    webviewMessages["context.resetFile"] = "Reset File to Revision...";
+
+    const utilsMod = await import("../../web/utils");
+    liveVscode = utilsMod.vscode;
+    vi.mocked(liveVscode.getState).mockReturnValueOnce(null);
+
+    const branchLabelsMod = await import("../../web/branchLabels");
+    vi.mocked(branchLabelsMod.getBranchLabels).mockReturnValue({
+      heads: [{ name: "main", remotes: [] }],
+      remotes: [{ name: "origin/feature" }],
+      tags: [{ name: "v1.0" }]
+    });
+
+    const fileTreeMod = await import("../../web/fileTree");
+    liveFileTreeHtml = fileTreeMod.generateGitFileTreeHtml;
+
+    const ctxMenuMod = await import("../../web/contextMenu");
+    liveShowContextMenu = ctxMenuMod.showContextMenu;
+
+    liveBuildRefContextMenuItems = (await import("../../web/refMenu")).buildRefContextMenuItems;
+
+    await import("../../web/main");
+    dispatchMessage({
+      command: "loadBranches",
+      branches: ["main"],
+      head: "main",
+      hard: false,
+      isRepo: true
+    });
+    dispatchMessage({
+      command: "loadCommits",
+      commits: [
+        {
+          hash: UNCOMMITTED_CHANGES_HASH,
+          parentHashes: [],
+          author: "",
+          email: "",
+          date: 0,
+          message: "Uncommitted",
+          refs: [],
+          stash: null
+        },
+        {
+          hash: VISIBILITY_HASH_STASH,
+          parentHashes: [],
+          author: "Stash",
+          email: "stash@test.com",
+          date: 1700000001,
+          message: "Stash",
+          refs: [],
+          stash: makeStash()
+        },
+        {
+          hash: VISIBILITY_HASH_COMMIT,
+          parentHashes: [],
+          author: "Commit",
+          email: "commit@test.com",
+          date: 1700000002,
+          message: "Commit",
+          refs: [],
+          stash: null
+        }
+      ],
+      head: VISIBILITY_HASH_COMMIT,
+      moreCommitsAvailable: false,
+      hard: false
+    });
+    vi.clearAllMocks();
+  });
+
+  function setVisibility(group: string, actionId: string): void {
+    const viewState = (globalThis as Record<string, unknown>).viewState as Record<string, unknown>;
+    const previous = viewState.contextMenuActionsVisibility as Record<string, unknown> | undefined;
+    viewState.contextMenuActionsVisibility = {
+      ...previous,
+      [group]: {
+        ...(typeof previous?.[group] === "object" && previous?.[group] !== null
+          ? (previous[group] as Record<string, unknown>)
+          : {}),
+        [actionId]: false
+      }
+    };
+  }
+
+  function expectTitles(items: ContextMenuElement[], titles: (string | null)[]): void {
+    expect(items.map((item) => (item === null ? null : item.title))).toEqual(titles);
+  }
+
+  it("keeps every commit action visible by default and hides a configured action", () => {
+    const commitRow = document.querySelector(
+      `.commit[data-hash="${VISIBILITY_HASH_COMMIT}"]`
+    );
+    expect(commitRow).not.toBeNull();
+
+    commitRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const defaultItems = vi.mocked(liveShowContextMenu).mock.calls[0][1];
+    expect(defaultItems).toHaveLength(9);
+
+    setVisibility("commit", "commit.merge");
+    commitRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const hiddenItems = vi.mocked(liveShowContextMenu).mock.calls[1][1];
+    expect(hiddenItems).toHaveLength(9);
+    expect(JSON.stringify(hiddenItems)).not.toContain("Merge into current branch");
+  });
+
+  it("routes local branch menus to the branch group", () => {
+    vi.clearAllMocks();
+    vi.mocked(liveBuildRefContextMenuItems).mockReturnValue([
+      {
+        title: "Hidden Branch Delete",
+        actionId: "ref.deleteBranch",
+        onClick: vi.fn()
+      },
+      { title: "Visible Branch Action", onClick: vi.fn() }
+    ]);
+    setVisibility("branch", "ref.deleteBranch");
+
+    const branchElem = document.querySelector(".gitRef.head");
+    expect(branchElem).not.toBeNull();
+    branchElem!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+    expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
+    expectTitles(vi.mocked(liveShowContextMenu).mock.calls[0][1], ["Visible Branch Action"]);
+  });
+
+  it("routes tag and stash menus to their own groups", () => {
+    vi.clearAllMocks();
+    vi.mocked(liveBuildRefContextMenuItems).mockReturnValue([
+      { title: "Hidden Tag Delete", actionId: "tag.deleteTag", onClick: vi.fn() },
+      { title: "Visible Tag Action", onClick: vi.fn() }
+    ]);
+    setVisibility("tag", "tag.deleteTag");
+
+    const tagElem = document.querySelector(".gitRef.tag");
+    expect(tagElem).not.toBeNull();
+    tagElem!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(vi.mocked(liveShowContextMenu).mock.calls[0][1]).toHaveLength(1);
+
+    setVisibility("stash", "stash.apply");
+    const stashRow = document.querySelector(
+      `.commit[data-hash="${VISIBILITY_HASH_STASH}"]`
+    );
+    expect(stashRow).not.toBeNull();
+    stashRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const stashItems = vi.mocked(liveShowContextMenu).mock.calls[1][1];
+    expect(stashItems).toHaveLength(6);
+    expect(JSON.stringify(stashItems)).not.toContain("Apply Stash");
+  });
+
+  it("filters uncommitted and file menus through their central show paths", () => {
+    vi.clearAllMocks();
+    setVisibility("uncommitted", "uncommitted.reset");
+    const uncommittedRow = document.querySelector(".unsavedChanges");
+    expect(uncommittedRow).not.toBeNull();
+    uncommittedRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const uncommittedItems = vi.mocked(liveShowContextMenu).mock.calls[0][1];
+    expect(uncommittedItems).toHaveLength(3);
+    expect(JSON.stringify(uncommittedItems)).not.toContain("Reset uncommitted changes");
+
+    liveFileTreeHtml.mockReturnValueOnce(
+      '<table><tr class="gitFile M gitDiffPossible" data-oldfilepath="src%2Ffile.ts" data-newfilepath="src%2Ffile.ts" data-type="M"><td></td></tr></table>'
+    );
+    const commitRow = document.querySelector(
+      `.commit[data-hash="${VISIBILITY_HASH_COMMIT}"]`
+    );
+    commitRow!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    dispatchMessage({
+      command: "commitDetails",
+      commitDetails: {
+        hash: VISIBILITY_HASH_COMMIT,
+        parents: [],
+        author: "",
+        email: "",
+        date: 0,
+        committer: "",
+        committerEmail: "",
+        body: "",
+        fileChanges: [
+          {
+            oldFilePath: "src/file.ts",
+            newFilePath: "src/file.ts",
+            type: "M",
+            additions: 1,
+            deletions: 0
+          }
+        ]
+      }
+    });
+    setVisibility("file", "file.openFile");
+    const fileRow = document.querySelector(".gitFile");
+    expect(fileRow).not.toBeNull();
+    fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+    const fileItems = vi.mocked(liveShowContextMenu).mock.calls[1][1];
+    expectTitles(fileItems, ["Reset File to Revision..."]);
+  });
+});

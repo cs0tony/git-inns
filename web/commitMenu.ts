@@ -34,6 +34,7 @@ export function buildCommitContextMenuItems(
 ): ContextMenuElement[] {
   const addTagItem: ContextMenuItem = {
     title: `${t("Add Tag")}${ELLIPSIS}`,
+    actionId: "commit.addTag",
     recentActionId: "commit.addTag",
     onClick: () => {
       showFormDialog(
@@ -74,6 +75,7 @@ export function buildCommitContextMenuItems(
   };
   const createBranchItem: ContextMenuItem = {
     title: `${t("Create Branch")}${ELLIPSIS}`,
+    actionId: "commit.createBranch",
     recentActionId: "commit.createBranch",
     onClick: () => {
       showFormDialog(
@@ -102,6 +104,7 @@ export function buildCommitContextMenuItems(
   };
   const createWorktreeItem: ContextMenuItem = {
     title: `${t("Create Worktree Here")}${ELLIPSIS}`,
+    actionId: "commit.createWorktree",
     recentActionId: "commit.createWorktree",
     onClick: () => {
       const repoName = getRepoName(repo);
@@ -148,6 +151,7 @@ export function buildCommitContextMenuItems(
   };
   const checkoutItem: ContextMenuItem = {
     title: `${t("Checkout")}${ELLIPSIS}`,
+    actionId: "commit.checkout",
     onClick: () => {
       showConfirmationDialog(
         t(
@@ -167,6 +171,7 @@ export function buildCommitContextMenuItems(
   };
   const cherryPickItem: ContextMenuItem = {
     title: `${t("Cherry Pick")}${ELLIPSIS}`,
+    actionId: "commit.cherryPick",
     recentActionId: "commit.cherryPick",
     onClick: () => {
       const cherryPickCheckboxes: DialogCheckboxInput[] = [
@@ -243,6 +248,7 @@ export function buildCommitContextMenuItems(
   };
   const revertItem: ContextMenuItem = {
     title: `${t("Revert")}${ELLIPSIS}`,
+    actionId: "commit.revert",
     onClick: () => {
       if (parentHashes.length <= 1) {
         showConfirmationDialog(
@@ -282,6 +288,7 @@ export function buildCommitContextMenuItems(
   };
   const mergeItem: ContextMenuItem = {
     title: `${t("Merge into current branch")}${ELLIPSIS}`,
+    actionId: "commit.merge",
     recentActionId: "commit.merge",
     onClick: () => {
       const noFfDefault = viewState.dialogDefaults.merge.noFastForward;
@@ -348,6 +355,7 @@ export function buildCommitContextMenuItems(
   };
   const resetItem: ContextMenuItem = {
     title: `${t("Reset current branch to this Commit")}${ELLIPSIS}`,
+    actionId: "commit.resetToCommit",
     recentActionId: "commit.resetToCommit",
     onClick: () => {
       showSelectDialog(
@@ -378,6 +386,7 @@ export function buildCommitContextMenuItems(
   };
   const copyCommitHashItem: ContextMenuItem = {
     title: t("context.copyCommitHash"),
+    actionId: "commit.copyHash",
     onClick: () => {
       sendMessage({ command: "copyToClipboard", type: "Commit Hash", data: hash });
     }
@@ -387,6 +396,7 @@ export function buildCommitContextMenuItems(
     parentHashes.length === 1
       ? {
           title: `${t("Drop Commit")}${ELLIPSIS}`,
+          actionId: "commit.drop",
           onClick: () => {
             showConfirmationDialog(
               t(
@@ -408,6 +418,7 @@ export function buildCommitContextMenuItems(
 
   const exportArchiveItem: ContextMenuItem = {
     title: `${t("Export Archive")}${ELLIPSIS}`,
+    actionId: "commit.exportArchive",
     onClick: () => {
       showFormDialog(
         t(

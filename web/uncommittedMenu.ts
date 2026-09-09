@@ -14,6 +14,7 @@ export function buildUncommittedContextMenuItems(
   return [
     {
       title: `${t("Stash uncommitted changes")}${ELLIPSIS}`,
+      actionId: "uncommitted.stash",
       onClick: () => {
         showFormDialog(
           t("Stash uncommitted changes:"),
@@ -45,6 +46,7 @@ export function buildUncommittedContextMenuItems(
     },
     {
       title: `${t("Reset uncommitted changes")}${ELLIPSIS}`,
+      actionId: "uncommitted.reset",
       onClick: () => {
         showSelectDialog(
           t("Select the mode to reset uncommitted changes:"),
@@ -79,6 +81,7 @@ export function buildUncommittedContextMenuItems(
     },
     {
       title: `${t("Clean untracked files")}${ELLIPSIS}`,
+      actionId: "uncommitted.clean",
       onClick: () => {
         showCheckboxDialog(
           t("Are you sure you want to clean untracked files? This cannot be undone."),

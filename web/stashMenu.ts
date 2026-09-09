@@ -10,6 +10,7 @@ export function buildStashContextMenuItems(
 ): ContextMenuElement[] {
   const applyStashItem: ContextMenuItem = {
     title: `${t("Apply Stash")}${ELLIPSIS}`,
+    actionId: "stash.apply",
     onClick: () => {
       showCheckboxDialog(
         t("Are you sure you want to apply {0}?", `<b><i>${escapeHtml(selector)}</i></b>`),
@@ -30,6 +31,7 @@ export function buildStashContextMenuItems(
   };
   const createBranchFromStashItem: ContextMenuItem = {
     title: `${t("Create Branch from Stash")}${ELLIPSIS}`,
+    actionId: "stash.createBranch",
     onClick: () => {
       showRefInputDialog(
         t(
@@ -52,6 +54,7 @@ export function buildStashContextMenuItems(
   };
   const popStashItem: ContextMenuItem = {
     title: `${t("Pop Stash")}${ELLIPSIS}`,
+    actionId: "stash.pop",
     onClick: () => {
       showCheckboxDialog(
         t(
@@ -75,6 +78,7 @@ export function buildStashContextMenuItems(
   };
   const dropStashItem: ContextMenuItem = {
     title: `${t("Drop Stash")}${ELLIPSIS}`,
+    actionId: "stash.drop",
     onClick: () => {
       showConfirmationDialog(
         t(
@@ -94,6 +98,7 @@ export function buildStashContextMenuItems(
   };
   const copyStashNameItem: ContextMenuItem = {
     title: t("Copy Stash Name to Clipboard"),
+    actionId: "stash.copyName",
     onClick: () => {
       sendMessage({
         command: "copyToClipboard",
@@ -104,6 +109,7 @@ export function buildStashContextMenuItems(
   };
   const copyStashHashItem: ContextMenuItem = {
     title: t("Copy Stash Hash to Clipboard"),
+    actionId: "stash.copyHash",
     onClick: () => {
       sendMessage({
         command: "copyToClipboard",

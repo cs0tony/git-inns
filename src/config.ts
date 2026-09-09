@@ -2,6 +2,9 @@ import * as vscode from "vscode";
 
 import {
   CommitOrdering,
+  ContextMenuActionId,
+  ContextMenuActionsVisibility,
+  ContextMenuGroup,
   CustomBranchGlobPattern,
   DateFormat,
   DateType,
@@ -77,6 +80,81 @@ export function normalizeCustomBranchGlobPatterns(value: unknown): CustomBranchG
     patterns.push({ name, glob });
   }
   return patterns;
+}
+
+const CONTEXT_MENU_ACTION_IDS: Record<ContextMenuGroup, readonly ContextMenuActionId[]> = {
+  branch: [
+    "ref.checkoutBranch",
+    "ref.mergeBranch",
+    "ref.rebaseBranch",
+    "ref.renameBranch",
+    "ref.deleteBranch",
+    "ref.createWorktree",
+    "ref.openWorktreeInNewWindow",
+    "ref.revealWorktreeInOS",
+    "ref.openTerminal",
+    "ref.copyWorktreePath",
+    "ref.removeWorktree",
+    "ref.pull",
+    "ref.push",
+    "ref.copyName"
+  ],
+  commit: [
+    "commit.createBranch",
+    "commit.createWorktree",
+    "commit.cherryPick",
+    "commit.merge",
+    "commit.exportArchive",
+    "commit.addTag",
+    "commit.checkout",
+    "commit.revert",
+    "commit.resetToCommit",
+    "commit.drop",
+    "commit.copyHash"
+  ],
+  file: ["file.openFile", "file.resetToRevision"],
+  remoteBranch: [
+    "ref.checkoutBranch",
+    "ref.mergeBranch",
+    "ref.deleteRemoteBranch",
+    "remoteBranch.copyName"
+  ],
+  stash: [
+    "stash.apply",
+    "stash.pop",
+    "stash.createBranch",
+    "stash.drop",
+    "stash.copyName",
+    "stash.copyHash"
+  ],
+  tag: ["tag.deleteTag", "tag.pushTag", "tag.copyName"],
+  uncommitted: ["uncommitted.stash", "uncommitted.reset", "uncommitted.clean"]
+};
+
+export function normalizeContextMenuActionsVisibility(
+  value: unknown
+): ContextMenuActionsVisibility {
+  const valueObject = typeof value === "object" && value !== null ? value : {};
+  const normalized = {} as Record<ContextMenuGroup, Record<ContextMenuActionId, boolean>>;
+
+  for (const [group, actionIds] of Object.entries(CONTEXT_MENU_ACTION_IDS) as [
+    ContextMenuGroup,
+    readonly ContextMenuActionId[]
+  ][]) {
+    const groupValue =
+      typeof valueObject === "object" &&
+      valueObject !== null &&
+      typeof (valueObject as Record<string, unknown>)[group] === "object" &&
+      (valueObject as Record<string, unknown>)[group] !== null
+        ? ((valueObject as Record<string, unknown>)[group] as Record<string, unknown>)
+        : {};
+
+    normalized[group] = Object.fromEntries(
+      actionIds.map((actionId) => [actionId, groupValue[actionId] !== false])
+    ) as Record<ContextMenuActionId, boolean>;
+  }
+
+  return normalized;
 }
 
 export type OpenNewTabEditorGroupValue =
@@ -161,6 +239,12 @@ class Config {
 
   public dateFormat(): DateFormat {
     return this.workspaceConfiguration.get("dateFormat", "Date & Time");
+  }
+
+  public contextMenuActionsVisibility(): ContextMenuActionsVisibility {
+    return normalizeContextMenuActionsVisibility(
+      this.workspaceConfiguration.get<unknown>("contextMenuActionsVisibility", {})
+    );
   }
 
   public dateType(): DateType {

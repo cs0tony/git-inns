@@ -58,6 +58,7 @@ export function buildFileContextMenuItems(
   return [
     {
       title: OPEN_FILE_LABEL,
+      actionId: "file.openFile",
       recentActionId: "file.openFile",
       onClick: () => {
         recordRecentAction(repo, "file.openFile");
@@ -66,6 +67,7 @@ export function buildFileContextMenuItems(
     },
     {
       title: t("context.resetFile"),
+      actionId: "file.resetToRevision",
       onClick: () => {
         showConfirmationDialog(
           t(

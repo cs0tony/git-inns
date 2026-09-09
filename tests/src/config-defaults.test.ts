@@ -26,7 +26,11 @@ vi.mock("vscode", () => ({
   }
 }));
 
-import { getConfig, parseKeybinding } from "../../src/config";
+import {
+  getConfig,
+  normalizeContextMenuActionsVisibility,
+  parseKeybinding
+} from "../../src/config";
 
 type ConfigInstance = ReturnType<typeof getConfig>;
 
@@ -199,6 +203,24 @@ describe("Config fallback defaults vs package.json", () => {
       const expected = getPackageDefault("menu.showRecentActions");
       expect(actual).toBe(expected);
     });
+  });
+});
+
+describe("contextMenuActionsVisibility fallback comparison", () => {
+  beforeEach(() => {
+    mockGet.mockReset();
+    // Given: the setting uses its package.json fallback
+    mockGet.mockImplementation((_key: string, defaultValue: unknown) => defaultValue);
+  });
+
+  it("normalizes the empty package default to all actions visible", () => {
+    // When: the normalized setting is read
+    const actual = getConfig().contextMenuActionsVisibility();
+    const expected = normalizeContextMenuActionsVisibility(getPackageDefault("contextMenuActionsVisibility"));
+
+    // Then: missing entries retain their visible default
+    expect(actual).toEqual(expected);
+    expect(Object.values(actual.commit)).not.toContain(false);
   });
 });
 

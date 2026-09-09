@@ -291,6 +291,116 @@
           "default": true,
           "description": "%config.menu.showRecentActions.description%"
         },
+        "git-keizu.contextMenuActionsVisibility": {
+          "type": "object",
+          "default": {},
+          "description": "%config.contextMenuActionsVisibility.description%",
+          "additionalProperties": false,
+          "properties": {
+            "branch": {
+              "type": "object",
+              "title": "Branch",
+              "description": "%config.contextMenuActionsVisibility.branch.description%",
+              "additionalProperties": false,
+              "properties": {
+                "ref.checkoutBranch": { "type": "boolean", "title": "Checkout Branch" },
+                "ref.mergeBranch": { "type": "boolean", "title": "Merge into Current Branch" },
+                "ref.rebaseBranch": { "type": "boolean", "title": "Rebase Current Branch" },
+                "ref.renameBranch": { "type": "boolean", "title": "Rename Branch" },
+                "ref.deleteBranch": { "type": "boolean", "title": "Delete Branch" },
+                "ref.createWorktree": { "type": "boolean", "title": "Create Worktree" },
+                "ref.openWorktreeInNewWindow": {
+                  "type": "boolean",
+                  "title": "Open Worktree in New Window"
+                },
+                "ref.revealWorktreeInOS": { "type": "boolean", "title": "Reveal Worktree in OS" },
+                "ref.openTerminal": { "type": "boolean", "title": "Open Terminal in Worktree" },
+                "ref.copyWorktreePath": { "type": "boolean", "title": "Copy Worktree Path" },
+                "ref.removeWorktree": { "type": "boolean", "title": "Remove Worktree" },
+                "ref.pull": { "type": "boolean", "title": "Pull" },
+                "ref.push": { "type": "boolean", "title": "Push" },
+                "ref.copyName": { "type": "boolean", "title": "Copy Branch Name" }
+              }
+            },
+            "commit": {
+              "type": "object",
+              "title": "Commit",
+              "description": "%config.contextMenuActionsVisibility.commit.description%",
+              "additionalProperties": false,
+              "properties": {
+                "commit.createBranch": { "type": "boolean", "title": "Create Branch" },
+                "commit.createWorktree": { "type": "boolean", "title": "Create Worktree" },
+                "commit.cherryPick": { "type": "boolean", "title": "Cherry Pick" },
+                "commit.merge": { "type": "boolean", "title": "Merge into Current Branch" },
+                "commit.exportArchive": { "type": "boolean", "title": "Export Archive" },
+                "commit.addTag": { "type": "boolean", "title": "Add Tag" },
+                "commit.checkout": { "type": "boolean", "title": "Checkout Commit" },
+                "commit.revert": { "type": "boolean", "title": "Revert" },
+                "commit.resetToCommit": { "type": "boolean", "title": "Reset to Commit" },
+                "commit.drop": { "type": "boolean", "title": "Drop Commit" },
+                "commit.copyHash": { "type": "boolean", "title": "Copy Commit Hash" }
+              }
+            },
+            "file": {
+              "type": "object",
+              "title": "File",
+              "description": "%config.contextMenuActionsVisibility.file.description%",
+              "additionalProperties": false,
+              "properties": {
+                "file.openFile": { "type": "boolean", "title": "Open File" },
+                "file.resetToRevision": { "type": "boolean", "title": "Reset File to Revision" }
+              }
+            },
+            "remoteBranch": {
+              "type": "object",
+              "title": "Remote Branch",
+              "description": "%config.contextMenuActionsVisibility.remoteBranch.description%",
+              "additionalProperties": false,
+              "properties": {
+                "ref.checkoutBranch": { "type": "boolean", "title": "Checkout Remote Branch" },
+                "ref.mergeBranch": { "type": "boolean", "title": "Merge Remote Branch" },
+                "ref.deleteRemoteBranch": { "type": "boolean", "title": "Delete Remote Branch" },
+                "remoteBranch.copyName": { "type": "boolean", "title": "Copy Branch Name" }
+              }
+            },
+            "stash": {
+              "type": "object",
+              "title": "Stash",
+              "description": "%config.contextMenuActionsVisibility.stash.description%",
+              "additionalProperties": false,
+              "properties": {
+                "stash.apply": { "type": "boolean", "title": "Apply Stash" },
+                "stash.pop": { "type": "boolean", "title": "Pop Stash" },
+                "stash.createBranch": { "type": "boolean", "title": "Create Branch from Stash" },
+                "stash.drop": { "type": "boolean", "title": "Drop Stash" },
+                "stash.copyName": { "type": "boolean", "title": "Copy Stash Name" },
+                "stash.copyHash": { "type": "boolean", "title": "Copy Stash Hash" }
+              }
+            },
+            "tag": {
+              "type": "object",
+              "title": "Tag",
+              "description": "%config.contextMenuActionsVisibility.tag.description%",
+              "additionalProperties": false,
+              "properties": {
+                "tag.deleteTag": { "type": "boolean", "title": "Delete Tag" },
+                "tag.pushTag": { "type": "boolean", "title": "Push Tag" },
+                "tag.copyName": { "type": "boolean", "title": "Copy Tag Name" }
+              }
+            },
+            "uncommitted": {
+              "type": "object",
+              "title": "Uncommitted Changes",
+              "description": "%config.contextMenuActionsVisibility.uncommitted.description%",
+              "additionalProperties": false,
+              "properties": {
+                "uncommitted.stash": { "type": "boolean", "title": "Stash Changes" },
+                "uncommitted.reset": { "type": "boolean", "title": "Reset Changes" },
+                "uncommitted.clean": { "type": "boolean", "title": "Clean Untracked Files" }
+              }
+            }
+          }
+        },
         "git-keizu.dialog.merge.noFastForward": {
           "type": "boolean",
           "default": true,

@@ -7,6 +7,7 @@ import {
   isContextMenuActive,
   showContextMenu
 } from "./contextMenu";
+import { filterContextMenuItems } from "./contextMenuVisibility";
 import { getCommitDate } from "./dates";
 import { hideDialog, isDialogActive, showErrorDialog } from "./dialogs";
 import { Dropdown } from "./dropdown";
@@ -963,7 +964,11 @@ class GitKeizuView {
         let selector = commit.stash.selector;
         showContextMenu(
           <MouseEvent>e,
-          buildStashContextMenuItems(this.currentRepo, hash, selector, sourceElem),
+          filterContextMenuItems(
+            buildStashContextMenuItems(this.currentRepo, hash, selector, sourceElem),
+            "stash",
+            viewState.contextMenuActionsVisibility
+          ),
           sourceElem,
           this.getCurrentRepoRecentActions()
         );
@@ -971,13 +976,17 @@ class GitKeizuView {
       }
       showContextMenu(
         <MouseEvent>e,
-        buildCommitContextMenuItems(
-          this.currentRepo,
-          hash,
-          commit.parentHashes,
-          this.commits,
-          this.commitLookup,
-          sourceElem
+        filterContextMenuItems(
+          buildCommitContextMenuItems(
+            this.currentRepo,
+            hash,
+            commit.parentHashes,
+            this.commits,
+            this.commitLookup,
+            sourceElem
+          ),
+          "commit",
+          viewState.contextMenuActionsVisibility
         ),
         sourceElem,
         this.getCurrentRepoRecentActions()
@@ -1061,7 +1070,11 @@ class GitKeizuView {
       let sourceElem = <HTMLElement>(<Element>e.target).closest(".unsavedChanges")!;
       showContextMenu(
         <MouseEvent>e,
-        buildUncommittedContextMenuItems(this.currentRepo, sourceElem),
+        filterContextMenuItems(
+          buildUncommittedContextMenuItems(this.currentRepo, sourceElem),
+          "uncommitted",
+          viewState.contextMenuActionsVisibility
+        ),
         sourceElem,
         this.getCurrentRepoRecentActions()
       );
@@ -1085,14 +1098,22 @@ class GitKeizuView {
       }
       showContextMenu(
         <MouseEvent>e,
-        buildRefContextMenuItems(
-          this.currentRepo,
-          refName,
-          sourceElem,
-          isRemoteCombined,
-          this.gitBranchHead,
-          remotes,
-          worktreeInfo
+        filterContextMenuItems(
+          buildRefContextMenuItems(
+            this.currentRepo,
+            refName,
+            sourceElem,
+            isRemoteCombined,
+            this.gitBranchHead,
+            remotes,
+            worktreeInfo
+          ),
+          sourceElem.classList.contains("tag")
+            ? "tag"
+            : isRemoteCombined || sourceElem.classList.contains("remote")
+              ? "remoteBranch"
+              : "branch",
+          viewState.contextMenuActionsVisibility
         ),
         sourceElem,
         this.getCurrentRepoRecentActions()
@@ -1818,7 +1839,12 @@ class GitKeizuView {
       if (sourceElem === null) return;
       const items = buildFileContextMenuItems(sourceElem, this.expandedCommit, this.currentRepo);
       if (items.length === 0) return;
-      showContextMenu(<MouseEvent>e, items, sourceElem, this.getCurrentRepoRecentActions());
+      showContextMenu(
+        <MouseEvent>e,
+        filterContextMenuItems(items, "file", viewState.contextMenuActionsVisibility),
+        sourceElem,
+        this.getCurrentRepoRecentActions()
+      );
     });
     addListenerToClass("gitFile", "click", (e) => {
       let sourceElem = <HTMLElement>(<Element>e.target).closest(".gitFile")!;
@@ -1901,6 +1927,7 @@ let gitKeizu = new GitKeizuView(
   viewState.lastActiveRepo,
   {
     fetchAvatars: viewState.fetchAvatars,
+    contextMenuActionsVisibility: viewState.contextMenuActionsVisibility,
     customBranchGlobPatterns: viewState.customBranchGlobPatterns,
     graphColours: viewState.graphColours,
     graphStyle: viewState.graphStyle,

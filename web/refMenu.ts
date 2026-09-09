@@ -62,6 +62,7 @@ export function showPushRemoteDialog(
 function buildMergeBranchMenuItem(repo: string, refName: string): ContextMenuItem {
   return {
     title: `${t("Merge into current branch")}${ELLIPSIS}`,
+    actionId: "ref.mergeBranch",
     recentActionId: "ref.mergeBranch",
     onClick: () => {
       const noFfDefault = viewState.dialogDefaults.merge.noFastForward;
@@ -208,6 +209,7 @@ export function buildRefContextMenuItems(
     menu = [
       {
         title: `${t("Delete Tag")}${ELLIPSIS}`,
+        actionId: "tag.deleteTag",
         onClick: () => {
           showConfirmationDialog(
             t(
@@ -223,6 +225,7 @@ export function buildRefContextMenuItems(
       },
       {
         title: `${t("Push Tag")}${ELLIPSIS}`,
+        actionId: "tag.pushTag",
         onClick: () => {
           showConfirmationDialog(
             t("Are you sure you want to push the tag {0}?", `<b><i>${escapeHtml(refName)}</i></b>`),
@@ -239,6 +242,7 @@ export function buildRefContextMenuItems(
     const parsed = parseRemoteRef(refName);
     const deleteRemoteBranchItem: ContextMenuItem = {
       title: `${t("Delete Remote Branch")}${ELLIPSIS}`,
+      actionId: "ref.deleteRemoteBranch",
       recentActionId: "ref.deleteRemoteBranch",
       onClick: () => {
         showConfirmationDialog(
@@ -262,6 +266,7 @@ export function buildRefContextMenuItems(
     menu = [
       {
         title: `${t("Checkout Branch")}${ELLIPSIS}`,
+        actionId: "ref.checkoutBranch",
         recentActionId: "ref.checkoutBranch",
         onClick: () => checkoutBranchAction(repo, sourceElem, refName, isRemoteCombined, true)
       },
@@ -276,6 +281,7 @@ export function buildRefContextMenuItems(
   } else {
     const renameBranchItem: ContextMenuItem = {
       title: `${t("Rename Branch")}${ELLIPSIS}`,
+      actionId: "ref.renameBranch",
       onClick: () => {
         const renameWorktreeWarning =
           worktreeInfo !== null && worktreeInfo !== undefined
@@ -311,6 +317,7 @@ export function buildRefContextMenuItems(
         : [
             {
               title: t("Open in New Window"),
+              actionId: "ref.openWorktreeInNewWindow",
               recentActionId: "ref.openWorktreeInNewWindow",
               onClick: () => {
                 recordRecentAction(repo, "ref.openWorktreeInNewWindow");
@@ -323,6 +330,7 @@ export function buildRefContextMenuItems(
             },
             {
               title: t("Reveal in File Manager"),
+              actionId: "ref.revealWorktreeInOS",
               recentActionId: "ref.revealWorktreeInOS",
               onClick: () => {
                 recordRecentAction(repo, "ref.revealWorktreeInOS");
@@ -335,6 +343,7 @@ export function buildRefContextMenuItems(
             },
             {
               title: t("Open Terminal Here"),
+              actionId: "ref.openTerminal",
               recentActionId: "ref.openTerminal",
               onClick: () => {
                 recordRecentAction(repo, "ref.openTerminal");
@@ -348,6 +357,7 @@ export function buildRefContextMenuItems(
             },
             {
               title: t("Copy Worktree Path"),
+              actionId: "ref.copyWorktreePath",
               onClick: () => {
                 sendMessage({
                   command: "copyToClipboard",
@@ -362,6 +372,7 @@ export function buildRefContextMenuItems(
       worktreeInfo === null || worktreeInfo === undefined
         ? {
             title: `${t("Create Worktree")}${ELLIPSIS}`,
+            actionId: "ref.createWorktree",
             recentActionId: "ref.createWorktree",
             onClick: () => {
               const repoName = getRepoName(repo);
@@ -401,11 +412,13 @@ export function buildRefContextMenuItems(
     const resolvedRemotes = Array.isArray(remotes) && remotes.length > 0 ? remotes : [];
     const deleteBranchItem: ContextMenuItem = {
       title: `${t("Delete Branch")}${ELLIPSIS}`,
+      actionId: "ref.deleteBranch",
       recentActionId: "ref.deleteBranch",
       onClick: () => showDeleteBranchDialog(repo, refName, resolvedRemotes, worktreeInfo)
     };
     const rebaseBranchItem: ContextMenuItem = {
       title: `${t("Rebase current branch on Branch")}${ELLIPSIS}`,
+      actionId: "ref.rebaseBranch",
       onClick: () => {
         showConfirmationDialog(
           t(
@@ -427,6 +440,7 @@ export function buildRefContextMenuItems(
       worktreeInfo !== null && worktreeInfo !== undefined && !worktreeInfo.isMainWorktree
         ? {
             title: `${t("Remove Worktree")}${ELLIPSIS}`,
+            actionId: "ref.removeWorktree",
             onClick: () => {
               showFormDialog(
                 t(
@@ -462,6 +476,7 @@ export function buildRefContextMenuItems(
       const baseMenu: ContextMenuElement[] = [
         {
           title: t("Pull"),
+          actionId: "ref.pull",
           recentActionId: "ref.pull",
           onClick: () => {
             showConfirmationDialog(
@@ -476,6 +491,7 @@ export function buildRefContextMenuItems(
         },
         {
           title: t("Push"),
+          actionId: "ref.push",
           recentActionId: "ref.push",
           onClick: () => {
             showConfirmationDialog(
@@ -509,6 +525,7 @@ export function buildRefContextMenuItems(
       const localBaseMenu: ContextMenuElement[] = [
         {
           title: t("Checkout Branch"),
+          actionId: "ref.checkoutBranch",
           recentActionId: "ref.checkoutBranch",
           onClick: () => checkoutBranchAction(repo, sourceElem, refName, undefined, true)
         },
@@ -544,6 +561,7 @@ export function buildRefContextMenuItems(
   }
   menu.push(null, {
     title: t("context.copyToClipboard", t(copyType)),
+    actionId: copyType === "Tag Name" ? "tag.copyName" : "ref.copyName",
     onClick: () => {
       sendMessage({ command: "copyToClipboard", type: copyType, data: refName });
     }

@@ -94,6 +94,46 @@ export type RecentActionId =
   | "ref.push"
   | "ref.revealWorktreeInOS";
 
+export type ContextMenuActionId =
+  | RecentActionId
+  | "commit.checkout"
+  | "commit.copyHash"
+  | "commit.drop"
+  | "commit.exportArchive"
+  | "commit.revert"
+  | "file.resetToRevision"
+  | "ref.copyName"
+  | "ref.copyWorktreePath"
+  | "ref.rebaseBranch"
+  | "ref.removeWorktree"
+  | "ref.renameBranch"
+  | "remoteBranch.copyName"
+  | "stash.apply"
+  | "stash.copyHash"
+  | "stash.copyName"
+  | "stash.createBranch"
+  | "stash.drop"
+  | "stash.pop"
+  | "tag.copyName"
+  | "tag.deleteTag"
+  | "tag.pushTag"
+  | "uncommitted.clean"
+  | "uncommitted.reset"
+  | "uncommitted.stash";
+
+export type ContextMenuGroup =
+  | "branch"
+  | "commit"
+  | "file"
+  | "remoteBranch"
+  | "stash"
+  | "tag"
+  | "uncommitted";
+
+export type ContextMenuActionsVisibility = Readonly<
+  Record<ContextMenuGroup, Readonly<Record<ContextMenuActionId, boolean>>>
+>;
+
 export type GitRepoSet = { [repo: string]: GitRepoState };
 export interface GitRepoState {
   columnWidths: number[] | null;
@@ -142,6 +182,7 @@ export interface DialogDefaults {
 
 export interface GitKeizuViewState {
   commitOrdering: CommitOrdering;
+  contextMenuActionsVisibility: ContextMenuActionsVisibility;
   customBranchGlobPatterns: CustomBranchGlobPattern[];
   dateFormat: DateFormat;
   dialogDefaults: DialogDefaults;

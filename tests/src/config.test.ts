@@ -26,6 +26,7 @@ vi.mock("vscode", () => ({
 import {
   getConfig,
   isValidBranchGlobPattern,
+  normalizeContextMenuActionsVisibility,
   normalizeCustomBranchGlobPatterns,
   parseKeybinding
 } from "../../src/config";
@@ -1090,5 +1091,55 @@ describe("customBranchGlobPatterns", () => {
     "refs//release"
   ])("rejects unsafe glob %s", (glob) => {
     expect(isValidBranchGlobPattern(glob)).toBe(false);
+  });
+});
+
+describe("contextMenuActionsVisibility", () => {
+  it("normalizes missing groups and actions to visible defaults", () => {
+    // Given: the setting is omitted
+    const result = normalizeContextMenuActionsVisibility(undefined);
+
+    // Then: every supported group exists and all supported actions are visible
+    expect(Object.keys(result).sort()).toEqual(
+      ["branch", "commit", "file", "remoteBranch", "stash", "tag", "uncommitted"].sort()
+    );
+    expect(Object.values(result.branch)).not.toContain(false);
+    expect(result.commit["commit.cherryPick"]).toBe(true);
+  });
+
+  it("keeps only boolean overrides and ignores malformed groups and actions", () => {
+    // Given: mixed valid, malformed, and unknown configuration
+    const result = normalizeContextMenuActionsVisibility({
+      commit: {
+        "commit.merge": false,
+        "commit.cherryPick": "hidden",
+        "unknown.action": false
+      },
+      unknownGroup: { anything: false },
+      stash: "hidden"
+    });
+
+    // Then: only the supported boolean false changes the default
+    expect(result.commit["commit.merge"]).toBe(false);
+    expect(result.commit["commit.cherryPick"]).toBe(true);
+    expect("unknown.action" in result.commit).toBe(false);
+    expect(Object.values(result.stash)).not.toContain(false);
+    expect("unknownGroup" in result).toBe(false);
+  });
+
+  it("normalizes malformed values returned by WorkspaceConfiguration", () => {
+    // Given: WorkspaceConfiguration returns a non-object setting
+    mockGet.mockImplementation((key: string, defaultValue: unknown) =>
+      key === "contextMenuActionsVisibility" ? 42 : defaultValue
+    );
+
+    // When: the setting is read through Config
+    const result = getConfig().contextMenuActionsVisibility();
+
+    // Then: all actions use their visible default
+    expect(result.file).toEqual({
+      "file.openFile": true,
+      "file.resetToRevision": true
+    });
   });
 });

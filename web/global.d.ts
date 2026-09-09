@@ -13,6 +13,7 @@ declare global {
 
   interface Config {
     fetchAvatars: boolean;
+    contextMenuActionsVisibility: GG.ContextMenuActionsVisibility;
     customBranchGlobPatterns: GG.CustomBranchGlobPattern[];
     graphColours: string[];
     graphStyle: "rounded" | "angular";
@@ -27,6 +28,7 @@ declare global {
 
   interface ContextMenuItem {
     title: string;
+    actionId?: GG.ContextMenuActionId;
     onClick: () => void;
     recentActionId?: GG.RecentActionId;
   }

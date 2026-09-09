@@ -22,6 +22,7 @@ import { Graph } from "./graph";
 import { t } from "./i18n";
 import { handleMessage, type RefreshMode } from "./messageHandler";
 import { buildRefContextMenuItems, checkoutBranchAction } from "./refMenu";
+import { type RepoSettingsAction, RepoSettingsPanel } from "./repoSettings";
 import { buildStashContextMenuItems } from "./stashMenu";
 import { buildUncommittedContextMenuItems } from "./uncommittedMenu";
 import {
@@ -78,6 +79,12 @@ const FILE_VIEW_LIST = "list" as const;
 const FILE_VIEW_TREE = "tree" as const;
 type FileViewType = typeof FILE_VIEW_LIST | typeof FILE_VIEW_TREE;
 const DEFAULT_FILE_VIEW_TYPE: FileViewType = FILE_VIEW_TREE;
+const EMPTY_REPO_SETTINGS_DATA = {
+  repositoryName: "",
+  repositoryPath: "",
+  remotes: [],
+  issueLinks: { enabled: false, regex: "", urlTemplate: "" }
+};
 
 function getFileViewToggle(mode: FileViewType): { icon: string; title: string } {
   return mode === FILE_VIEW_LIST
@@ -150,6 +157,7 @@ class GitKeizuView {
   private authorDropdown: Dropdown;
   private showRemoteBranchesElem: HTMLInputElement;
   private scrollShadowElem: HTMLElement;
+  private repoSettingsPanel: RepoSettingsPanel | null = null;
 
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
@@ -179,6 +187,7 @@ class GitKeizuView {
     this.footerElem = document.getElementById("footer")!;
     this.scrollContainerElem = document.getElementById("scrollContainer")!;
     this.repoDropdown = new Dropdown("repoSelect", true, t("toolbar.repos"), (value) => {
+      this.closeRepositorySettings();
       this.currentRepo = value;
       this.maxCommits = this.config.initialLoadCommits;
       this.expandedCommit = null;
@@ -245,6 +254,27 @@ class GitKeizuView {
     searchBtnElem.addEventListener("click", () => {
       this.findWidget.show(true);
     });
+    const repoSettingsContainer = document.getElementById("repoSettingsContainer");
+    if (repoSettingsContainer !== null) {
+      this.repoSettingsPanel = new RepoSettingsPanel(
+        repoSettingsContainer,
+        EMPTY_REPO_SETTINGS_DATA,
+        (action: RepoSettingsAction) => {
+          sendMessage({
+            command: "repositorySettingsAction",
+            repo: this.currentRepo,
+            action
+          });
+        }
+      );
+    }
+    const repoSettingsBtnElem = document.getElementById("repoSettingsBtn");
+    if (repoSettingsBtnElem !== null) {
+      repoSettingsBtnElem.innerHTML = svgIcons.settingsGear;
+      repoSettingsBtnElem.addEventListener("click", () => {
+        this.requestRepositorySettings();
+      });
+    }
     this.findWidget = new FindWidget({
       getCommits: () => this.commits,
       getColumnVisibility: () => ({
@@ -358,6 +388,7 @@ class GitKeizuView {
       return;
     }
 
+    this.closeRepositorySettings();
     this.currentRepo = repo;
     const repoPaths = Object.keys(this.gitRepos);
     const options = repoPaths.map((path) => {
@@ -531,9 +562,50 @@ class GitKeizuView {
     viewState.showRecentActions = showRecentActions;
   }
 
+  public isCurrentRepository(repo: string): boolean {
+    return repo === this.currentRepo;
+  }
+
+  /* Repository Settings */
+  private requestRepositorySettings(): void {
+    sendMessage({ command: "getRepositorySettings", repo: this.currentRepo });
+  }
+
+  public loadRepositorySettings(data: GG.RepositorySettingsData): void {
+    if (data.repositoryPath !== this.currentRepo || this.repoSettingsPanel === null) {
+      return;
+    }
+    this.clearRepositorySettingsError();
+    this.repoSettingsPanel.update(data);
+    this.repoSettingsPanel.open();
+  }
+
+  public showRepositorySettingsError(status: GG.GitCommandStatus): void {
+    const errorElem = document.getElementById("repoSettingsError");
+    if (errorElem === null) return;
+    const message = t("error.repositorySettings");
+    errorElem.textContent = status === null ? message : `${message}: ${status}`;
+    errorElem.hidden = false;
+    this.repoSettingsPanel?.close();
+  }
+
+  public clearRepositorySettingsError(): void {
+    const errorElem = document.getElementById("repoSettingsError");
+    if (errorElem !== null) {
+      errorElem.hidden = true;
+      errorElem.textContent = "";
+    }
+  }
+
+  private closeRepositorySettings(): void {
+    this.repoSettingsPanel?.close();
+    this.clearRepositorySettingsError();
+  }
+
   /* Refresh */
   public refresh(mode: RefreshMode) {
     if (mode === "hard") {
+      this.closeRepositorySettings();
       if (this.expandedCommit !== null) {
         this.expandedCommit = null;
         this.saveState();

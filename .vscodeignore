@@ -8,6 +8,7 @@
 !out/
 !media/
 !l10n/
+!web/styles/
 !package.nls.json
 !package.nls.ja.json
 

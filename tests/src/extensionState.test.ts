@@ -110,6 +110,35 @@ describe("ExtensionState", () => {
     });
   });
 
+  describe("repository settings issue links", () => {
+    it("uses disabled empty defaults and persists normalized settings per repository", async () => {
+      const state = new ExtensionState(toExtensionContext(mockContext));
+      await flushPromises();
+
+      expect(state.getRepositorySettingsIssueLinks("/repo/one")).toEqual({
+        enabled: false,
+        regex: "",
+        urlTemplate: ""
+      });
+
+      state.saveRepositorySettingsIssueLinks("/repo/one", {
+        enabled: true,
+        regex: "#(\\d+)",
+        urlTemplate: "https://example.com/issues/{0}"
+      });
+      expect(mockContext.workspaceState.update).toHaveBeenCalledWith(
+        "repositorySettingsIssueLinks",
+        {
+          "/repo/one": {
+            enabled: true,
+            regex: "#(\\d+)",
+            urlTemplate: "https://example.com/issues/{0}"
+          }
+        }
+      );
+    });
+  });
+
   // ==========================================================================
   // initAvatarStorage (private, tested indirectly)
   // ==========================================================================

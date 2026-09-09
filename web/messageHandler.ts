@@ -1,8 +1,10 @@
 import type {
+  GitCommandStatus,
   GitCommitDetails,
   GitCommitNode,
   GitFileChange,
   GitRepoSet,
+  RepositorySettingsData,
   ResponseMessage,
   WorktreeCollection
 } from "../src/types";
@@ -32,6 +34,10 @@ export interface GitKeizuViewAPI {
   refresh(mode: RefreshMode): void;
   selectRepo(repo: string): void;
   setShowRecentActions(showRecentActions: boolean): void;
+  isCurrentRepository(repo: string): boolean;
+  loadRepositorySettings(data: RepositorySettingsData): void;
+  showRepositorySettingsError(status: GitCommandStatus): void;
+  clearRepositorySettingsError(): void;
 }
 
 export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): void {
@@ -197,6 +203,23 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       break;
     case "pushStash":
       refreshOrError(gitKeizu, msg.status, t("error.pushStash"));
+      break;
+    case "repositorySettings":
+      gitKeizu.loadRepositorySettings(msg.data);
+      break;
+    case "repositorySettingsError":
+      if (gitKeizu.isCurrentRepository(msg.repo)) {
+        gitKeizu.showRepositorySettingsError(msg.status);
+      }
+      break;
+    case "repositorySettingsAction":
+      if (!gitKeizu.isCurrentRepository(msg.repo)) break;
+      if (msg.status === null) {
+        gitKeizu.refresh("soft");
+        gitKeizu.clearRepositorySettingsError();
+      } else {
+        showErrorDialog(t("error.repositorySettingsAction"), msg.status, null);
+      }
       break;
     case "pushTag":
       hideDialog();

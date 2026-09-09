@@ -85,6 +85,7 @@ export class GitKeizuView {
         enableScripts: true,
         localResourceRoots: [
           vscode.Uri.file(path.join(extensionPath, "media")),
+          vscode.Uri.file(path.join(extensionPath, "web", "styles")),
           vscode.Uri.file(path.join(extensionPath, "out"))
         ]
       }
@@ -185,6 +186,39 @@ export class GitKeizuView {
             case "fetchAvatar":
               this.avatarManager.fetchAvatarImage(msg.email, msg.repo, msg.commits);
               break;
+            case "getRepositorySettings": {
+              const result = await this.dataSource.getRepositorySettings(msg.repo);
+              if (result.kind === "ok") {
+                this.sendMessage({
+                  command: "repositorySettings",
+                  repo: msg.repo,
+                  data: result.data
+                });
+              } else {
+                this.sendMessage({
+                  command: "repositorySettingsError",
+                  repo: msg.repo,
+                  status: result.status
+                });
+              }
+              break;
+            }
+            case "repositorySettingsAction": {
+              const status = await this.dataSource.repositorySettingsAction(
+                msg.repo,
+                msg.action
+              );
+              this.sendMessage({
+                command: "repositorySettingsAction",
+                repo: msg.repo,
+                actionType: msg.action.type,
+                status
+              });
+              if (status === null) {
+                await this.sendFreshRepositorySettings(msg.repo);
+              }
+              break;
+            }
             case "checkoutBranch": {
               const checkoutResult = await this.dataSource.checkoutBranch(
                 msg.repo,
@@ -680,6 +714,7 @@ export class GitKeizuView {
 				<span id="branchControl"><span class="unselectable">${hostT("Branches:")} </span><div id="branchSelect" class="dropdown"></div></span>
 				<span id="authorControl"><span class="unselectable">${hostT("Authors:")} </span><div id="authorSelect" class="dropdown"></div></span>
 				<label id="showRemoteBranchesControl"><input type="checkbox" id="showRemoteBranchesCheckbox" value="1" checked><span class="customCheckbox"></span>${hostT("Show Remote Branches")}</label>
+				<div id="repoSettingsBtn" title="${hostT("Repository Settings")}"></div>
 				<div id="searchBtn" title="${hostT("Search")}"></div>
 				<div id="fetchBtn" title="${hostT("Fetch --prune")}"></div>
 				<div id="currentBtn" title="${hostT("Current")}"></div>
@@ -696,6 +731,10 @@ export class GitKeizuView {
 			<ul id="contextMenu"></ul>
 			<div id="dialogBacking"></div>
 			<div id="dialog"></div>
+			<div id="repoSettingsOverlay">
+				<div id="repoSettingsError" class="repo-settings-error" hidden></div>
+				<div id="repoSettingsContainer"></div>
+			</div>
 			<script nonce="${nonce}">var webviewLocale = ${this.serializeJsonForScript(locale)}; var webviewMessages = ${this.serializeJsonForScript(webviewMessages)};</script>
 			<script nonce="${nonce}">var viewState = ${this.serializeJsonForScript(viewState)};</script>
 			<script src="${this.getCompiledOutputUri("web.min.js")}"></script>
@@ -721,6 +760,7 @@ export class GitKeizuView {
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("codicon.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("codicon-overrides.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("findwidget.css")}">
+				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("repoSettings.css")}">
 				<title>Git Keizu</title>
 				<style>${colorParams}</style>
 			</head>
@@ -738,6 +778,10 @@ export class GitKeizuView {
     return this.panel.webview.asWebviewUri(this.getUri("media", file));
   }
 
+  private getWebStyleUri(file: string) {
+    return this.panel.webview.asWebviewUri(this.getUri("web", "styles", file));
+  }
+
   private getCompiledOutputUri(file: string) {
     return this.panel.webview.asWebviewUri(this.getUri("out", file));
   }
@@ -752,6 +796,19 @@ export class GitKeizuView {
       repos: repos,
       lastActiveRepo: this.extensionState.getLastActiveRepo()
     });
+  }
+
+  private async sendFreshRepositorySettings(repo: string): Promise<void> {
+    const result = await this.dataSource.getRepositorySettings(repo);
+    if (result.kind === "error") {
+      this.sendMessage({
+        command: "repositorySettingsError",
+        repo,
+        status: result.status
+      });
+      return;
+    }
+    this.sendMessage({ command: "repositorySettings", repo, data: result.data });
   }
 
   private async resolvePush(msg: RequestPush): Promise<ResponsePush> {

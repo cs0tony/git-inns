@@ -25,6 +25,7 @@ export const svgIcons = {
   openFolder: '<span class="codicon codicon-folder-opened"></span>',
   refresh: '<span class="codicon codicon-refresh"></span>',
   search: '<span class="codicon codicon-search"></span>',
+  settingsGear: '<span class="codicon codicon-settings-gear"></span>',
   stash: '<span class="codicon codicon-git-stash"></span>',
   tag: '<span class="codicon codicon-tag"></span>',
   treeView: '<span class="codicon codicon-list-tree"></span>',

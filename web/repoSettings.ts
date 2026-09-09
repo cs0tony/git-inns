@@ -1,30 +1,15 @@
-export interface RepoSettingsRemote {
-  name: string;
-  url: string;
-  pushUrl?: string;
-}
+import type {
+  RepositorySettingsAction,
+  RepositorySettingsData,
+  RepositorySettingsIssueLinks,
+  RepositorySettingsRemote
+} from "../src/types";
+import { t } from "./i18n";
 
-export interface RepoSettingsIssueLinks {
-  enabled: boolean;
-  regex: string;
-  urlTemplate: string;
-}
-
-export interface RepoSettingsData {
-  repositoryName: string;
-  repositoryPath: string;
-  remotes: RepoSettingsRemote[];
-  issueLinks: RepoSettingsIssueLinks;
-}
-
-export type RepoSettingsAction =
-  | ({ type: "addRemote" } & RepoSettingsRemote)
-  | ({ type: "editRemote"; originalName: string } & RepoSettingsRemote)
-  | { type: "deleteRemote"; name: string }
-  | { type: "fetchRemote"; name: string }
-  | { type: "fetchPruneRemote"; name: string }
-  | { type: "pruneTagsRemote"; name: string }
-  | { type: "saveIssueLinks"; settings: RepoSettingsIssueLinks };
+export type RepoSettingsRemote = RepositorySettingsRemote;
+export type RepoSettingsIssueLinks = RepositorySettingsIssueLinks;
+export type RepoSettingsData = RepositorySettingsData;
+export type RepoSettingsAction = RepositorySettingsAction;
 
 export type RepoSettingsActionHandler = (action: RepoSettingsAction) => void;
 
@@ -136,8 +121,8 @@ export class RepoSettingsPanel {
 
   private renderContent(): void {
     const closeButton = this.createButton(
-      "Close repository settings",
-      "Close",
+      t("repoSettings.closeAria"),
+      t("repoSettings.close"),
       () => this.close(),
       "secondary"
     );
@@ -154,13 +139,13 @@ export class RepoSettingsPanel {
       this.createIssueLinkSection(),
       this.createComingSoonSection(
         `${this.idPrefix}-pull-requests`,
-        "Pull request providers",
-        "Provider integration will become available in a future release."
+        t("repoSettings.pullProviders"),
+        t("repoSettings.pullProvidersDescription")
       ),
       this.createComingSoonSection(
         `${this.idPrefix}-export`,
-        "Configuration export",
-        "Sharing repository settings is not available yet."
+        t("repoSettings.export"),
+        t("repoSettings.exportDescription")
       )
     );
 
@@ -170,7 +155,7 @@ export class RepoSettingsPanel {
   private createTitle(): HTMLElement {
     const title = document.createElement("h2");
     title.id = `${this.idPrefix}-title`;
-    title.textContent = `Repository settings — ${this.data.repositoryName}`;
+    title.textContent = t("repoSettings.title", this.data.repositoryName);
     return title;
   }
 
@@ -189,7 +174,7 @@ export class RepoSettingsPanel {
 
     const title = document.createElement("h3");
     title.id = `${this.idPrefix}-remotes-title`;
-    title.textContent = "Remotes";
+    title.textContent = t("repoSettings.remotes");
 
     section.append(title, this.createRemoteList(), this.createRemoteForm());
     return section;
@@ -198,12 +183,12 @@ export class RepoSettingsPanel {
   private createRemoteList(): HTMLElement {
     const list = document.createElement("ul");
     list.className = "repo-settings-remote-list";
-    list.setAttribute("aria-label", "Configured remotes");
+    list.setAttribute("aria-label", t("repoSettings.configuredRemotes"));
 
     if (this.data.remotes.length === 0) {
       const emptyItem = document.createElement("li");
       emptyItem.className = "repo-settings-empty";
-      emptyItem.textContent = "No remotes are configured.";
+      emptyItem.textContent = t("repoSettings.noRemotes");
       list.appendChild(emptyItem);
       return list;
     }
@@ -235,38 +220,38 @@ export class RepoSettingsPanel {
     actions.className = "repo-settings-remote-actions";
     actions.append(
       this.createButton(
-        `Edit remote ${remote.name}`,
-        "Edit",
+        t("repoSettings.editRemoteAria", remote.name),
+        t("repoSettings.edit"),
         () => this.startEdit(remote),
         "secondary"
       ),
       this.createButton(
-        `Delete remote ${remote.name}`,
-        "Delete",
+        t("repoSettings.deleteRemoteAria", remote.name),
+        t("repoSettings.delete"),
         () => {
           this.actionHandler({ type: "deleteRemote", name: remote.name });
         },
         "secondary"
       ),
       this.createButton(
-        `Fetch remote ${remote.name}`,
-        "Fetch",
+        t("repoSettings.fetchRemoteAria", remote.name),
+        t("repoSettings.fetch"),
         () => {
           this.actionHandler({ type: "fetchRemote", name: remote.name });
         },
         "secondary"
       ),
       this.createButton(
-        `Fetch and prune remote ${remote.name}`,
-        "Fetch prune",
+        t("repoSettings.fetchPruneRemoteAria", remote.name),
+        t("repoSettings.fetchPrune"),
         () => {
           this.actionHandler({ type: "fetchPruneRemote", name: remote.name });
         },
         "secondary"
       ),
       this.createButton(
-        `Fetch and prune tags for remote ${remote.name}`,
-        "Prune tags",
+        t("repoSettings.pruneTagsRemoteAria", remote.name),
+        t("repoSettings.pruneTags"),
         () => {
           this.actionHandler({ type: "pruneTagsRemote", name: remote.name });
         },
@@ -291,20 +276,20 @@ export class RepoSettingsPanel {
     title.id = `${this.idPrefix}-remote-form-title`;
     title.classList.add("repo-settings-form-title");
     title.dataset.testid = "remote-form-title";
-    title.textContent = "Add a remote";
+    title.textContent = t("repoSettings.addRemote");
 
-    const name = this.createTextField("Remote name", "remote-name");
-    const url = this.createTextField("URL", "remote-url");
-    const pushUrl = this.createTextField("Push URL (optional)", "remote-push-url");
-    pushUrl.input.placeholder = "Defaults to the URL";
+    const name = this.createTextField(t("repoSettings.remoteName"), "remote-name");
+    const url = this.createTextField(t("repoSettings.remoteUrl"), "remote-url");
+    const pushUrl = this.createTextField(t("repoSettings.remotePushUrl"), "remote-push-url");
+    pushUrl.input.placeholder = t("repoSettings.remotePushUrlPlaceholder");
 
     const submit = document.createElement("button");
     submit.type = "submit";
-    submit.textContent = "Add remote";
+    submit.textContent = t("repoSettings.addRemote");
 
     const cancel = this.createButton(
-      "Cancel remote edit",
-      "Cancel",
+      t("repoSettings.cancelRemoteEdit"),
+      t("repoSettings.cancel"),
       () => this.cancelEdit(),
       "secondary"
     );
@@ -344,7 +329,7 @@ export class RepoSettingsPanel {
 
     const title = document.createElement("h3");
     title.id = `${this.idPrefix}-issues-title`;
-    title.textContent = "Issue links";
+    title.textContent = t("repoSettings.issueLinks");
 
     const form = document.createElement("form");
     form.className = "repo-settings-form";
@@ -361,15 +346,15 @@ export class RepoSettingsPanel {
     const enabledLabel = document.createElement("label");
     enabledLabel.className = "repo-settings-checkbox";
     enabledLabel.htmlFor = enabled.id;
-    enabledLabel.append(enabled, document.createTextNode("Link issue references"));
+    enabledLabel.append(enabled, document.createTextNode(t("repoSettings.linkIssueReferences")));
 
-    const regex = this.createTextField("Issue regex", "issue-regex");
-    const template = this.createTextField("Issue URL template", "issue-template");
-    template.input.placeholder = "https://example.com/issues/{0}";
+    const regex = this.createTextField(t("repoSettings.issueRegex"), "issue-regex");
+    const template = this.createTextField(t("repoSettings.issueUrlTemplate"), "issue-template");
+    template.input.placeholder = t("repoSettings.issueUrlTemplatePlaceholder", "{0}");
 
     const submit = document.createElement("button");
     submit.type = "submit";
-    submit.textContent = "Save issue link settings";
+    submit.textContent = t("repoSettings.saveIssueLinks");
 
     const fields = document.createElement("div");
     fields.className = "repo-settings-issue-fields";
@@ -468,8 +453,8 @@ export class RepoSettingsPanel {
     this.fields.remoteName.value = remote.name;
     this.fields.remoteUrl.value = remote.url;
     this.fields.remotePushUrl.value = remote.pushUrl ?? "";
-    this.fields.remoteTitle.textContent = `Edit remote ${remote.name}`;
-    this.fields.submitRemote.textContent = "Save remote";
+    this.fields.remoteTitle.textContent = t("repoSettings.editRemote", remote.name);
+    this.fields.submitRemote.textContent = t("repoSettings.saveRemote");
     this.remoteCancelButton.hidden = false;
     this.clearFieldError(this.fields.remoteName, this.fields.remoteNameError);
     this.clearFieldError(this.fields.remoteUrl, this.fields.remoteUrlError);
@@ -501,7 +486,11 @@ export class RepoSettingsPanel {
       this.actionHandler({
         type: "editRemote",
         originalName: this.editingRemoteName,
-        ...normalizedRemote
+        name,
+        url,
+        // Clearing the edit field is an explicit request to reset push to the
+        // fetch URL; the empty string itself is not a valid Git URL.
+        pushUrl: pushUrl === "" ? url : pushUrl
       });
     }
     this.resetRemoteForm();
@@ -523,26 +512,26 @@ export class RepoSettingsPanel {
 
   private validateRemoteName(name: string): string[] {
     if (name === "") {
-      return ["Remote name is required."];
+      return [t("repoSettings.remoteNameRequired")];
     }
     if (!REMOTE_NAME_PATTERN.test(name)) {
-      return ["Use letters, numbers, dots, and internal hyphens; start with a letter or number."];
+      return [t("repoSettings.remoteNameInvalid")];
     }
     const duplicate = this.data.remotes.some(
       (remote) => remote.name === name && remote.name !== this.editingRemoteName
     );
     if (duplicate) {
-      return ["A remote with this name already exists."];
+      return [t("repoSettings.remoteNameDuplicate")];
     }
     return [];
   }
 
   private validateRemoteUrl(url: string): string[] {
     if (url === "") {
-      return ["URL is required."];
+      return [t("repoSettings.remoteUrlRequired")];
     }
     if (!this.isValidRemoteUrl(url)) {
-      return ["Enter a valid HTTP(S), SSH, Git, or scp-like remote URL."];
+      return [t("repoSettings.remoteUrlInvalid")];
     }
     return [];
   }
@@ -564,25 +553,29 @@ export class RepoSettingsPanel {
 
   private validateIssueRegex(regex: string): string[] {
     if (regex === "") {
-      return ["Issue regex is required when issue links are enabled."];
+      return [t("repoSettings.issueRegexRequired")];
     }
     try {
       new RegExp(regex, "u");
       return [];
     } catch (error) {
-      return [error instanceof Error ? `Invalid regex: ${error.message}` : "Invalid regex."];
+      return [
+        error instanceof Error
+          ? t("repoSettings.issueRegexInvalid", error.message)
+          : t("repoSettings.issueRegexInvalidFallback")
+      ];
     }
   }
 
   private validateIssueUrlTemplate(urlTemplate: string): string[] {
     if (urlTemplate === "") {
-      return ["Issue URL template is required when issue links are enabled."];
+      return [t("repoSettings.issueTemplateRequired")];
     }
     const hasCapturePlaceholder = [...CAPTURE_PLACEHOLDERS].some((placeholder) =>
       urlTemplate.includes(placeholder)
     );
     if (!hasCapturePlaceholder) {
-      return ["Include the {0} capture placeholder in the URL template."];
+      return [t("repoSettings.issueTemplateCapture", "{0}")];
     }
     return [];
   }
@@ -592,8 +585,8 @@ export class RepoSettingsPanel {
     this.fields.remoteName.value = "";
     this.fields.remoteUrl.value = "";
     this.fields.remotePushUrl.value = "";
-    this.fields.remoteTitle.textContent = "Add a remote";
-    this.fields.submitRemote.textContent = "Add remote";
+    this.fields.remoteTitle.textContent = t("repoSettings.addRemote");
+    this.fields.submitRemote.textContent = t("repoSettings.addRemote");
     this.remoteCancelButton.hidden = true;
     this.clearFieldError(this.fields.remoteName, this.fields.remoteNameError);
     this.clearFieldError(this.fields.remoteUrl, this.fields.remoteUrlError);

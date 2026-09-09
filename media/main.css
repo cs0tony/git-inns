@@ -564,6 +564,7 @@ body.unableToLoad p {
 }
 /* Toolbar icon buttons (search / fetch / current / refresh) */
 #searchBtn,
+#repoSettingsBtn,
 #fetchBtn,
 #currentBtn,
 #refreshBtn {
@@ -577,6 +578,9 @@ body.unableToLoad p {
 }
 #searchBtn {
   right: 82px;
+}
+#repoSettingsBtn {
+  right: 106px;
 }
 #fetchBtn {
   right: 58px;

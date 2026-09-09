@@ -3,14 +3,28 @@ import * as path from "node:path";
 
 import { ExtensionContext, Memento } from "vscode";
 
-import { Avatar, AvatarCache, GitRepoSet, GitRepoState, RecentActionId } from "./types";
+import {
+  Avatar,
+  AvatarCache,
+  GitRepoSet,
+  GitRepoState,
+  RecentActionId,
+  RepositorySettingsIssueLinks
+} from "./types";
 import { getPathFromStr } from "./utils";
 
 const AVATAR_STORAGE_FOLDER = "avatars";
 const AVATAR_CACHE = "avatarCache";
 const LAST_ACTIVE_REPO = "lastActiveRepo";
 const REPO_STATES = "repoStates";
+const REPOSITORY_SETTINGS_ISSUE_LINKS = "repositorySettingsIssueLinks";
 const MAX_RECENT_ACTIONS = 5;
+const EMPTY_ISSUE_LINKS: RepositorySettingsIssueLinks = {
+  enabled: false,
+  regex: "",
+  urlTemplate: ""
+};
+type RepositorySettingsIssueLinkMap = Record<string, RepositorySettingsIssueLinks>;
 
 export class ExtensionState {
   private globalState: Memento;
@@ -56,6 +70,29 @@ export class ExtensionState {
   }
   public setLastActiveRepo(repo: string | null) {
     this.workspaceState.update(LAST_ACTIVE_REPO, repo);
+  }
+
+  /* Repository Settings */
+  public getRepositorySettingsIssueLinks(
+    repo: string
+  ): RepositorySettingsIssueLinks {
+    const settings = this.workspaceState.get<RepositorySettingsIssueLinkMap>(
+      REPOSITORY_SETTINGS_ISSUE_LINKS,
+      {}
+    );
+    return normalizeIssueLinks(settings[repo]);
+  }
+
+  public saveRepositorySettingsIssueLinks(
+    repo: string,
+    issueLinks: RepositorySettingsIssueLinks
+  ) {
+    const settings = this.workspaceState.get<RepositorySettingsIssueLinkMap>(
+      REPOSITORY_SETTINGS_ISSUE_LINKS,
+      {}
+    );
+    settings[repo] = normalizeIssueLinks(issueLinks);
+    this.workspaceState.update(REPOSITORY_SETTINGS_ISSUE_LINKS, settings);
   }
 
   /* Avatars */
@@ -151,4 +188,17 @@ export class ExtensionState {
 
     return normalizedRecentActions;
   }
+}
+
+function normalizeIssueLinks(value: unknown): RepositorySettingsIssueLinks {
+  if (typeof value !== "object" || value === null) {
+    return { ...EMPTY_ISSUE_LINKS };
+  }
+
+  const settings = value as Partial<RepositorySettingsIssueLinks>;
+  return {
+    enabled: settings.enabled === true,
+    regex: typeof settings.regex === "string" ? settings.regex : "",
+    urlTemplate: typeof settings.urlTemplate === "string" ? settings.urlTemplate : ""
+  };
 }

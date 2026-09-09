@@ -13,7 +13,11 @@ vi.mock("../../web/refMenu", () => ({
   showPushRemoteDialog: vi.fn()
 }));
 
-import type { GitCommitDetails, ResponseMessage } from "../../src/types";
+import type {
+  GitCommitDetails,
+  RepositorySettingsData,
+  ResponseMessage
+} from "../../src/types";
 import { showErrorDialog } from "../../web/dialogs";
 import { generateGitFileTree } from "../../web/fileTree";
 import { type GitKeizuViewAPI, handleMessage } from "../../web/messageHandler";
@@ -30,9 +34,20 @@ function createMockGitKeizuView(): GitKeizuViewAPI {
     loadRepos: vi.fn(),
     refresh: vi.fn(),
     selectRepo: vi.fn(),
-    setShowRecentActions: vi.fn()
+    setShowRecentActions: vi.fn(),
+    isCurrentRepository: vi.fn(() => true),
+    loadRepositorySettings: vi.fn(),
+    showRepositorySettingsError: vi.fn(),
+    clearRepositorySettingsError: vi.fn()
   };
 }
+
+const SETTINGS: RepositorySettingsData = {
+  repositoryName: "repo",
+  repositoryPath: "/test/repo",
+  remotes: [],
+  issueLinks: { enabled: false, regex: "", urlTemplate: "" }
+};
 
 // S13: pull レスポンス処理の維持
 // @see docs/testing/perspectives/web/messageHandler-test/03-git-operation-responses-01.md
@@ -332,6 +347,86 @@ describe("handleMessage push response", () => {
     // Then: the existing Push error title is kept and the graph is not refreshed
     expect(showErrorDialog).toHaveBeenCalledTimes(1);
     expect(showErrorDialog).toHaveBeenCalledWith("Unable to Push", "fatal: rejected", null);
+    expect(gitKeizu.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleMessage repository settings response", () => {
+  let gitKeizu: GitKeizuViewAPI;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    gitKeizu = createMockGitKeizuView();
+  });
+
+  it("loads successful repository settings", () => {
+    handleMessage(
+      { command: "repositorySettings", repo: "/test/repo", data: SETTINGS },
+      gitKeizu
+    );
+
+    expect(gitKeizu.loadRepositorySettings).toHaveBeenCalledWith(SETTINGS);
+  });
+
+  it("shows a typed settings error for the current repository", () => {
+    handleMessage(
+      { command: "repositorySettingsError", repo: "/test/repo", status: "fatal: not a repository" },
+      gitKeizu
+    );
+
+    expect(gitKeizu.isCurrentRepository).toHaveBeenCalledWith("/test/repo");
+    expect(gitKeizu.showRepositorySettingsError).toHaveBeenCalledWith("fatal: not a repository");
+  });
+
+  it("refreshes the graph and clears the settings error after a successful action", () => {
+    handleMessage(
+      {
+        command: "repositorySettingsAction",
+        repo: "/test/repo",
+        actionType: "deleteRemote",
+        status: null
+      },
+      gitKeizu
+    );
+
+    expect(gitKeizu.refresh).toHaveBeenCalledWith("soft");
+    expect(gitKeizu.clearRepositorySettingsError).toHaveBeenCalledTimes(1);
+    expect(showErrorDialog).not.toHaveBeenCalled();
+  });
+
+  it("ignores a stale settings action response after the repository changes", () => {
+    vi.mocked(gitKeizu.isCurrentRepository).mockReturnValue(false);
+
+    handleMessage(
+      {
+        command: "repositorySettingsAction",
+        repo: "/old/repo",
+        actionType: "deleteRemote",
+        status: null
+      },
+      gitKeizu
+    );
+
+    expect(gitKeizu.refresh).not.toHaveBeenCalled();
+    expect(gitKeizu.clearRepositorySettingsError).not.toHaveBeenCalled();
+  });
+
+  it("shows an action error without refreshing the graph", () => {
+    handleMessage(
+      {
+        command: "repositorySettingsAction",
+        repo: "/test/repo",
+        actionType: "fetchPruneRemote",
+        status: "fatal: remote failed"
+      },
+      gitKeizu
+    );
+
+    expect(showErrorDialog).toHaveBeenCalledWith(
+      "Unable to update repository settings",
+      "fatal: remote failed",
+      null
+    );
     expect(gitKeizu.refresh).not.toHaveBeenCalled();
   });
 });

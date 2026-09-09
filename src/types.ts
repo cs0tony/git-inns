@@ -223,6 +223,46 @@ export type PushPreparation =
   | { kind: "selectRemote"; remotes: string[] }
   | { kind: "error"; status: string };
 
+/* Repository Settings Types */
+
+export interface RepositorySettingsIssueLinks {
+  enabled: boolean;
+  regex: string;
+  urlTemplate: string;
+}
+
+export interface RepositorySettingsRemote {
+  name: string;
+  url: string;
+  pushUrl?: string;
+}
+
+export interface RepositorySettingsData {
+  repositoryName: string;
+  repositoryPath: string;
+  remotes: RepositorySettingsRemote[];
+  issueLinks: RepositorySettingsIssueLinks;
+}
+
+export type RepositorySettingsResult =
+  | { kind: "ok"; data: RepositorySettingsData }
+  | { kind: "error"; status: GitCommandStatus };
+
+export type RepositorySettingsAction =
+  | { type: "addRemote"; name: string; url: string; pushUrl?: string }
+  | {
+      type: "editRemote";
+      originalName: string;
+      name: string;
+      url: string;
+      pushUrl?: string;
+    }
+  | { type: "deleteRemote"; name: string }
+  | { type: "fetchRemote"; name: string }
+  | { type: "fetchPruneRemote"; name: string }
+  | { type: "pruneTagsRemote"; name: string }
+  | { type: "saveIssueLinks"; settings: RepositorySettingsIssueLinks };
+
 /* Named Constants */
 
 export const UNCOMMITTED_CHANGES_HASH = "*";
@@ -746,6 +786,32 @@ export interface ResponseCleanUntrackedFiles {
   status: GitCommandStatus;
 }
 
+export interface RequestGetRepositorySettings {
+  command: "getRepositorySettings";
+  repo: string;
+}
+export interface RequestRepositorySettingsAction {
+  command: "repositorySettingsAction";
+  repo: string;
+  action: RepositorySettingsAction;
+}
+export interface ResponseRepositorySettings {
+  command: "repositorySettings";
+  repo: string;
+  data: RepositorySettingsData;
+}
+export interface ResponseRepositorySettingsError {
+  command: "repositorySettingsError";
+  repo: string;
+  status: GitCommandStatus;
+}
+export interface ResponseRepositorySettingsAction {
+  command: "repositorySettingsAction";
+  repo: string;
+  actionType: RepositorySettingsAction["type"];
+  status: GitCommandStatus;
+}
+
 export type RequestMessage =
   | RequestAddTag
   | RequestApplyStash
@@ -759,6 +825,7 @@ export type RequestMessage =
   | RequestCompareCommits
   | RequestCreateArchive
   | RequestCopyToClipboard
+  | RequestGetRepositorySettings
   | RequestCreateBranch
   | RequestDeleteBranch
   | RequestDeleteRemoteBranch
@@ -780,6 +847,7 @@ export type RequestMessage =
   | RequestPopStash
   | RequestPushStash
   | RequestPushTag
+  | RequestRepositorySettingsAction
   | RequestRebaseBranch
   | RequestRemoveWorktree
   | RequestRenameBranch
@@ -812,6 +880,9 @@ export type ResponseMessage =
   | ResponseDropStash
   | ResponseFetch
   | ResponseFetchAvatar
+  | ResponseRepositorySettings
+  | ResponseRepositorySettingsError
+  | ResponseRepositorySettingsAction
   | ResponsePull
   | ResponsePush
   | ResponseLoadBranches

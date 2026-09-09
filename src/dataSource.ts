@@ -2,6 +2,7 @@ import * as cp from "node:child_process";
 import * as path from "node:path";
 
 import { getConfig } from "./config";
+import { ExtensionState } from "./extensionState";
 import { DEFAULT_GIT_PATH, resolveGitExecutable } from "./gitExecutable";
 import { isSafeRemoteName, isValidRefName } from "./refValidation";
 import {
@@ -22,6 +23,10 @@ import {
   PushPreparation,
   PushTarget,
   RemoteBranchTarget,
+  RepositorySettingsAction,
+  RepositorySettingsIssueLinks,
+  RepositorySettingsRemote,
+  RepositorySettingsResult,
   UNCOMMITTED_CHANGES_HASH,
   VALID_UNCOMMITTED_RESET_MODES,
   WorktreeCollection
@@ -88,6 +93,8 @@ function isValidGitRef(ref: string): boolean {
 const INVALID_COMMIT_HASH_MESSAGE = "Invalid commit hash.";
 const INVALID_REF_NAME_MESSAGE = "Invalid ref name.";
 const INVALID_REMOTE_NAME_MESSAGE = "Invalid remote name.";
+const INVALID_REMOTE_URL_MESSAGE = "Invalid remote URL.";
+const UNKNOWN_REMOTE_MESSAGE = "The remote is not registered in this repository.";
 const GIT_QUERY_FAILED_MESSAGE = "Git command failed.";
 const REFS_HEADS_PREFIX = "refs/heads/";
 const OPTION_ARG_PREFIX = "-";
@@ -101,6 +108,10 @@ const PUSH_REFSPEC_SEPARATOR = ":";
 type GitQueryResult = { kind: "ok"; stdout: string } | { kind: "error"; status: string };
 
 type RemoteNamesResult = { kind: "ok"; remotes: string[] } | { kind: "error"; status: string };
+
+const REMOTE_URL_PATTERN = /\s|\p{Cc}/u;
+const REPOSITORY_SETTINGS_FETCH = "fetch";
+const REPOSITORY_SETTINGS_PUSH = "push";
 
 function isRefNameSafe(refName: string): boolean {
   return !refName.startsWith(OPTION_ARG_PREFIX);
@@ -207,13 +218,69 @@ function collectDetachedHeads(worktrees: WorktreeCollection): string[] {
   return [...heads];
 }
 
+function isSafeRemoteUrl(url: string): boolean {
+  return url !== "" && !REMOTE_URL_PATTERN.test(url);
+}
+
+function getRepositoryName(repositoryPath: string): string {
+  const separatorIndex = Math.max(
+    repositoryPath.lastIndexOf(path.sep),
+    repositoryPath.lastIndexOf("/")
+  );
+  return separatorIndex === -1 ? repositoryPath : repositoryPath.substring(separatorIndex + 1);
+}
+
+function parseRemoteVerbose(stdout: string): RepositorySettingsRemote[] {
+  const remoteLookup = new Map<string, { fetch?: string; push?: string }>();
+
+  for (const line of stdout.split(eolRegex)) {
+    const nameSeparator = line.indexOf("\t");
+    if (nameSeparator === -1) continue;
+
+    const name = line.substring(0, nameSeparator);
+    if (!isSafeRemoteName(name)) continue;
+
+    const remainder = line.substring(nameSeparator + 1);
+    const suffixSeparator = remainder.lastIndexOf(" (");
+    if (suffixSeparator === -1 || !remainder.endsWith(")")) continue;
+
+    const direction = remainder.substring(suffixSeparator + 2, remainder.length - 1);
+    const url = remainder.substring(0, suffixSeparator);
+    if (!isSafeRemoteUrl(url)) continue;
+
+    const remote = remoteLookup.get(name) ?? {};
+    if (direction === REPOSITORY_SETTINGS_FETCH) {
+      remote.fetch = url;
+    } else if (direction === REPOSITORY_SETTINGS_PUSH) {
+      remote.push = url;
+    }
+    remoteLookup.set(name, remote);
+  }
+
+  return [...remoteLookup.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .flatMap(([name, urls]) =>
+      urls.fetch === undefined
+        ? []
+        : [
+            {
+              name,
+              url: urls.fetch,
+              ...(urls.push !== undefined && urls.push !== urls.fetch ? { pushUrl: urls.push } : {})
+            }
+          ]
+    );
+}
+
 export class DataSource {
   private gitPath: string = DEFAULT_GIT_PATH;
   private gitLogFormat!: string;
   private gitStashFormat!: string;
   private gitCommitDetailsFormat!: string;
+  private readonly extensionState?: ExtensionState;
 
-  constructor() {
+  constructor(extensionState?: ExtensionState) {
+    this.extensionState = extensionState;
     this.generateGitCommandFormats();
   }
 
@@ -1268,6 +1335,157 @@ export class DataSource {
     const args = ["fetch", "--all", "--prune"];
     if (getConfig().fetchAndPruneTags()) args.push("--prune-tags");
     return this.runGitCommandSpawn(args, repo);
+  }
+
+  public async getRepositorySettings(repo: string): Promise<RepositorySettingsResult> {
+    const result = await this.runGitQuery(["remote", "-v"], repo);
+    if (result.kind === "error") {
+      return { kind: "error", status: result.status };
+    }
+
+    return {
+      kind: "ok",
+      data: {
+        repositoryName: getRepositoryName(repo),
+        repositoryPath: repo,
+        remotes: parseRemoteVerbose(result.stdout),
+        issueLinks: this.extensionState?.getRepositorySettingsIssueLinks(repo) ?? {
+          enabled: false,
+          regex: "",
+          urlTemplate: ""
+        }
+      }
+    };
+  }
+
+  public async saveRepositorySettingsIssueLinks(
+    repo: string,
+    issueLinks: RepositorySettingsIssueLinks
+  ): Promise<void> {
+    this.extensionState?.saveRepositorySettingsIssueLinks(repo, issueLinks);
+  }
+
+  public async repositorySettingsAction(
+    repo: string,
+    action: RepositorySettingsAction
+  ): Promise<GitCommandStatus> {
+    switch (action.type) {
+      case "addRemote":
+        return this.addRemote(repo, action.name, action.url, action.pushUrl);
+      case "editRemote":
+        return this.editRemote(
+          repo,
+          action.originalName,
+          action.name,
+          action.url,
+          action.pushUrl
+        );
+      case "deleteRemote":
+        return this.deleteRemote(repo, action.name);
+      case "fetchRemote":
+        return this.fetchRemote(repo, action.name);
+      case "fetchPruneRemote":
+        return this.fetchPruneRemote(repo, action.name);
+      case "pruneTagsRemote":
+        return this.pruneTagsRemote(repo, action.name);
+      case "saveIssueLinks":
+        await this.saveRepositorySettingsIssueLinks(repo, action.settings);
+        return null;
+    }
+  }
+
+  public async addRemote(
+    repo: string,
+    name: string,
+    url: string,
+    pushUrl?: string
+  ): Promise<GitCommandStatus> {
+    if (!isSafeRemoteName(name)) return INVALID_REMOTE_NAME_MESSAGE;
+    if (!isSafeRemoteUrl(url) || (pushUrl !== undefined && !isSafeRemoteUrl(pushUrl))) {
+      return INVALID_REMOTE_URL_MESSAGE;
+    }
+
+    const remotes = await this.queryRemoteNames(repo);
+    if (remotes.kind === "error") return remotes.status;
+    if (remotes.remotes.includes(name)) return UNKNOWN_REMOTE_MESSAGE;
+
+    const status = await this.runGitCommandSpawn(["remote", "add", name, url], repo);
+    if (status !== null || pushUrl === undefined || pushUrl === url) return status;
+    return this.runGitCommandSpawn(["remote", "set-url", "--push", name, pushUrl], repo);
+  }
+
+  public async editRemote(
+    repo: string,
+    originalName: string,
+    name: string,
+    url: string,
+    pushUrl?: string
+  ): Promise<GitCommandStatus> {
+    if (!isSafeRemoteName(originalName) || !isSafeRemoteName(name)) {
+      return INVALID_REMOTE_NAME_MESSAGE;
+    }
+    if (!isSafeRemoteUrl(url) || (pushUrl !== undefined && !isSafeRemoteUrl(pushUrl))) {
+      return INVALID_REMOTE_URL_MESSAGE;
+    }
+
+    const remotes = await this.queryRemoteNames(repo);
+    if (remotes.kind === "error") return remotes.status;
+    if (!remotes.remotes.includes(originalName)) return UNKNOWN_REMOTE_MESSAGE;
+    if (name !== originalName && remotes.remotes.includes(name)) return UNKNOWN_REMOTE_MESSAGE;
+
+    if (name !== originalName) {
+      const renameStatus = await this.runGitCommandSpawn(
+        ["remote", "rename", originalName, name],
+        repo
+      );
+      if (renameStatus !== null) return renameStatus;
+    }
+
+    const urlStatus = await this.runGitCommandSpawn(
+      ["remote", "set-url", name, url],
+      repo
+    );
+    if (urlStatus !== null) return urlStatus;
+    if (pushUrl === undefined) return null;
+    return this.runGitCommandSpawn(["remote", "set-url", "--push", name, pushUrl], repo);
+  }
+
+  public async deleteRemote(repo: string, name: string): Promise<GitCommandStatus> {
+    return this.runRemoteAction(repo, name, (remoteName) =>
+      this.runGitCommandSpawn(["remote", "remove", remoteName], repo)
+    );
+  }
+
+  public fetchRemote(repo: string, name: string): Promise<GitCommandStatus> {
+    return this.runRemoteAction(repo, name, (remoteName) =>
+      this.runGitCommandSpawn(["fetch", remoteName], repo)
+    );
+  }
+
+  public fetchPruneRemote(repo: string, name: string): Promise<GitCommandStatus> {
+    return this.runRemoteAction(repo, name, (remoteName) =>
+      this.runGitCommandSpawn(["fetch", "--prune", remoteName], repo)
+    );
+  }
+
+  public pruneTagsRemote(repo: string, name: string): Promise<GitCommandStatus> {
+    return this.runRemoteAction(repo, name, (remoteName) =>
+      this.runGitCommandSpawn(["fetch", "--prune", "--prune-tags", remoteName], repo)
+    );
+  }
+
+  private async runRemoteAction(
+    repo: string,
+    name: string,
+    action: (remoteName: string) => Promise<GitCommandStatus>
+  ): Promise<GitCommandStatus> {
+    if (!isSafeRemoteName(name)) {
+      return INVALID_REMOTE_NAME_MESSAGE;
+    }
+    const remotes = await this.queryRemoteNames(repo);
+    if (remotes.kind === "error") return remotes.status;
+    if (!remotes.remotes.includes(name)) return UNKNOWN_REMOTE_MESSAGE;
+    return action(name);
   }
 
   public getWorktrees(repo: string) {

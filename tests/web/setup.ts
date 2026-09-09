@@ -98,6 +98,7 @@ vi.stubGlobal("webviewMessages", {
   "error.pushStash": "Unable to Stash Changes",
   "error.pushTag": "Unable to Push Tag",
   "error.rebaseBranch": "Unable to Rebase Branch",
+  "error.repositorySettingsAction": "Unable to update repository settings",
   "error.removeWorktree": "Unable to Remove Worktree",
   "error.renameBranch": "Unable to Rename Branch",
   "error.resetToCommit": "Unable to Reset to Commit",

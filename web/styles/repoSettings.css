@@ -1,3 +1,35 @@
+#repoSettingsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  pointer-events: none;
+}
+
+#repoSettingsOverlay > * {
+  pointer-events: auto;
+}
+
+#repoSettingsError {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(760px, calc(100% - 32px));
+  min-height: 0;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  border-radius: 4px;
+  background-color: var(--vscode-editorWidget-background);
+  color: var(--vscode-errorForeground);
+  font-size: 12px;
+  pointer-events: auto;
+}
+
 .repo-settings {
   display: block;
   max-width: min(760px, calc(100% - 32px));

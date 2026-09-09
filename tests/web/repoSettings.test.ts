@@ -3,11 +3,14 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 
+import webMessagesEn from "../../l10n/web/web.l10n.en.json";
 import {
   openRepoSettings,
   type RepoSettingsAction,
   type RepoSettingsData
 } from "../../web/repoSettings";
+
+globalThis.webviewMessages = webMessagesEn;
 
 function createData(overrides: Partial<RepoSettingsData> = {}): RepoSettingsData {
   return {
@@ -210,7 +213,8 @@ describe("repository settings panel", () => {
         type: "editRemote",
         originalName: "origin",
         name: "github",
-        url: "https://example.com/git-keizu.git"
+        url: "https://example.com/git-keizu.git",
+        pushUrl: "https://example.com/git-keizu.git"
       }
     ]);
     expect(document.querySelector("[data-testid='remote-form-title']")!.textContent).toBe(

@@ -1101,6 +1101,27 @@ function makeCommitDetails(hash: string): GitCommitDetails {
   };
 }
 
+function makeRepositorySettings(
+  repositoryPath: string,
+  issueLinks: {
+    enabled?: boolean;
+    regex?: string;
+    urlTemplate?: string;
+  } = {}
+) {
+  return {
+    repositoryName: repositoryPath.split("/").pop() ?? repositoryPath,
+    repositoryPath,
+    remotes: [],
+    issueLinks: {
+      enabled: false,
+      regex: "",
+      urlTemplate: "",
+      ...issueLinks
+    }
+  };
+}
+
 /**
  * Mock table layout properties so calculateCdvHeight uses realistic values.
  * jsdom returns 0 for all clientHeight; this sets:
@@ -1181,6 +1202,70 @@ describe("GitKeizuView frontend integration", () => {
 
   beforeEach(() => {
     resetCommitState();
+  });
+
+  describe("commit details issue links", () => {
+    it("renders enabled settings as safe external links", () => {
+      dispatchMessage({
+        command: "repositorySettings",
+        repo: TEST_REPO,
+        data: makeRepositorySettings(TEST_REPO, {
+          enabled: true,
+          regex: "#(\\d+)",
+          urlTemplate: "https://example.test/issues/{0}"
+        })
+      });
+
+      clickCommit(COMMIT_HASH_1);
+      dispatchMessage({
+        command: "commitDetails",
+        commitDetails: {
+          ...makeCommitDetails(COMMIT_HASH_1),
+          body: "Fix #42\nRelated: <script>alert(1)</script>"
+        }
+      });
+
+      const link = document.querySelector<HTMLElement>(
+        "#commitDetailsSummary a[href='https://example.test/issues/42']"
+      );
+      expect(link).not.toBeNull();
+      expect(link?.getAttribute("target")).toBe("_blank");
+      expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+      expect(link?.getAttribute("title")).toBe("Open issue 42 in your browser");
+      expect(link?.textContent).toBe("#42");
+      expect(document.querySelector("#commitDetailsSummary")?.innerHTML).toContain(
+        "<br>Related: "
+      );
+      expect(document.querySelector("#commitDetailsSummary")?.innerHTML).not.toContain(
+        "<script>"
+      );
+    });
+
+    it("ignores issue settings from a stale repository", () => {
+      dispatchMessage({
+        command: "repositorySettings",
+        repo: "/old/repo",
+        data: makeRepositorySettings("/old/repo", {
+          enabled: true,
+          regex: "#(\\d+)",
+          urlTemplate: "https://old.example.test/issues/{0}"
+        })
+      });
+
+      clickCommit(COMMIT_HASH_1);
+      dispatchMessage({
+        command: "commitDetails",
+        commitDetails: {
+          ...makeCommitDetails(COMMIT_HASH_1),
+          body: "Fix #42"
+        }
+      });
+
+      expect(
+        document.querySelector("#commitDetailsSummary a[href='https://old.example.test/issues/42']")
+      ).toBeNull();
+      expect(document.querySelector("#commitDetailsSummary")?.textContent).toContain("Fix #42");
+    });
   });
 
   /* ---------------------------------------------------------------- */

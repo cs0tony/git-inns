@@ -20,6 +20,7 @@ import {
 import { findCommitElemWithId, FindWidget, getCommitElems } from "./findWidget";
 import { Graph } from "./graph";
 import { t } from "./i18n";
+import { renderCommitBodyIssueLinks } from "./issueLinks";
 import { handleMessage, type RefreshMode } from "./messageHandler";
 import { buildRefContextMenuItems, checkoutBranchAction } from "./refMenu";
 import { type RepoSettingsAction, RepoSettingsPanel } from "./repoSettings";
@@ -158,6 +159,11 @@ class GitKeizuView {
   private showRemoteBranchesElem: HTMLInputElement;
   private scrollShadowElem: HTMLElement;
   private repoSettingsPanel: RepoSettingsPanel | null = null;
+  private repositoryIssueLinks: GG.RepositorySettingsIssueLinks = {
+    enabled: false,
+    regex: "",
+    urlTemplate: ""
+  };
 
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
@@ -189,6 +195,7 @@ class GitKeizuView {
     this.repoDropdown = new Dropdown("repoSelect", true, t("toolbar.repos"), (value) => {
       this.closeRepositorySettings();
       this.currentRepo = value;
+      this.clearRepositoryIssueLinks();
       this.maxCommits = this.config.initialLoadCommits;
       this.expandedCommit = null;
       this.selectedBranches = [];
@@ -377,6 +384,7 @@ class GitKeizuView {
     this.repoDropdown.setOptions(options, this.currentRepo);
 
     if (changedRepo) {
+      this.clearRepositoryIssueLinks();
       this.refresh("hard");
       return true;
     }
@@ -390,6 +398,7 @@ class GitKeizuView {
 
     this.closeRepositorySettings();
     this.currentRepo = repo;
+    this.clearRepositoryIssueLinks();
     const repoPaths = Object.keys(this.gitRepos);
     const options = repoPaths.map((path) => {
       const comps = path.split("/");
@@ -566,15 +575,25 @@ class GitKeizuView {
     return repo === this.currentRepo;
   }
 
+  private clearRepositoryIssueLinks(): void {
+    this.repositoryIssueLinks = {
+      enabled: false,
+      regex: "",
+      urlTemplate: ""
+    };
+  }
+
   /* Repository Settings */
   private requestRepositorySettings(): void {
     sendMessage({ command: "getRepositorySettings", repo: this.currentRepo });
   }
 
   public loadRepositorySettings(data: GG.RepositorySettingsData): void {
-    if (data.repositoryPath !== this.currentRepo || this.repoSettingsPanel === null) {
+    if (data.repositoryPath !== this.currentRepo) {
       return;
     }
+    this.repositoryIssueLinks = data.issueLinks;
+    if (this.repoSettingsPanel === null) return;
     this.clearRepositorySettingsError();
     this.repoSettingsPanel.update(data);
     this.repoSettingsPanel.open();
@@ -1652,7 +1671,11 @@ class GitKeizuView {
       `<b>${t("commitDetails.date")} </b>${new Date(commitDetails.date * SECONDS_TO_MS).toString()}${signatureHtml ? `<br>${signatureHtml}` : ""}</span>` +
       avatarHtml +
       "</span></span><br><br>" +
-      escapeHtml(commitDetails.body).replace(/\n/g, "<br>")
+      renderCommitBodyIssueLinks(
+        commitDetails.body,
+        this.repositoryIssueLinks,
+        (issueId) => t("commitDetails.issueLinkTitle", issueId)
+      )
     );
   }
   private buildParentLinksHtml(parents: string[]): string {

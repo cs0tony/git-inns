@@ -45,6 +45,7 @@
   "commitDetails.displayingChanges": "{0} から {1} までのすべての変更を表示しています。",
   "commitDetails.file.one": "ファイル",
   "commitDetails.file.other": "ファイル",
+  "commitDetails.issueLinkTitle": "ブラウザーで Issue {0} を開く",
   "commitDetails.commit": "コミット:",
   "commitDetails.parents": "親:",
   "commitDetails.author": "作者:",

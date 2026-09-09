@@ -18,6 +18,7 @@ vi.stubGlobal("webviewMessages", {
   "commitDetails.displayingChanges": "Displaying all changes from {0} to {1}.",
   "commitDetails.file.one": "file",
   "commitDetails.file.other": "files",
+  "commitDetails.issueLinkTitle": "Open issue {0} in your browser",
   "commitDetails.label": "Commit Details",
   "commitDetails.none": "None",
   "commitDetails.parents": "Parents:",

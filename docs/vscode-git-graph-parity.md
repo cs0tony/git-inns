@@ -94,9 +94,6 @@ backwards compatible.
 ## Remaining follow-up opportunities
 
 - Infer and validate Pull Request destination/base branches more deeply.
-- Mark review files as reviewed automatically when they are opened.
-- Continue parity for file encoding, markdown/emoji rendering, column visibility,
-  user details, external diff tools, and workspace review commands.
 - Add visual/manual QA coverage for the new settings, review, and tag dialogs.
 
 ## Modernization wave 3
@@ -126,3 +123,32 @@ keeps the modern UI progressively disclosed rather than adding dense toolbars.
   compact modern menu with keyboard/ARIA support.
 - **R3-T5 — Integration QA:** cross-cutting protocol checks, localization
   parity, visual/manual smoke checks, and full quality gates.
+
+## Modernization wave 4
+
+Wave 4 closes the remaining high-value follow-ups from the earlier parity audit.
+Each slice is independently testable and keeps configuration under the existing
+`git-keizu.*` namespace.
+
+| ID | Requirement | Delivered experience |
+| -- | ----------- | -------------------- |
+| FE-21 | Rich but safe commit-body rendering | `git-keizu.commitBodyRendering` selects the legacy compact output or opt-in controlled emoji, headings, links, emphasis, and code while preserving escaping and issue links. |
+| FE-22 | Workspace review lifecycle | Resume, end-active, and end-all commands reuse persisted review state, offer unambiguous selection, and refresh command enablement. |
+| FE-23 | Column visibility | A compact accessible header menu hides or restores Author, Date, and Commit columns per repository; the Graph column and at least one data column remain visible. |
+| FE-24 | Changed-file encoding | Default and per-file encoding overrides preserve raw Git bytes, decode with platform-supported encodings, and reopen diffs without stale document caches. |
+| FE-25 | External directory diff | Commit Details can launch a configured GUI or terminal `git difftool --dir-diff` for self, working-tree, and commit-range comparisons. |
+| FE-26 | User details | Repository settings read local/global `user.name` and `user.email`, save validated values at an explicit scope, and remove values only after confirmation. |
+| FE-27 | Regression gate | Backend and webview tests, typecheck, lint, and diff hygiene pass before integration. |
+
+### Task split
+
+- **R4-T1 — Presentation:** rich commit bodies plus persisted column
+  visibility and Find Widget compatibility.
+- **R4-T2 — Review lifecycle:** command registration, QuickPick selection,
+  state transitions, enablement, and webview updates.
+- **R4-T3 — File encoding:** raw Git output, supported encoding registry,
+  workspace overrides, diff URI identity, and file menu integration.
+- **R4-T4 — External diff:** Git tool discovery, safe launch modes, target
+  validation, toolbar disclosure, status handling, and localization.
+- **R4-T5 — User details:** local/global config discovery, typed save/remove
+  actions, validation, confirmations, and settings panel composition.

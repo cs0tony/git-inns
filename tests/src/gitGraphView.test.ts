@@ -33,6 +33,9 @@ const mocks = vi.hoisted(() => ({
   addTag: vi.fn(),
   commitDetails: vi.fn(),
   getUncommittedDetails: vi.fn(),
+  getDiffTool: vi.fn(),
+  isGitRepository: vi.fn(),
+  openExternalDirDiff: vi.fn(),
   resolveRefToHash: vi.fn(),
   reveal: vi.fn(),
   showErrorMessage: vi.fn(),
@@ -164,7 +167,8 @@ vi.mock("../../src/diffDocProvider", () => ({
 vi.mock("../../src/utils", () => ({
   abbrevCommit: vi.fn((h: string) => h.substring(0, 8)),
   copyToClipboard: vi.fn(),
-  getPathFromUri: vi.fn((uri: { fsPath: string }) => uri.fsPath)
+  getPathFromUri: vi.fn((uri: { fsPath: string }) => uri.fsPath),
+  isValidCommitHash: vi.fn((hash: string) => /^[0-9a-f]{4,40}$/i.test(hash))
 }));
 
 import * as vscode from "vscode";
@@ -387,6 +391,116 @@ describe("GitKeizuView stash message routing", () => {
     expect(mocks.unmute).toHaveBeenCalled();
     expect(mocks.postMessage).toHaveBeenCalledWith({
       command: "cleanUntrackedFiles",
+      status: null
+    });
+  });
+});
+
+describe("GitKeizuView external directory diff routing", () => {
+  const HASH_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const HASH_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.messageHandler.current = null;
+    GitKeizuView.currentPanel = undefined;
+
+    mocks.getRepos.mockReturnValue({ [TEST_REPO]: "Test Repo" });
+    mocks.isGitRepository.mockResolvedValue(true);
+    mocks.getDiffTool.mockResolvedValue({ mode: "gui", name: "Meld" });
+    mocks.openExternalDirDiff.mockResolvedValue(null);
+    mocks.createTerminal.mockReturnValue({ sendText: vi.fn(), show: vi.fn() });
+
+    const mockDataSource = {
+      getDiffTool: mocks.getDiffTool,
+      isGitRepository: mocks.isGitRepository,
+      openExternalDirDiff: mocks.openExternalDirDiff
+    } as unknown as DataSource;
+
+    GitKeizuView.createOrShow(
+      "/test/extension",
+      mockDataSource,
+      {
+        getLastActiveRepo: vi.fn(() => null),
+        isAvatarStorageAvailable: vi.fn(() => false),
+        waitForAvatarStorage: vi.fn().mockResolvedValue(undefined),
+        setLastActiveRepo: vi.fn()
+      } as unknown as ExtensionState,
+      { registerView: vi.fn(), deregisterView: vi.fn() } as never,
+      {
+        getRepos: mocks.getRepos,
+        registerViewCallback: vi.fn(),
+        deregisterViewCallback: vi.fn(),
+        setRepoState: vi.fn(),
+        checkReposExist: vi.fn()
+      } as unknown as RepoManager
+    );
+  });
+
+  afterEach(() => {
+    GitKeizuView.currentPanel?.dispose();
+    GitKeizuView.currentPanel = undefined;
+  });
+
+  it("runs a GUI directory diff with host-derived arguments and no webview GUI flag", async () => {
+    await mocks.messageHandler.current!({
+      command: "openExternalDirDiff",
+      repo: TEST_REPO,
+      fromHash: UNCOMMITTED_CHANGES_HASH,
+      toHash: HASH_A
+    });
+
+    expect(mocks.isGitRepository).toHaveBeenCalledWith(TEST_REPO);
+    expect(mocks.getDiffTool).toHaveBeenCalledWith(TEST_REPO);
+    expect(mocks.openExternalDirDiff).toHaveBeenCalledWith(TEST_REPO, [
+      "difftool",
+      "--dir-diff",
+      HASH_A
+    ]);
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      command: "openExternalDirDiff",
+      status: null
+    });
+  });
+
+  it("sends a quoted command to the terminal for a terminal tool", async () => {
+    mocks.getDiffTool.mockResolvedValue({ mode: "terminal", name: "meld" });
+
+    await mocks.messageHandler.current!({
+      command: "openExternalDirDiff",
+      repo: TEST_REPO,
+      fromHash: HASH_A,
+      toHash: HASH_A
+    });
+
+    expect(mocks.openExternalDirDiff).not.toHaveBeenCalled();
+    expect(mocks.createTerminal).toHaveBeenCalledWith(expect.objectContaining({ cwd: TEST_REPO }));
+    const terminal = mocks.createTerminal.mock.results[0]?.value;
+    expect(terminal.sendText).toHaveBeenCalledWith(
+      `git difftool --dir-diff ${HASH_A}^..${HASH_A}\n`
+    );
+    expect(terminal.show).toHaveBeenCalledWith(false);
+  });
+
+  it("rejects invalid hashes and the reverse working-tree normalization", async () => {
+    for (const message of [
+      { command: "openExternalDirDiff", repo: TEST_REPO, fromHash: "HEAD", toHash: HASH_A },
+      { command: "openExternalDirDiff", repo: TEST_REPO, fromHash: HASH_A, toHash: "HEAD" },
+      {
+        command: "openExternalDirDiff",
+        repo: TEST_REPO,
+        fromHash: `${HASH_A}..${HASH_B}`,
+        toHash: HASH_A
+      }
+    ]) {
+      await mocks.messageHandler.current!(message);
+    }
+
+    expect(mocks.openExternalDirDiff).not.toHaveBeenCalled();
+    expect(mocks.postMessage).toHaveBeenCalledTimes(3);
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      command: "openExternalDirDiff",
+      errorCode: "invalidTarget",
       status: null
     });
   });
@@ -4386,6 +4500,7 @@ describe("GitKeizuView reviewed-file message routing", () => {
 
     const mockDataSource = {
       commitDetails: mocks.commitDetails,
+      getDiffTool: mocks.getDiffTool,
       getUncommittedDetails: mocks.getUncommittedDetails
     } as unknown as DataSource;
 
@@ -4439,6 +4554,7 @@ describe("GitKeizuView reviewed-file message routing", () => {
       "/test/extension",
       {
         commitDetails: mocks.commitDetails,
+        getDiffTool: mocks.getDiffTool,
         getUncommittedDetails: mocks.getUncommittedDetails
       } as unknown as DataSource,
       extensionState,
@@ -4474,6 +4590,7 @@ describe("GitKeizuView reviewed-file message routing", () => {
       {
         command: "commitDetails",
         commitDetails: null,
+        diffTool: { mode: "gui", name: "Meld" },
         reviewedFiles: ["src/already-reviewed.ts", "src/reviewed.ts"]
       }
     ]);

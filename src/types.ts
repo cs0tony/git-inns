@@ -241,6 +241,18 @@ export type DateType = "Author Date" | "Commit Date";
 export type GraphStyle = "rounded" | "angular";
 export type TabIconColourTheme = "colour" | "grey";
 export type GitCommandStatus = string | null;
+export type GitDiffToolMode = "gui" | "terminal";
+
+export interface GitDiffTool {
+  mode: GitDiffToolMode;
+  name: string;
+}
+
+export type ExternalDirDiffErrorCode =
+  | "missingTool"
+  | "invalidTarget"
+  | "repositoryUnavailable"
+  | "failed";
 
 /* Worktree Types */
 
@@ -435,6 +447,7 @@ export interface ResponseCommitDetails {
   command: "commitDetails";
   commitDetails: GitCommitDetails | null;
   reviewedFiles?: string[];
+  diffTool?: GitDiffTool | null;
 }
 
 export interface RequestSetFileReviewed {
@@ -711,6 +724,18 @@ export interface ResponseCompareCommits {
   fileChanges: GitFileChange[] | null;
   fromHash: string;
   toHash: string;
+}
+
+export interface RequestOpenExternalDirDiff {
+  command: "openExternalDirDiff";
+  repo: string;
+  fromHash: string;
+  toHash: string;
+}
+export interface ResponseOpenExternalDirDiff {
+  command: "openExternalDirDiff";
+  status: GitCommandStatus;
+  errorCode?: ExternalDirDiffErrorCode;
 }
 
 export interface RequestViewDiff {
@@ -1021,6 +1046,7 @@ export type RequestMessage =
   | RequestCommitDetails
   | RequestCreateWorktree
   | RequestCompareCommits
+  | RequestOpenExternalDirDiff
   | RequestCreateArchive
   | RequestCopyToClipboard
   | RequestGetRepositorySettings
@@ -1076,6 +1102,7 @@ export type ResponseMessage =
   | ResponseCommitDetails
   | ResponseCreateWorktree
   | ResponseCompareCommits
+  | ResponseOpenExternalDirDiff
   | ResponseCreateArchive
   | ResponseCopyToClipboard
   | ResponseCreateBranch

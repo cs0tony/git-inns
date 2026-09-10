@@ -853,7 +853,7 @@ describe("handleMessage commitDetails try/catch (S10)", () => {
 
     // Then: showCommitDetails is called once with the details and tree; no error path runs
     expect(gitKeizu.showCommitDetails).toHaveBeenCalledTimes(1);
-    expect(gitKeizu.showCommitDetails).toHaveBeenCalledWith(commitDetails, fileTree, []);
+    expect(gitKeizu.showCommitDetails).toHaveBeenCalledWith(commitDetails, fileTree, [], null);
     expect(gitKeizu.hideCommitDetails).not.toHaveBeenCalled();
     expect(showErrorDialog).not.toHaveBeenCalled();
   });

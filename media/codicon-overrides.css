@@ -55,6 +55,7 @@
 
 /* Commit details: close button & file-view toggle */
 #commitDetailsClose .codicon,
+.commitDetailsControlBtn .codicon,
 .fileViewToggleBtn .codicon {
   color: var(--vscode-editor-foreground);
   opacity: 0.6;
@@ -66,6 +67,7 @@
   font-size: 16px;
 }
 #commitDetailsClose:hover .codicon,
+.commitDetailsControlBtn:hover .codicon,
 .fileViewToggleBtn:hover .codicon {
   opacity: 1;
 }

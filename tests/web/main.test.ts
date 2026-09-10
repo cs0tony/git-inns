@@ -5,6 +5,7 @@ import type {
   GitCommitDetails,
   GitCommitNode,
   GitCommitStash,
+  GitDiffTool,
   GitSignatureStatus
 } from "../../src/types";
 import { UNCOMMITTED_CHANGES_HASH } from "../../src/types";
@@ -1102,6 +1103,10 @@ function makeCommitDetails(hash: string): GitCommitDetails {
   };
 }
 
+function makeDiffTool(): GitDiffTool {
+  return { mode: "gui", name: "Meld" };
+}
+
 function makeRepositorySettings(
   repositoryPath: string,
   issueLinks: {
@@ -1752,6 +1757,74 @@ describe("GitKeizuView frontend integration", () => {
       );
 
       restoreNormalCommits();
+    });
+  });
+
+  /* ---------------------------------------------------------------- */
+  /* External directory diff                                           */
+  /* ---------------------------------------------------------------- */
+
+  describe("external directory diff", () => {
+    it("hides the action when the host reports no configured tool", () => {
+      expandCommit(COMMIT_HASH_2);
+
+      expect(document.getElementById("commitDetailsExternalDiff")).toBeNull();
+    });
+
+    it("shows an accessible action and requests a directory diff without a GUI flag", () => {
+      clickCommit(COMMIT_HASH_2);
+      dispatchMessage({
+        command: "commitDetails",
+        commitDetails: makeCommitDetails(COMMIT_HASH_2),
+        diffTool: makeDiffTool()
+      });
+      vi.clearAllMocks();
+
+      const button = document.querySelector<HTMLButtonElement>("#commitDetailsExternalDiff");
+      expect(button).not.toBeNull();
+      expect(button?.getAttribute("aria-label")).toContain("Meld");
+      expect(button?.getAttribute("aria-label")).toContain("GUI");
+      button?.click();
+
+      expect(vscode.postMessage).toHaveBeenCalledTimes(1);
+      expect(vscode.postMessage).toHaveBeenCalledWith({
+        command: "openExternalDirDiff",
+        repo: TEST_REPO,
+        fromHash: COMMIT_HASH_2,
+        toHash: COMMIT_HASH_2
+      });
+    });
+
+    it("shows localized failures without blocking the details view", () => {
+      clickCommit(COMMIT_HASH_2);
+      dispatchMessage({
+        command: "commitDetails",
+        commitDetails: makeCommitDetails(COMMIT_HASH_2),
+        diffTool: makeDiffTool()
+      });
+
+      dispatchMessage({
+        command: "openExternalDirDiff",
+        errorCode: "missingTool",
+        status: null
+      });
+      expect(showErrorDialog).toHaveBeenCalledWith(
+        "No external diff tool is configured",
+        null,
+        null
+      );
+
+      dispatchMessage({
+        command: "openExternalDirDiff",
+        errorCode: "failed",
+        status: "git exited with code 128"
+      });
+      expect(showErrorDialog).toHaveBeenLastCalledWith(
+        "Unable to open external directory diff",
+        "git exited with code 128",
+        null
+      );
+      expect(document.getElementById("commitDetails")).not.toBeNull();
     });
   });
 

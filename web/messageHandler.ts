@@ -23,7 +23,8 @@ export interface GitKeizuViewAPI {
   showCommitDetails(
     commitDetails: GitCommitDetails,
     fileTree: GitFolder,
-    reviewedFiles?: string[]
+    reviewedFiles?: string[],
+    diffTool?: GG.GitDiffTool | null
   ): void;
   showCompareResult(fileChanges: GitFileChange[], fromHash: string, toHash: string): void;
   updateReviewedFiles(repo: string, commitHash: string, reviewedFiles: readonly string[]): void;
@@ -108,7 +109,12 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       } else {
         try {
           const fileTree = generateGitFileTree(msg.commitDetails.fileChanges);
-          gitKeizu.showCommitDetails(msg.commitDetails, fileTree, msg.reviewedFiles ?? []);
+          gitKeizu.showCommitDetails(
+            msg.commitDetails,
+            fileTree,
+            msg.reviewedFiles ?? [],
+            msg.diffTool ?? null
+          );
         } catch (error: unknown) {
           gitKeizu.hideCommitDetails();
           showErrorDialog(
@@ -217,6 +223,17 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       }
       break;
     case "openTerminal":
+      break;
+    case "openExternalDirDiff":
+      if (msg.errorCode === "missingTool") {
+        showErrorDialog(t("error.externalDiffNoTool"), null, null);
+      } else if (msg.errorCode === "repositoryUnavailable") {
+        showErrorDialog(t("error.externalDiffRepository"), null, null);
+      } else if (msg.errorCode === "invalidTarget") {
+        showErrorDialog(t("error.externalDiffTarget"), null, null);
+      } else if (msg.status !== null) {
+        showErrorDialog(t("error.externalDiff"), msg.status, null);
+      }
       break;
     case "openWorktreeInNewWindow":
       if (msg.status !== null) {

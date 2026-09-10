@@ -8,6 +8,7 @@ import { getConfig, MIN_COMMIT_LOAD_COUNT, normalizeCommitLoadCount } from "./co
 import { DataSource } from "./dataSource";
 import { encodeDiffDocUri } from "./diffDocProvider";
 import { ExtensionState } from "./extensionState";
+import { buildExternalDirDiffArgs, buildQuotedExternalDiffCommand } from "./externalDiff";
 import { isSupportedFileEncoding, normalizeFileEncoding } from "./fileEncoding";
 import { getLocale, loadWebviewMessages, t as hostT } from "./i18n";
 import { buildPullRequestUrl } from "./pullRequest";
@@ -22,11 +23,13 @@ import {
 import {
   type ActiveCodeReview,
   type CheckoutBranchResult,
+  type ExternalDirDiffErrorCode,
   type GitCommandStatus,
   GitFileChangeType,
   GitKeizuViewState,
   GitRepoSet,
   RequestMessage,
+  type RequestOpenExternalDirDiff,
   type RequestPush,
   type ResponseCheckoutBranch,
   ResponseMessage,
@@ -447,15 +450,17 @@ export class GitKeizuView {
               break;
             case "commitDetails":
               {
-                const commitDetails =
+                const [commitDetails, diffTool] = await Promise.all([
                   msg.commitHash === UNCOMMITTED_CHANGES_HASH
-                    ? await this.dataSource.getUncommittedDetails(msg.repo)
-                    : await this.dataSource.commitDetails(
+                    ? this.dataSource.getUncommittedDetails(msg.repo)
+                    : this.dataSource.commitDetails(
                         msg.repo,
                         msg.commitHash,
                         msg.hasParents,
                         msg.isStash
-                      );
+                      ),
+                  msg.isStash ? Promise.resolve(null) : this.dataSource.getDiffTool(msg.repo)
+                ]);
                 this.sendMessage({
                   command: "commitDetails",
                   commitDetails,
@@ -466,9 +471,13 @@ export class GitKeizuView {
                           msg.repo,
                           msg.commitHash
                         )
-                      })
+                      }),
+                  diffTool
                 });
               }
+              break;
+            case "openExternalDirDiff":
+              await this.openExternalDirDiff(msg);
               break;
             case "setFileReviewed": {
               const success = await this.extensionState.setFileReviewed(
@@ -1429,6 +1438,47 @@ export class GitKeizuView {
     } catch {
       return false;
     }
+  }
+
+  private async openExternalDirDiff(request: RequestOpenExternalDirDiff): Promise<void> {
+    const send = (status: GitCommandStatus, errorCode?: ExternalDirDiffErrorCode): void => {
+      this.sendMessage({
+        command: "openExternalDirDiff",
+        status,
+        ...(errorCode === undefined ? {} : { errorCode })
+      });
+    };
+
+    if (!(await this.dataSource.isGitRepository(request.repo))) {
+      send(null, "repositoryUnavailable");
+      return;
+    }
+
+    const args = buildExternalDirDiffArgs(request.fromHash, request.toHash);
+    if (args === null) {
+      send(null, "invalidTarget");
+      return;
+    }
+
+    const diffTool = await this.dataSource.getDiffTool(request.repo);
+    if (diffTool === null) {
+      send(null, "missingTool");
+      return;
+    }
+
+    if (diffTool.mode === "gui") {
+      const status = await this.dataSource.openExternalDirDiff(request.repo, args);
+      send(status, status === null ? undefined : "failed");
+      return;
+    }
+
+    const terminal = vscode.window.createTerminal({
+      name: hostT("External Directory Diff"),
+      cwd: request.repo
+    });
+    terminal.sendText(`${buildQuotedExternalDiffCommand(args)}\n`);
+    terminal.show(false);
+    send(null);
   }
 
   private resolveFileEncoding(repo: string, filePath: string) {

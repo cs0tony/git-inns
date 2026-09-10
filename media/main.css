@@ -376,6 +376,30 @@ body.unableToLoad p {
   height: 24px;
   cursor: pointer;
 }
+.commitDetailsControlBtn {
+  position: absolute;
+  right: 36px;
+  top: 4px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  padding: 2px;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  cursor: pointer;
+}
+.commitDetailsControlBtn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--vscode-editor-foreground));
+  outline-offset: 1px;
+}
+.commitDetailsControlBtn .codicon {
+  font-size: 20px;
+  opacity: 0.6;
+}
+.commitDetailsControlBtn:hover .codicon,
+.commitDetailsControlBtn:focus-visible .codicon {
+  opacity: 1;
+}
 /* File view toggle */
 .fileViewToggleBtn {
   display: inline-block;

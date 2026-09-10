@@ -393,7 +393,10 @@ class GitKeizuView {
           prevState.maxCommits,
           this.config.initialLoadCommits
         );
-        this.expandedCommit = prevState.expandedCommit;
+        this.expandedCommit =
+          prevState.expandedCommit === null
+            ? null
+            : { ...prevState.expandedCommit, diffTool: prevState.expandedCommit.diffTool ?? null };
         this.avatars = prevState.avatars;
         this.loadBranches(prevState.gitBranches, prevState.gitBranchHead, true, true);
         this.loadCommits(
@@ -1692,6 +1695,7 @@ class GitKeizuView {
       compareWithSrcElem: null,
       commitDetails: null,
       fileTree: null,
+      diffTool: null,
       reviewedFiles: [],
       loading: true
     };
@@ -1771,7 +1775,8 @@ class GitKeizuView {
   public showCommitDetails(
     commitDetails: GG.GitCommitDetails,
     fileTree: GitFolder,
-    reviewedFiles?: string[]
+    reviewedFiles?: string[],
+    diffTool?: GG.GitDiffTool | null
   ) {
     if (
       this.expandedCommit === null ||
@@ -1783,6 +1788,7 @@ class GitKeizuView {
     const isCompareMode = this.expandedCommit.compareWithHash !== null;
     this.expandedCommit.commitDetails = commitDetails;
     this.expandedCommit.fileTree = fileTree;
+    this.expandedCommit.diffTool = diffTool === undefined ? this.expandedCommit.diffTool : diffTool;
     if (reviewedFiles !== undefined) {
       this.expandedCommit.reviewedFiles = reviewedFiles;
     }
@@ -1809,6 +1815,7 @@ class GitKeizuView {
       `<div id="commitDetailsSummary">${summaryHtml}</div>` +
       `<div id="codeReviewMount" class="code-review-mount"></div>` +
       filesSectionHtml +
+      this.buildExternalDiffButtonHtml() +
       `<div id="commitDetailsClose">${svgIcons.close}</div>` +
       "</td>";
 
@@ -1833,7 +1840,50 @@ class GitKeizuView {
     });
     this.bindFileViewListeners();
     this.bindParentHashListeners();
+    this.bindExternalDiffListener();
     this.renderCodeReviewPanel();
+  }
+
+  private buildExternalDiffButtonHtml(): string {
+    const diffTool = this.expandedCommit?.diffTool;
+    const isCompareMode = this.expandedCommit?.compareWithHash !== null;
+    const selectedHash = this.expandedCommit?.hash;
+    const canDiffSelf =
+      selectedHash !== undefined &&
+      selectedHash !== UNCOMMITTED_CHANGES_HASH &&
+      (this.commitLookup[selectedHash] !== undefined
+        ? this.commits[this.commitLookup[selectedHash]].parentHashes.length > 0
+        : false);
+    if (diffTool === null || diffTool === undefined || (!isCompareMode && !canDiffSelf)) {
+      return "";
+    }
+
+    const modeLabel = t(
+      diffTool.mode === "gui"
+        ? "commitDetails.externalDiffGui"
+        : "commitDetails.externalDiffTerminal"
+    );
+    const label = t("commitDetails.externalDiff", diffTool.name, modeLabel);
+    const safeLabel = escapeHtml(label);
+    return (
+      `<button id="commitDetailsExternalDiff" class="commitDetailsControlBtn" type="button" ` +
+      `title="${safeLabel}" aria-label="${safeLabel}">${svgIcons.externalLink}</button>`
+    );
+  }
+
+  private bindExternalDiffListener(): void {
+    document.getElementById("commitDetailsExternalDiff")?.addEventListener("click", () => {
+      const expandedCommit = this.expandedCommit;
+      if (expandedCommit === null || expandedCommit.diffTool === null) return;
+      const target = expandedCommit.compareWithHash ?? expandedCommit.hash;
+      const order = this.getCommitOrder(expandedCommit.hash, target);
+      sendMessage({
+        command: "openExternalDirDiff",
+        repo: this.currentRepo,
+        fromHash: order.from,
+        toHash: order.to
+      });
+    });
   }
 
   private renderCodeReviewPanel(): void {

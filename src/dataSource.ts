@@ -20,6 +20,7 @@ import {
   GitCommit,
   GitCommitDetails,
   GitCommitNode,
+  GitDiffTool,
   GitFileChange,
   GitFileChangeType,
   GitRefData,
@@ -682,6 +683,31 @@ export class DataSource {
     } catch {
       return null;
     }
+  }
+
+  public async getDiffTool(repo: string): Promise<GitDiffTool | null> {
+    const result = await this.runGitQuery(
+      ["config", "--null", "--get-regexp", "^(diff)\\.(guitool|tool)$"],
+      repo
+    );
+    if (result.kind === "error") return null;
+
+    let terminalTool: string | null = null;
+    for (const record of result.stdout.split(NULL_BYTE_SEPARATOR)) {
+      const separator = record.indexOf("\n");
+      if (separator === -1) continue;
+      const key = record.slice(0, separator);
+      const value = record.slice(separator + 1);
+      if (key === "diff.guitool" && value !== "") {
+        return { mode: "gui", name: value };
+      }
+      if (key === "diff.tool" && value !== "") terminalTool = value;
+    }
+    return terminalTool === null ? null : { mode: "terminal", name: terminalTool };
+  }
+
+  public async openExternalDirDiff(repo: string, args: string[]): Promise<GitCommandStatus> {
+    return this.runGitCommandSpawn(args, repo);
   }
 
   public async getCommitComparison(

@@ -16,6 +16,7 @@ export const svgIcons = {
   close: '<span class="codicon codicon-close"></span>',
   closedFolder: '<span class="codicon codicon-folder"></span>',
   current: '<span class="codicon codicon-target"></span>',
+  externalLink: '<span class="codicon codicon-link-external"></span>',
   fetch: '<span class="codicon codicon-git-fetch"></span>',
   file: '<span class="codicon codicon-file"></span>',
   goToFile: '<span class="codicon codicon-go-to-file"></span>',

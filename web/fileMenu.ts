@@ -34,11 +34,13 @@ export function resolveFileRow(target: Element): HTMLElement | null {
 export function sendOpenFileAction(
   fileRow: HTMLElement | null,
   expandedCommit: { hash: string } | null,
-  repo: string | null
+  repo: string | null,
+  onOpenFile?: () => void
 ): void {
   if (fileRow === null || expandedCommit === null || repo === null) return;
   const encodedPath = fileRow.dataset[DATASET_NEW_FILE_PATH_KEY];
   if (encodedPath === undefined) return;
+  onOpenFile?.();
   sendMessage({
     command: "openFile",
     repo,
@@ -55,7 +57,8 @@ export function sendOpenFileAction(
 export function buildFileContextMenuItems(
   fileRow: HTMLElement | null,
   expandedCommit: FileMenuExpandedCommit | null,
-  repo: string | null
+  repo: string | null,
+  onOpenFile?: () => void
 ): ContextMenuElement[] {
   if (fileRow === null || expandedCommit === null || repo === null) return [];
   const encodedPath = fileRow.dataset[DATASET_NEW_FILE_PATH_KEY];
@@ -89,7 +92,7 @@ export function buildFileContextMenuItems(
       recentActionId: "file.openFile",
       onClick: () => {
         recordRecentAction(repo, "file.openFile");
-        sendOpenFileAction(fileRow, expandedCommit, repo);
+        sendOpenFileAction(fileRow, expandedCommit, repo, onOpenFile);
       }
     },
     reviewedMenuItem,

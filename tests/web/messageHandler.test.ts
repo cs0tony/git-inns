@@ -39,7 +39,8 @@ function createMockGitKeizuView(): GitKeizuViewAPI {
     isCurrentRepository: vi.fn(() => true),
     loadRepositorySettings: vi.fn(),
     showRepositorySettingsError: vi.fn(),
-    clearRepositorySettingsError: vi.fn()
+    clearRepositorySettingsError: vi.fn(),
+    handleOpenFileResponse: vi.fn()
   };
 }
 

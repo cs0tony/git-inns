@@ -86,6 +86,13 @@ const FILE_VIEW_LIST = "list" as const;
 const FILE_VIEW_TREE = "tree" as const;
 type FileViewType = typeof FILE_VIEW_LIST | typeof FILE_VIEW_TREE;
 const DEFAULT_FILE_VIEW_TYPE: FileViewType = FILE_VIEW_TREE;
+
+type PendingOpenedReviewFile = {
+  repo: string;
+  commitHash: string;
+  compareWithHash: string | null;
+  filePath: string;
+};
 const EMPTY_REPO_SETTINGS_DATA = {
   repositoryName: "",
   repositoryPath: "",
@@ -123,6 +130,39 @@ function isEditableEventTarget(target: EventTarget | null): boolean {
   return target.isContentEditable || (contentEditable !== null && contentEditable !== "false");
 }
 
+function setFileRowReviewed(filePath: string, reviewed: boolean): void {
+  const encodedPath = encodeURIComponent(filePath);
+  const row = Array.from(document.querySelectorAll<HTMLElement>(".gitFile")).find(
+    (candidate) => candidate.dataset.newfilepath === encodedPath
+  );
+  if (row === undefined) return;
+
+  row.classList.toggle("gitFileReviewed", reviewed);
+  if (reviewed) {
+    const baseLabel =
+      row.dataset.reviewBaseLabel ?? row.getAttribute("aria-label")?.replace(/, Reviewed$/, "");
+    row.dataset.reviewBaseLabel = baseLabel ?? "";
+    row.setAttribute("aria-reviewed", "true");
+    row.setAttribute(
+      "aria-label",
+      [row.dataset.reviewBaseLabel ?? "", t("file.reviewed")].filter(Boolean).join(", ")
+    );
+    if (row.querySelector(".gitFileReviewedCheck") === null) {
+      row.insertAdjacentHTML(
+        "beforeend",
+        `<span class="gitFileReviewedCheck" title="${t("file.reviewed")}">${svgIcons.check}</span>`
+      );
+    }
+  } else {
+    row.removeAttribute("aria-reviewed");
+    if (row.dataset.reviewBaseLabel !== undefined) {
+      row.setAttribute("aria-label", row.dataset.reviewBaseLabel);
+      delete row.dataset.reviewBaseLabel;
+    }
+    row.querySelector(".gitFileReviewedCheck")?.remove();
+  }
+}
+
 function buildAuthorOptions(
   authors: string[],
   selectedAuthors: string[]
@@ -155,6 +195,7 @@ class GitKeizuView {
   private moreCommitsAvailable: boolean = false;
   private showRemoteBranches: boolean = true;
   private expandedCommit: ExpandedCommit | null = null;
+  private pendingOpenedReviewFile: PendingOpenedReviewFile | null = null;
   private maxCommits: number;
 
   private tableElem: HTMLElement;
@@ -1890,6 +1931,49 @@ class GitKeizuView {
     );
     this.bindFileViewListeners();
   }
+
+  public handleOpenFileResponse(status: GG.GitCommandStatus): void {
+    const request = this.pendingOpenedReviewFile;
+    this.pendingOpenedReviewFile = null;
+    if (status !== null || request === null || this.currentRepo !== request.repo) return;
+
+    const expandedCommit = this.expandedCommit;
+    if (
+      expandedCommit === null ||
+      expandedCommit.hash !== request.commitHash ||
+      expandedCommit.compareWithHash !== request.compareWithHash ||
+      expandedCommit.hash === UNCOMMITTED_CHANGES_HASH ||
+      request.filePath === ""
+    ) {
+      return;
+    }
+
+    const review = this.gitRepos[request.repo]?.codeReview;
+    if (
+      review === undefined ||
+      review === null ||
+      review.commitHash !== expandedCommit.hash ||
+      review.compareWithHash !== expandedCommit.compareWithHash ||
+      !review.files.includes(request.filePath) ||
+      expandedCommit.reviewedFiles.includes(request.filePath)
+    ) {
+      return;
+    }
+
+    const reviewedFiles = [...expandedCommit.reviewedFiles, request.filePath].sort((a, b) =>
+      a.localeCompare(b)
+    );
+    expandedCommit.reviewedFiles = reviewedFiles;
+    sendMessage({
+      command: "setFileReviewed",
+      repo: request.repo,
+      commitHash: expandedCommit.hash,
+      filePath: request.filePath,
+      reviewed: true
+    });
+    setFileRowReviewed(request.filePath, true);
+    this.renderCodeReviewPanel();
+  }
   private scrollToExpandedCommit(detailsElem: HTMLElement) {
     if (this.expandedCommit === null || this.expandedCommit.srcElem === null) return;
     const scrollTop = this.scrollContainerElem.scrollTop;
@@ -1985,14 +2069,37 @@ class GitKeizuView {
     });
     addListenerToClass("openFile", "click", (e) => {
       e.stopPropagation();
-      sendOpenFileAction(resolveFileRow(<Element>e.target), this.expandedCommit, this.currentRepo);
+      const fileRow = resolveFileRow(<Element>e.target);
+      const expandedCommit = this.expandedCommit;
+      const repo = this.currentRepo;
+      const encodedPath = fileRow?.dataset.newfilepath;
+      if (fileRow === null || expandedCommit === null || encodedPath === undefined) return;
+
+      this.pendingOpenedReviewFile = {
+        repo,
+        commitHash: expandedCommit.hash,
+        compareWithHash: expandedCommit.compareWithHash,
+        filePath: decodeURIComponent(encodedPath)
+      };
+      sendOpenFileAction(fileRow, expandedCommit, repo);
     });
     addListenerToClass("gitFile", "contextmenu", (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
       const sourceElem = resolveFileRow(<Element>(<MouseEvent>e).target);
       if (sourceElem === null) return;
-      const items = buildFileContextMenuItems(sourceElem, this.expandedCommit, this.currentRepo);
+      const expandedCommit = this.expandedCommit;
+      const repo = this.currentRepo;
+      const encodedPath = sourceElem.dataset.newfilepath;
+      if (expandedCommit === null || encodedPath === undefined) return;
+      const items = buildFileContextMenuItems(sourceElem, expandedCommit, repo, () => {
+        this.pendingOpenedReviewFile = {
+          repo,
+          commitHash: expandedCommit.hash,
+          compareWithHash: expandedCommit.compareWithHash,
+          filePath: decodeURIComponent(encodedPath)
+        };
+      });
       if (items.length === 0) return;
       showContextMenu(
         <MouseEvent>e,

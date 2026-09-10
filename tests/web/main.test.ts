@@ -6148,6 +6148,136 @@ describe("openFile click handler", () => {
       })
     );
   });
+
+  function startActiveReview(options?: {
+    commitHash?: string;
+    compareWithHash?: string | null;
+    files?: string[];
+  }): void {
+    dispatchMessage({
+      command: "codeReview",
+      repo: TEST_REPO,
+      id: "review-1",
+      active: true,
+      commitHash: options?.commitHash ?? COMMIT_HASH_1,
+      compareWithHash: options?.compareWithHash ?? null,
+      files: options?.files ?? ["src/file.ts"],
+      status: null
+    });
+    vi.clearAllMocks();
+  }
+
+  function openDisplayedFile(): void {
+    const openFileElem = document.querySelector(".gitFileAction.openFile");
+    expect(openFileElem).not.toBeNull();
+    openFileElem!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+
+  function expectReviewedState(reviewed: boolean): void {
+    const toggle = document.querySelector<HTMLButtonElement>(
+      `.code-review-file-toggle[data-code-review-path="src/file.ts"]`
+    );
+    expect(toggle).not.toBeNull();
+    expect(toggle!.textContent).toBe(reviewed ? "Reviewed" : "Not reviewed");
+    expect(toggle!.getAttribute("aria-pressed")).toBe(String(reviewed));
+    expect(
+      document
+        .querySelector('.gitFile[data-newfilepath="src%2Ffile.ts"]')
+        ?.classList.contains("gitFileReviewed")
+    ).toBe(reviewed);
+    expect(document.querySelector(".code-review-progress-text")?.textContent).toBe(
+      reviewed ? "1/1 reviewed" : "0/1 reviewed"
+    );
+  }
+
+  it("marks an opened review file reviewed after a successful open", () => {
+    expandCommitWithFiles(COMMIT_HASH_1, FILE_TREE_HTML);
+    startActiveReview();
+    openDisplayedFile();
+
+    const focusedToggle = document.querySelector<HTMLButtonElement>(
+      '.code-review-file-toggle[data-code-review-path="src/file.ts"]'
+    );
+    focusedToggle!.focus();
+    dispatchMessage({ command: "openFile", status: null });
+
+    expect(liveVscode.postMessage).toHaveBeenCalledWith({
+      command: "setFileReviewed",
+      repo: TEST_REPO,
+      commitHash: COMMIT_HASH_1,
+      filePath: "src/file.ts",
+      reviewed: true
+    });
+    expectReviewedState(true);
+    expect(document.activeElement).toBe(
+      document.querySelector('.code-review-file-toggle[data-code-review-path="src/file.ts"]')
+    );
+  });
+
+  it("does not mark the file when opening fails", () => {
+    expandCommitWithFiles(COMMIT_HASH_1, FILE_TREE_HTML);
+    startActiveReview();
+    openDisplayedFile();
+
+    dispatchMessage({ command: "openFile", status: "open failed" });
+
+    expect(liveVscode.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ command: "setFileReviewed" })
+    );
+    expectReviewedState(false);
+  });
+
+  it("does not mark the file for an active review of another commit", () => {
+    expandCommitWithFiles(COMMIT_HASH_1, FILE_TREE_HTML);
+    startActiveReview({ commitHash: COMMIT_HASH_2 });
+    openDisplayedFile();
+
+    dispatchMessage({ command: "openFile", status: null });
+
+    expect(liveVscode.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ command: "setFileReviewed" })
+    );
+    expectReviewedState(false);
+  });
+
+  it("does not mark the file when no review is active", () => {
+    expandCommitWithFiles(COMMIT_HASH_1, FILE_TREE_HTML);
+    openDisplayedFile();
+
+    dispatchMessage({ command: "openFile", status: null });
+
+    expect(liveVscode.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ command: "setFileReviewed" })
+    );
+    expectReviewedState(false);
+  });
+
+  it("does not mark the file when the active review compare hash differs", () => {
+    expandCommitWithFiles(COMMIT_HASH_1, FILE_TREE_HTML);
+    startActiveReview({ compareWithHash: COMMIT_HASH_2 });
+    openDisplayedFile();
+
+    dispatchMessage({ command: "openFile", status: null });
+
+    expect(liveVscode.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ command: "setFileReviewed" })
+    );
+    expectReviewedState(false);
+  });
+
+  it("ignores an empty displayed path after a successful open", () => {
+    const emptyPathHtml =
+      '<table><tr class="gitFile M" data-newfilepath=""><td><span class="gitFileActions"><span class="gitFileAction openFile" title="Open File">icon</span></span></td></tr></table>';
+    expandCommitWithFiles(COMMIT_HASH_1, emptyPathHtml);
+    startActiveReview({ files: [""] });
+    openDisplayedFile();
+
+    dispatchMessage({ command: "openFile", status: null });
+
+    expect(liveVscode.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ command: "setFileReviewed" })
+    );
+  });
 });
 
 /* ------------------------------------------------------------------ */

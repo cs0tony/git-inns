@@ -44,6 +44,7 @@ export interface GitKeizuViewAPI {
   loadRepositorySettings(data: RepositorySettingsData): void;
   showRepositorySettingsError(status: GitCommandStatus): void;
   clearRepositorySettingsError(): void;
+  handleOpenFileResponse(status: GitCommandStatus): void;
   updateCodeReview(repo: string, review: GitRepoSet[string]["codeReview"]): void;
   showTagDetails(details: TagDetails): void;
 }
@@ -197,6 +198,7 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       refreshOrError(gitKeizu, msg.status, t("error.mergeBranch"));
       break;
     case "openFile":
+      gitKeizu.handleOpenFileResponse(msg.status);
       if (msg.status !== null) {
         showErrorDialog(t("error.openFile"), msg.status, null);
       }

@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -58,9 +60,7 @@ describe("formatCommitBody: plain fallback", () => {
   it("does not render Markdown or replace emoji in plain mode", () => {
     const body = "# No heading :tada:";
 
-    expect(formatCommitBody(body, { mode: "plain", emoji: true })).toBe(
-      "# No heading :tada:"
-    );
+    expect(formatCommitBody(body, { mode: "plain", emoji: true })).toBe("# No heading :tada:");
   });
 });
 
@@ -107,7 +107,9 @@ describe("formatCommitBody: Markdown", () => {
   });
 
   it("renders HTTP and HTTPS autolinks", () => {
-    expect(formatCommitBody("<https://example.test/a> <http://example.test/b>", { mode: "rich" })).toBe(
+    expect(
+      formatCommitBody("<https://example.test/a> <http://example.test/b>", { mode: "rich" })
+    ).toBe(
       '<p class="commit-body-paragraph">' +
         '<a class="commit-body-link" href="https://example.test/a" target="_blank" rel="noopener noreferrer">https://example.test/a</a> ' +
         '<a class="commit-body-link" href="http://example.test/b" target="_blank" rel="noopener noreferrer">http://example.test/b</a>' +
@@ -116,7 +118,7 @@ describe("formatCommitBody: Markdown", () => {
   });
 
   it("renders labelled HTTP and HTTPS links with escaped labels", () => {
-    const html = formatCommitBody('[<b>Docs</b>](https://example.test/path?a=1&b=2)', {
+    const html = formatCommitBody("[<b>Docs</b>](https://example.test/path?a=1&b=2)", {
       mode: "rich"
     });
 
@@ -130,9 +132,7 @@ describe("formatCommitBody: Markdown", () => {
   it("neutralizes unsafe labelled-link destinations", () => {
     const html = formatCommitBody("[click](javascript:alert(1))", { mode: "rich" });
 
-    expect(html).toBe(
-      '<p class="commit-body-paragraph">[click](javascript:alert(1))</p>'
-    );
+    expect(html).toBe('<p class="commit-body-paragraph">[click](javascript:alert(1))</p>');
     expect(htmlIn(html, "a")).toHaveLength(0);
   });
 
@@ -151,10 +151,8 @@ describe("formatCommitBody: Markdown", () => {
       { mode: "rich" }
     );
 
-    expect(htmlIn(html, "h1")[0]).toBe(
-      'Title &lt;img src=x onerror=&quot;alert(1)&quot;&gt;'
-    );
-    expect(htmlIn(html, "p")[0]).toBe("Body &lt;script&gt;alert(2)&lt;&#x2F;script&gt;");
+    expect(htmlIn(html, "h1")[0]).toBe('Title &lt;img src=x onerror="alert(1)"&gt;');
+    expect(htmlIn(html, "p")[0]).toBe("Body &lt;script&gt;alert(2)&lt;/script&gt;");
     expect(htmlIn(html, "script")).toHaveLength(0);
     expect(htmlIn(html, "img")).toHaveLength(0);
   });
@@ -183,9 +181,7 @@ describe("formatCommitBody: emoji", () => {
       }
     });
 
-    expect(html).toBe(
-      '<p class="commit-body-paragraph">🚢 🛸 :unsafe:</p>'
-    );
+    expect(html).toBe('<p class="commit-body-paragraph">🚢 🛸 :unsafe:</p>');
   });
 });
 
@@ -204,9 +200,11 @@ describe("formatCommitBody: end-to-end safety", () => {
     const container = document.createElement("div");
     container.innerHTML = formatCommitBody(body, { mode: "rich", emoji: true });
 
-    expect(
-      Array.from(container.children, (element) => element.tagName.toLowerCase())
-    ).toEqual(["h2", "p", "pre"]);
+    expect(Array.from(container.children, (element) => element.tagName.toLowerCase())).toEqual([
+      "h2",
+      "p",
+      "pre"
+    ]);
     expect(container.querySelectorAll("script,img,iframe,style")).toHaveLength(0);
     expect(container.querySelectorAll('a[rel="noopener noreferrer"]')).toHaveLength(1);
   });

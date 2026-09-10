@@ -95,6 +95,7 @@ const CONTEXT_MENU_ACTION_IDS: Record<ContextMenuGroup, readonly ContextMenuActi
     "ref.openTerminal",
     "ref.copyWorktreePath",
     "ref.removeWorktree",
+    "ref.createPullRequest",
     "ref.pull",
     "ref.push",
     "ref.copyName"
@@ -112,14 +113,10 @@ const CONTEXT_MENU_ACTION_IDS: Record<ContextMenuGroup, readonly ContextMenuActi
     "commit.drop",
     "commit.copyHash"
   ],
-  file: [
-    "file.openFile",
-    "file.markReviewed",
-    "file.markNotReviewed",
-    "file.resetToRevision"
-  ],
+  file: ["file.openFile", "file.markReviewed", "file.markNotReviewed", "file.resetToRevision"],
   remoteBranch: [
     "ref.checkoutBranch",
+    "ref.createPullRequest",
     "ref.mergeBranch",
     "ref.deleteRemoteBranch",
     "remoteBranch.copyName"

@@ -1483,6 +1483,7 @@ describe("Ref context menu structure (S13)", () => {
       "Checkout Branch",
       "Merge into current branch&#8230;",
       "Rebase current branch on Branch&#8230;",
+      "Create Pull Request",
       null,
       "Create Worktree&#8230;",
       null,

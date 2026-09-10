@@ -188,6 +188,11 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
         showErrorDialog(t("error.openWorktreeInNewWindow"), msg.status, null);
       }
       break;
+    case "openPullRequest":
+      if (msg.status !== null) {
+        showErrorDialog(t("error.openPullRequest"), msg.status, null);
+      }
+      break;
     case "mergeCommit":
       refreshOrError(gitKeizu, msg.status, t("error.mergeCommit"));
       break;

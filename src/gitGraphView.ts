@@ -9,6 +9,7 @@ import { DataSource } from "./dataSource";
 import { encodeDiffDocUri } from "./diffDocProvider";
 import { ExtensionState } from "./extensionState";
 import { getLocale, loadWebviewMessages, t as hostT } from "./i18n";
+import { buildPullRequestUrl } from "./pullRequest";
 import { isSafeRemoteName } from "./refValidation";
 import { RepoFileWatcher } from "./repoFileWatcher";
 import { RepoManager } from "./repoManager";
@@ -204,10 +205,7 @@ export class GitKeizuView {
               break;
             }
             case "repositorySettingsAction": {
-              const status = await this.dataSource.repositorySettingsAction(
-                msg.repo,
-                msg.action
-              );
+              const status = await this.dataSource.repositorySettingsAction(msg.repo, msg.action);
               this.sendMessage({
                 command: "repositorySettingsAction",
                 repo: msg.repo,
@@ -625,6 +623,23 @@ export class GitKeizuView {
             case "saveRepoState":
               this.repoManager.setRepoState(msg.repo, msg.state);
               break;
+            case "openPullRequest": {
+              let status: GitCommandStatus = null;
+              try {
+                const settings = await this.dataSource.getRepositorySettings(msg.repo);
+                const config = settings.kind === "ok" ? settings.data.pullRequest : null;
+                if (config === null) {
+                  status = "No pull-request provider is configured for this repository.";
+                } else {
+                  const url = buildPullRequestUrl(config, msg.branchName);
+                  await vscode.env.openExternal(vscode.Uri.parse(url, true));
+                }
+              } catch (error) {
+                status = error instanceof Error ? error.message : String(error);
+              }
+              this.sendMessage({ command: "openPullRequest", status });
+              break;
+            }
             case "viewDiff":
               this.sendMessage({
                 command: "viewDiff",

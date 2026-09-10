@@ -123,6 +123,8 @@
   "repoSettings.provider.gitlab": "GitLab",
   "repoSettings.provider.bitbucket": "Bitbucket",
   "repoSettings.provider.custom": "カスタム",
+  "Create Pull Request": "プルリクエストを作成",
+  "error.openPullRequest": "プルリクエストを作成できません",
   "repoSettings.export": "設定のエクスポート",
   "repoSettings.exportDescription": "リポジトリ設定の共有はまだ利用できません。",
   "repoSettings.remoteNameRequired": "リモート名は必須です。",

@@ -106,6 +106,7 @@ export type ContextMenuActionId =
   | "file.resetToRevision"
   | "ref.copyName"
   | "ref.copyWorktreePath"
+  | "ref.createPullRequest"
   | "ref.rebaseBranch"
   | "ref.removeWorktree"
   | "ref.renameBranch"
@@ -737,6 +738,16 @@ export interface RequestOpenFile {
   filePath: string;
   commitHash: string;
 }
+
+export interface RequestOpenPullRequest {
+  command: "openPullRequest";
+  repo: string;
+  branchName: string;
+}
+export interface ResponseOpenPullRequest {
+  command: "openPullRequest";
+  status: GitCommandStatus;
+}
 export interface ResponseOpenFile {
   command: "openFile";
   status: GitCommandStatus;
@@ -925,6 +936,7 @@ export type RequestMessage =
   | RequestOpenFile
   | RequestOpenTerminal
   | RequestOpenWorktreeInNewWindow
+  | RequestOpenPullRequest
   | RequestPopStash
   | RequestPushStash
   | RequestPushTag
@@ -975,6 +987,7 @@ export type ResponseMessage =
   | ResponseOpenFile
   | ResponseOpenTerminal
   | ResponseOpenWorktreeInNewWindow
+  | ResponseOpenPullRequest
   | ResponsePopStash
   | ResponsePushStash
   | ResponsePushTag

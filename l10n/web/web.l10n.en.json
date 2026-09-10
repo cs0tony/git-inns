@@ -123,6 +123,8 @@
   "repoSettings.provider.gitlab": "GitLab",
   "repoSettings.provider.bitbucket": "Bitbucket",
   "repoSettings.provider.custom": "Custom",
+  "Create Pull Request": "Create Pull Request",
+  "error.openPullRequest": "Unable to create Pull Request",
   "repoSettings.export": "Configuration export",
   "repoSettings.exportDescription": "Sharing repository settings is not available yet.",
   "repoSettings.remoteNameRequired": "Remote name is required.",

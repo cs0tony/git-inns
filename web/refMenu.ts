@@ -136,6 +136,20 @@ function buildWorktreeWarning(
   return `<br><span class="dialogWarning">${svgIcons.alert} ${t("This branch has an active worktree at {0}. Force deleting will orphan the worktree directory (detached HEAD).", `<b>${escapeHtml(worktreeInfo.path)}</b>`)}</span>`;
 }
 
+function buildCreatePullRequestMenuItem(repo: string, refName: string): ContextMenuItem {
+  return {
+    title: t("Create Pull Request"),
+    actionId: "ref.createPullRequest",
+    onClick: () => {
+      sendMessage({
+        command: "openPullRequest",
+        repo,
+        branchName: refName
+      });
+    }
+  };
+}
+
 function showDeleteBranchDialog(
   repo: string,
   refName: string,
@@ -516,6 +530,7 @@ export function buildRefContextMenuItems(
           ? [...baseMenu, null, { title: t("context.more"), submenu: [renameBranchItem] }]
           : [
               ...baseMenu,
+              buildCreatePullRequestMenuItem(repo, refName),
               null,
               ...worktreeItems,
               null,
@@ -530,7 +545,8 @@ export function buildRefContextMenuItems(
           onClick: () => checkoutBranchAction(repo, sourceElem, refName, undefined, true)
         },
         buildMergeBranchMenuItem(repo, refName),
-        rebaseBranchItem
+        rebaseBranchItem,
+        buildCreatePullRequestMenuItem(repo, refName)
       ];
       const moreSubmenuItems: ContextMenuElement[] = [
         renameBranchItem,

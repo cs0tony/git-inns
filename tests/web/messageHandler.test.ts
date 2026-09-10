@@ -48,7 +48,16 @@ const SETTINGS: RepositorySettingsData = {
   repositoryName: "repo",
   repositoryPath: "/test/repo",
   remotes: [],
-  issueLinks: { enabled: false, regex: "", urlTemplate: "" }
+  issueLinks: { enabled: false, regex: "", urlTemplate: "" },
+  user: {
+    name: { effectiveValue: "Test User", source: "local", localValue: "Test User", globalValue: null },
+    email: {
+      effectiveValue: "test@example.com",
+      source: "local",
+      localValue: "test@example.com",
+      globalValue: null
+    }
+  }
 };
 
 // S13: pull レスポンス処理の維持

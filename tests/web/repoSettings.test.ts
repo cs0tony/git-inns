@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import webMessagesEn from "../../l10n/web/web.l10n.en.json";
 import {
@@ -29,6 +29,20 @@ function createData(overrides: Partial<RepoSettingsData> = {}): RepoSettingsData
       urlTemplate: "https://github.com/example/git-keizu/issues/{0}"
     },
     pullRequest: null,
+    user: {
+      name: {
+        effectiveValue: "Test User",
+        source: "local",
+        localValue: "Test User",
+        globalValue: "Global User"
+      },
+      email: {
+        effectiveValue: "test@example.com",
+        source: "local",
+        localValue: "test@example.com",
+        globalValue: "global@example.com"
+      }
+    },
     ...overrides
   };
 }
@@ -48,6 +62,13 @@ function findField(labelText: string): HTMLInputElement {
   return input as HTMLInputElement;
 }
 
+function findSelect(labelText: string): HTMLSelectElement {
+  const label = findLabel(labelText);
+  const select = document.getElementById(label.htmlFor);
+  expect(select).toBeInstanceOf(HTMLSelectElement);
+  return select as HTMLSelectElement;
+}
+
 function fieldError(labelText: string): HTMLElement {
   const label = findLabel(labelText);
   const error = document.getElementById(`${label.htmlFor}-error`);
@@ -59,6 +80,22 @@ function labelledButton(label: string): HTMLButtonElement {
   const button = document.querySelector(`button[aria-label="${label}"]`);
   expect(button).toBeInstanceOf(HTMLButtonElement);
   return button as HTMLButtonElement;
+}
+
+function buttonWithText(label: string): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent === label
+  );
+  expect(button).toBeInstanceOf(HTMLButtonElement);
+  return button as HTMLButtonElement;
+}
+
+function remoteForm(): HTMLFormElement {
+  const form = document.querySelector<HTMLFormElement>(
+    "form[aria-labelledby$='-remote-form-title']"
+  );
+  expect(form).toBeInstanceOf(HTMLFormElement);
+  return form!;
 }
 
 describe("repository settings panel", () => {
@@ -118,6 +155,7 @@ describe("repository settings panel", () => {
       (title) => title.textContent
     );
     expect(sectionTitles).toEqual([
+      "User details",
       "Remotes",
       "Issue links",
       "Pull request providers",
@@ -131,6 +169,77 @@ describe("repository settings panel", () => {
     );
     expect(labelledButton("Export repository configuration").textContent).toBe("Export");
     expect(labelledButton("Import repository configuration").textContent).toBe("Import");
+  });
+
+  it("shows effective user values and their configuration source", () => {
+    render({
+      user: {
+        name: {
+          effectiveValue: "Global User",
+          source: "global",
+          localValue: null,
+          globalValue: "Global User"
+        },
+        email: {
+          effectiveValue: null,
+          source: null,
+          localValue: null,
+          globalValue: null
+        }
+      }
+    });
+
+    expect(findField("Name").value).toBe("Global User");
+    expect(findField("Email").value).toBe("");
+    expect(document.querySelector("[data-testid='user-name-source']")!.textContent).toBe(
+      "Effective: Global User (from global settings)"
+    );
+    expect(document.querySelector("[data-testid='user-email-source']")!.textContent).toBe(
+      "No effective value."
+    );
+  });
+
+  it("validates and dispatches scoped user detail saves", () => {
+    render();
+    const scope = findSelect("Scope");
+
+    findField("Name").value = "";
+    findField("Email").value = "test@example.com";
+    buttonWithText("Save user details").click();
+    expect(actions).toHaveLength(0);
+    expect(fieldError("Name").textContent).toBe("Name and email are required.");
+
+    findField("Name").value = "Updated User";
+    findField("Email").value = "bad\u0085@example.com";
+    buttonWithText("Save user details").click();
+    expect(actions).toHaveLength(0);
+    expect(fieldError("Email").textContent).toBe("Control characters are not allowed.");
+
+    findField("Email").value = "updated@example.com";
+    scope.value = "global";
+    buttonWithText("Save user details").click();
+    expect(actions).toEqual([
+      {
+        type: "saveUserDetails",
+        scope: "global",
+        name: "Updated User",
+        email: "updated@example.com"
+      }
+    ]);
+  });
+
+  it("requires confirmation before removing user details", () => {
+    render();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    buttonWithText("Remove user details").click();
+    expect(confirmSpy).toHaveBeenCalledWith(
+      "Remove user.name and user.email from repository settings?"
+    );
+    expect(actions).toHaveLength(0);
+
+    confirmSpy.mockReturnValue(true);
+    buttonWithText("Remove user details").click();
+    expect(actions).toEqual([{ type: "removeUserDetails", scope: "local" }]);
   });
 
   it("shows a clear empty state when no remotes exist", () => {
@@ -147,7 +256,7 @@ describe("repository settings panel", () => {
     findField("Remote name").value = "upstream";
     findField("URL").value = "git@example.com:example/upstream.git";
     findField("Push URL (optional)").value = "";
-    document.querySelector<HTMLFormElement>(".repo-settings-form")!.requestSubmit();
+    remoteForm().requestSubmit();
 
     expect(actions).toEqual([
       {
@@ -168,7 +277,7 @@ describe("repository settings panel", () => {
 
     findField("Remote name").value = "bad name";
     findField("URL").value = "not a url";
-    document.querySelector<HTMLFormElement>(".repo-settings-form")!.requestSubmit();
+    remoteForm().requestSubmit();
 
     const nameLabel = findLabel("Remote name");
     const urlLabel = findLabel("URL");
@@ -189,7 +298,7 @@ describe("repository settings panel", () => {
 
     findField("Remote name").value = "origin";
     findField("URL").value = "https://example.com/another.git";
-    document.querySelector<HTMLFormElement>(".repo-settings-form")!.requestSubmit();
+    remoteForm().requestSubmit();
 
     expect(actions).toHaveLength(0);
     expect(fieldError("Remote name").textContent).toBe("A remote with this name already exists.");
@@ -209,7 +318,7 @@ describe("repository settings panel", () => {
     findField("Remote name").value = "github";
     findField("URL").value = "https://example.com/git-keizu.git";
     findField("Push URL (optional)").value = "";
-    document.querySelector<HTMLFormElement>(".repo-settings-form")!.requestSubmit();
+    remoteForm().requestSubmit();
 
     expect(actions).toEqual([
       {

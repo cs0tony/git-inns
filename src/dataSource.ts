@@ -36,6 +36,9 @@ import {
   RepositorySettingsPullRequestDestination,
   RepositorySettingsRemote,
   RepositorySettingsResult,
+  RepositorySettingsUserDetails,
+  RepositorySettingsUserScope,
+  RepositorySettingsUserValue,
   UNCOMMITTED_CHANGES_HASH,
   VALID_UNCOMMITTED_RESET_MODES,
   WorktreeCollection
@@ -105,6 +108,8 @@ const INVALID_REMOTE_NAME_MESSAGE = "Invalid remote name.";
 const INVALID_REMOTE_URL_MESSAGE = "Invalid remote URL.";
 const INVALID_PULL_REQUEST_DESTINATION_MESSAGE = "Invalid pull-request destination branch.";
 const UNKNOWN_REMOTE_MESSAGE = "The remote is not registered in this repository.";
+const USER_DETAILS_REQUIRED_MESSAGE = "User name and email are required.";
+const USER_DETAILS_CONTROL_MESSAGE = "User details contain invalid control characters.";
 const GIT_QUERY_FAILED_MESSAGE = "Git command failed.";
 const REFS_HEADS_PREFIX = "refs/heads/";
 const OPTION_ARG_PREFIX = "-";
@@ -115,13 +120,49 @@ const PUSH_REFSPEC_SEPARATOR = ":";
  * this output" apart from "the query itself failed", so that a failure is never
  * mistaken for an empty result.
  */
-type GitQueryResult = { kind: "ok"; stdout: string } | { kind: "error"; status: string };
+type GitQueryResult =
+  | { kind: "ok"; stdout: string }
+  | { kind: "error"; exitCode: number | null; status: string };
+
+type GitConfigValuesResult =
+  | { kind: "ok"; values: string[] }
+  | { kind: "error"; status: string };
 
 type RemoteNamesResult = { kind: "ok"; remotes: string[] } | { kind: "error"; status: string };
 
 const REMOTE_URL_PATTERN = /\s|\p{Cc}/u;
+const CONTROL_CHAR_PATTERN = /\p{Cc}/u;
 const REPOSITORY_SETTINGS_FETCH = "fetch";
 const REPOSITORY_SETTINGS_PUSH = "push";
+
+function parseNullSeparatedValues(stdout: string): string[] {
+  if (stdout === "") return [];
+  return stdout.endsWith("\0") ? stdout.slice(0, -1).split("\0") : [stdout];
+}
+
+function selectConfigValue(values: string[]): string | null {
+  return values.at(-1) ?? null;
+}
+
+function resolveUserValue(
+  localValues: string[],
+  globalValues: string[]
+): RepositorySettingsUserValue {
+  const localValue = selectConfigValue(localValues);
+  const globalValue = selectConfigValue(globalValues);
+  const source: RepositorySettingsUserScope | null =
+    localValue === null ? (globalValue === null ? null : "global") : "local";
+  return {
+    effectiveValue: localValue ?? globalValue,
+    source,
+    localValue,
+    globalValue
+  };
+}
+
+function isSafeUserDetail(value: string): boolean {
+  return value !== "" && !CONTROL_CHAR_PATTERN.test(value);
+}
 
 function isRefNameSafe(refName: string): boolean {
   return !refName.startsWith(OPTION_ARG_PREFIX);
@@ -1407,6 +1448,11 @@ export class DataSource {
       return { kind: "error", status: result.status };
     }
 
+    const user = await this.getUserDetails(repo);
+    if (user.kind === "error") {
+      return { kind: "error", status: user.status };
+    }
+
     const remotes = parseRemoteVerbose(result.stdout);
     const storedPullRequest = this.extensionState?.getRepositoryPullRequest(repo) ?? null;
     const detected = remotes.find((remote) => detectPullRequestProvider(remote.url) !== null);
@@ -1463,6 +1509,7 @@ export class DataSource {
           urlTemplate: ""
         },
         pullRequest,
+        user: user.details,
         ...(destination === undefined ? {} : { pullRequestDestination: destination })
       }
     };
@@ -1511,7 +1558,145 @@ export class DataSource {
         await this.extensionState?.saveRepositoryPullRequest(repo, remote.url, action.settings);
         return null;
       }
+      case "saveUserDetails":
+        return this.saveUserDetails(repo, action.scope, action.name, action.email);
+      case "removeUserDetails":
+        return this.removeUserDetails(repo, action.scope);
     }
+  }
+
+  private async saveUserDetails(
+    repo: string,
+    scope: RepositorySettingsUserScope,
+    name: string,
+    email: string
+  ): Promise<GitCommandStatus> {
+    if (!isSafeUserDetail(name) || !isSafeUserDetail(email)) {
+      return name === "" || email === ""
+        ? USER_DETAILS_REQUIRED_MESSAGE
+        : USER_DETAILS_CONTROL_MESSAGE;
+    }
+
+    if (scope === "local") {
+      const localNameStatus = await this.setUserConfig("local", "user.name", name, repo);
+      if (localNameStatus !== null) return localNameStatus;
+      return this.setUserConfig("local", "user.email", email, repo);
+    }
+
+    const globalNameStatus = await this.setUserConfig("global", "user.name", name, repo);
+    if (globalNameStatus !== null) return globalNameStatus;
+
+    if (globalNameStatus !== null) return globalNameStatus;
+    const globalEmailStatus = await this.setUserConfig(
+      "global",
+      "user.email",
+      email,
+      repo
+    );
+    if (globalEmailStatus !== null) return globalEmailStatus;
+
+    const localValues = await this.getUserDetails(repo);
+    if (localValues.kind === "error") return localValues.status;
+    if (
+      localValues.details.name.localValue === null &&
+      localValues.details.email.localValue === null
+    ) {
+      return null;
+    }
+    return this.removeLocalOverrides(repo);
+  }
+
+  private async removeUserDetails(
+    repo: string,
+    scope: RepositorySettingsUserScope
+  ): Promise<GitCommandStatus> {
+    const nameStatus = await this.unsetUserConfig(scope, "user.name", repo);
+    if (nameStatus !== null) return nameStatus;
+    return this.unsetUserConfig(scope, "user.email", repo);
+  }
+
+  private async removeLocalOverrides(repo: string): Promise<GitCommandStatus> {
+    const nameStatus = await this.unsetUserConfig("local", "user.name", repo);
+    if (nameStatus !== null) return nameStatus;
+    return this.unsetUserConfig("local", "user.email", repo);
+  }
+
+  private async unsetUserConfig(
+    scope: RepositorySettingsUserScope,
+    key: "user.name" | "user.email",
+    repo: string
+  ): Promise<GitCommandStatus> {
+    const result = await this.runGitQuery(
+      ["config", "--unset-all", scope === "local" ? "--local" : "--global", key],
+      repo
+    );
+    // Git exits 1 for a missing key lookup and 5 for an already-absent value.
+    if (result.kind === "ok" || result.exitCode === 1 || result.exitCode === 5) {
+      return null;
+    }
+    return result.status;
+  }
+
+  private setUserConfig(
+    scope: RepositorySettingsUserScope,
+    key: "user.name" | "user.email",
+    value: string,
+    repo: string
+  ): Promise<GitCommandStatus> {
+    return this.runGitCommandSpawn(
+      ["config", "--replace-all", scope === "local" ? "--local" : "--global", key, value],
+      repo
+    );
+  }
+
+  private async getGitConfigValues(
+    repo: string,
+    key: "user.name" | "user.email",
+    scope: RepositorySettingsUserScope
+  ): Promise<GitConfigValuesResult> {
+    const result = await this.runGitQuery(
+      ["config", "--null", "--get-all", scope === "local" ? "--local" : "--global", key],
+      repo
+    );
+    if (result.kind === "ok") {
+      return { kind: "ok", values: parseNullSeparatedValues(result.stdout) };
+    }
+    if (result.exitCode === 1) {
+      return { kind: "ok", values: [] };
+    }
+    return { kind: "error", status: result.status };
+  }
+
+  private async getUserDetails(repo: string): Promise<
+    | { kind: "ok"; details: RepositorySettingsUserDetails }
+    | { kind: "error"; status: string }
+  > {
+    const [nameLocal, nameGlobal, emailLocal, emailGlobal] = await Promise.all([
+      this.getGitConfigValues(repo, "user.name", "local"),
+      this.getGitConfigValues(repo, "user.name", "global"),
+      this.getGitConfigValues(repo, "user.email", "local"),
+      this.getGitConfigValues(repo, "user.email", "global")
+    ]);
+    const results = [nameLocal, nameGlobal, emailLocal, emailGlobal];
+    for (const result of results) {
+      if (result.kind === "error") return result;
+    }
+    if (
+      nameLocal.kind !== "ok" ||
+      nameGlobal.kind !== "ok" ||
+      emailLocal.kind !== "ok" ||
+      emailGlobal.kind !== "ok"
+    ) {
+      return { kind: "error", status: GIT_QUERY_FAILED_MESSAGE };
+    }
+
+    return {
+      kind: "ok",
+      details: {
+        name: resolveUserValue(nameLocal.values, nameGlobal.values),
+        email: resolveUserValue(emailLocal.values, emailGlobal.values)
+      }
+    };
   }
 
   private async hasLocalBranch(repo: string, branchName: string): Promise<boolean> {
@@ -1927,7 +2112,11 @@ export class DataSource {
         stderrChunks.push(Buffer.from(d));
       });
       cmd.on("error", (e: Error) => {
-        resolve({ kind: "error", status: e.message.split(eolRegex).join("\n") });
+          resolve({
+            exitCode: null,
+            kind: "error",
+            status: e.message.split(eolRegex).join("\n")
+          });
         err = true;
       });
       cmd.on("close", (code: number | null) => {
@@ -1941,7 +2130,11 @@ export class DataSource {
         const lines = (stderr !== "" ? stderr : stdout).split(eolRegex);
         if (lines[lines.length - 1] === "") lines.pop();
         const message = lines.join("\n");
-        resolve({ kind: "error", status: message !== "" ? message : GIT_QUERY_FAILED_MESSAGE });
+            resolve({
+              exitCode: code,
+              kind: "error",
+              status: message !== "" ? message : GIT_QUERY_FAILED_MESSAGE
+            });
       });
     });
   }

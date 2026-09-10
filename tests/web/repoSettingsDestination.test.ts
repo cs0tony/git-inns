@@ -30,6 +30,15 @@ function createData(): RepoSettingsData {
       branches: ["feature/one", "main", "release"],
       defaultBranch: "main",
       selectedBranch: "release"
+    },
+    user: {
+      name: { effectiveValue: "Test User", source: "local", localValue: "Test User", globalValue: null },
+      email: {
+        effectiveValue: "test@example.com",
+        source: "local",
+        localValue: "test@example.com",
+        globalValue: null
+      }
     }
   };
 }

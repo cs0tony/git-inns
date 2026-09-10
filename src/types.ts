@@ -342,6 +342,20 @@ export interface RepositorySettingsPullRequestDestination {
   selectedBranch: string | null;
 }
 
+export type RepositorySettingsUserScope = "local" | "global";
+
+export interface RepositorySettingsUserValue {
+  effectiveValue: string | null;
+  source: RepositorySettingsUserScope | null;
+  localValue: string | null;
+  globalValue: string | null;
+}
+
+export interface RepositorySettingsUserDetails {
+  name: RepositorySettingsUserValue;
+  email: RepositorySettingsUserValue;
+}
+
 export interface RepositorySettingsData {
   repositoryName: string;
   repositoryPath: string;
@@ -349,6 +363,7 @@ export interface RepositorySettingsData {
   issueLinks: RepositorySettingsIssueLinks;
   pullRequest: ResolvedPullRequestConfig | null;
   pullRequestDestination?: RepositorySettingsPullRequestDestination;
+  user: RepositorySettingsUserDetails;
 }
 
 export type RepositorySettingsResult =
@@ -369,7 +384,14 @@ export type RepositorySettingsAction =
   | { type: "fetchPruneRemote"; name: string }
   | { type: "pruneTagsRemote"; name: string }
   | { type: "saveIssueLinks"; settings: RepositorySettingsIssueLinks }
-  | { type: "savePullRequest"; settings: PullRequestSettingsInput };
+  | { type: "savePullRequest"; settings: PullRequestSettingsInput }
+  | {
+      type: "saveUserDetails";
+      scope: RepositorySettingsUserScope;
+      name: string;
+      email: string;
+    }
+  | { type: "removeUserDetails"; scope: RepositorySettingsUserScope };
 
 export interface PullRequestSettingsInput {
   provider: PullRequestProviderKind;

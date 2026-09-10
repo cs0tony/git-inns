@@ -23,7 +23,10 @@ vi.mock("../../src/config", () => ({
 
 import { DataSource } from "../../src/dataSource";
 import type { ExtensionState } from "../../src/extensionState";
-import type { RepositorySettingsIssueLinks } from "../../src/types";
+import type {
+  RepositorySettingsIssueLinks,
+  RepositorySettingsUserScope
+} from "../../src/types";
 
 const INVALID_DESTINATION_MESSAGE = "Invalid pull-request destination branch.";
 
@@ -42,15 +45,18 @@ function refExists(repo: string, ref: string): boolean {
 
 interface Fixture {
   root: string;
+  home: string;
   repo: string;
   origin: string;
 }
 
 async function createFixture(): Promise<Fixture> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "git-keizu-settings-"));
+  const home = path.join(root, "home");
   const repo = path.join(root, "repository");
   const origin = path.join(root, "origin.git");
 
+  await fs.mkdir(home, { recursive: true });
   git(root, ["init", "--bare", "-b", "main", origin]);
   git(root, ["init", "-b", "main", repo]);
   git(repo, ["config", "user.email", "test@example.com"]);
@@ -59,7 +65,7 @@ async function createFixture(): Promise<Fixture> {
   git(repo, ["remote", "add", "origin", origin]);
   git(repo, ["commit", "--allow-empty", "-m", "first"]);
 
-  return { root, repo, origin };
+  return { root, home, repo, origin };
 }
 
 function createExtensionState(issueLinks?: Record<string, RepositorySettingsIssueLinks>) {
@@ -102,6 +108,8 @@ describe("DataSource repository settings", () => {
 
   beforeEach(async () => {
     fixture = await createFixture();
+    vi.stubEnv("HOME", fixture.home);
+    vi.stubEnv("XDG_CONFIG_HOME", path.join(fixture.home, ".config"));
     git(fixture.repo, ["remote", "add", "upstream", "https://example.com/upstream.git"]);
   });
 
@@ -109,6 +117,25 @@ describe("DataSource repository settings", () => {
     await fs.rm(fixture.root, { recursive: true, force: true });
     vi.restoreAllMocks();
   });
+
+  function expectedUser(nameLocal: string | null, emailLocal: string | null) {
+    const scope: RepositorySettingsUserScope =
+      nameLocal === null || emailLocal === null ? "global" : "local";
+    return {
+      name: {
+        effectiveValue: nameLocal ?? "Global User",
+        source: scope,
+        localValue: nameLocal,
+        globalValue: nameLocal === null ? "Global User" : null
+      },
+      email: {
+        effectiveValue: emailLocal ?? "global@example.com",
+        source: scope,
+        localValue: emailLocal,
+        globalValue: emailLocal === null ? "global@example.com" : null
+      }
+    };
+  }
 
   it("parses fetch and push URLs and omits unsafe remote names", async () => {
     const { extensionState } = createExtensionState();
@@ -133,9 +160,128 @@ describe("DataSource repository settings", () => {
           { name: "upstream", url: "https://example.com/upstream.git" }
         ],
         issueLinks: { enabled: false, regex: "", urlTemplate: "" },
-        pullRequest: null
+        pullRequest: null,
+        user: expectedUser("Test User", "test@example.com")
       }
     });
+  });
+
+  it("reads user details separately from local and global configuration", async () => {
+    git(fixture.repo, ["config", "--unset", "user.name"]);
+    git(fixture.repo, ["config", "--unset", "user.email"]);
+    git(fixture.repo, ["config", "--global", "user.name", "Global User"]);
+    git(fixture.repo, ["config", "--global", "user.email", "global@example.com"]);
+    const { extensionState } = createExtensionState();
+    const dataSource = new DataSource(extensionState as ExtensionState);
+
+    const result = await dataSource.getRepositorySettings(fixture.repo);
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.data.user).toEqual(expectedUser(null, null));
+  });
+
+  it("validates and saves user details in the selected scope", async () => {
+    const { extensionState } = createExtensionState();
+    const dataSource = new DataSource(extensionState as ExtensionState);
+
+    expect(
+      await dataSource.repositorySettingsAction(fixture.repo, {
+        type: "saveUserDetails",
+        scope: "local",
+        name: "",
+        email: "local@example.com"
+      })
+    ).toBe("User name and email are required.");
+    expect(
+      await dataSource.repositorySettingsAction(fixture.repo, {
+        type: "saveUserDetails",
+        scope: "local",
+        name: "Local User",
+        email: "local\n@example.com"
+      })
+    ).toBe("User details contain invalid control characters.");
+    expect(git(fixture.repo, ["config", "--local", "--get", "user.name"])).toBe("Test User");
+
+    expect(
+      await dataSource.repositorySettingsAction(fixture.repo, {
+        type: "saveUserDetails",
+        scope: "local",
+        name: "Local User",
+        email: "local@example.com"
+      })
+    ).toBeNull();
+    expect(git(fixture.repo, ["config", "--local", "user.name"])).toBe("Local User");
+    expect(git(fixture.repo, ["config", "--local", "user.email"])).toBe("local@example.com");
+  });
+
+  it("writes global user details before removing overriding local values", async () => {
+    const { extensionState } = createExtensionState();
+    const dataSource = new DataSource(extensionState as ExtensionState);
+    git(fixture.repo, ["config", "--unset", "user.name"]);
+    git(fixture.repo, ["config", "--global", "user.name", "Global User"]);
+    git(fixture.repo, ["config", "--global", "user.email", "global@example.com"]);
+
+    expect(
+      await dataSource.repositorySettingsAction(fixture.repo, {
+        type: "saveUserDetails",
+        scope: "global",
+        name: "Updated Global User",
+        email: "updated-global@example.com"
+      })
+    ).toBeNull();
+
+    expect(git(fixture.repo, ["config", "--global", "user.name"])).toBe("Updated Global User");
+    expect(git(fixture.repo, ["config", "--global", "user.email"])).toBe(
+      "updated-global@example.com"
+    );
+    expect(
+      cp.spawnSync("git", ["config", "--local", "user.name"], {
+        cwd: fixture.repo,
+        encoding: "utf8"
+      }).status
+    ).not.toBe(0);
+    expect(
+      cp.spawnSync("git", ["config", "--local", "user.email"], {
+        cwd: fixture.repo,
+        encoding: "utf8"
+      }).status
+    ).not.toBe(0);
+  });
+
+  it("removes user details only from the selected scope", async () => {
+    const { extensionState } = createExtensionState();
+    const dataSource = new DataSource(extensionState as ExtensionState);
+    git(fixture.repo, ["config", "--global", "user.name", "Global User"]);
+    git(fixture.repo, ["config", "--global", "user.email", "global@example.com"]);
+    git(fixture.repo, ["config", "--unset", "user.email"]);
+
+    expect(
+      await dataSource.repositorySettingsAction(fixture.repo, {
+        type: "removeUserDetails",
+        scope: "local"
+      })
+    ).toBeNull();
+    expect(git(fixture.repo, ["config", "--global", "user.name"])).toBe("Global User");
+    expect(
+      cp.spawnSync("git", ["config", "--local", "user.name"], {
+        cwd: fixture.repo,
+        encoding: "utf8"
+      }).status
+    ).not.toBe(0);
+
+    expect(
+      await dataSource.repositorySettingsAction(fixture.repo, {
+        type: "removeUserDetails",
+        scope: "global"
+      })
+    ).toBeNull();
+    expect(
+      cp.spawnSync("git", ["config", "--global", "user.name"], {
+        cwd: fixture.repo,
+        encoding: "utf8"
+      }).status
+    ).not.toBe(0);
   });
 
   it("infers a destination from source remote HEAD before defaults", async () => {

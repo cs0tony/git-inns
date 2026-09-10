@@ -4,7 +4,8 @@ import type {
   RepositorySettingsAction,
   RepositorySettingsData,
   RepositorySettingsIssueLinks,
-  RepositorySettingsRemote
+  RepositorySettingsRemote,
+  RepositorySettingsUserScope
 } from "../src/types";
 import { t } from "./i18n";
 
@@ -42,6 +43,14 @@ interface SettingsFields {
   remoteUrl: HTMLInputElement;
   remoteUrlError: HTMLElement;
   submitRemote: HTMLButtonElement;
+  userEmail: HTMLInputElement;
+  userEmailError: HTMLElement;
+  userEmailSource: HTMLElement;
+  userName: HTMLInputElement;
+  userNameError: HTMLElement;
+  userNameSource: HTMLElement;
+  userScope: HTMLSelectElement;
+  userScopeError: HTMLElement;
 }
 
 const REMOTE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.-]*$/u;
@@ -152,6 +161,7 @@ export class RepoSettingsPanel {
     const main = document.createElement("div");
     main.className = "repo-settings-content";
     main.append(
+      this.createUserDetailsSection(),
       this.createRemotesSection(),
       this.createIssueLinkSection(),
       this.createPullRequestSection(),
@@ -159,6 +169,115 @@ export class RepoSettingsPanel {
     );
 
     this.root.replaceChildren(header, main);
+  }
+
+  private createUserDetailsSection(): HTMLElement {
+    const section = document.createElement("section");
+    section.className = "repo-settings-section";
+    section.setAttribute("aria-labelledby", `${this.idPrefix}-user-title`);
+
+    const title = document.createElement("h3");
+    title.id = `${this.idPrefix}-user-title`;
+    title.textContent = t("repoSettings.userDetails");
+    const description = document.createElement("p");
+    description.className = "repo-settings-section-description";
+    description.textContent = t("repoSettings.userDetailsHelp");
+
+    const form = document.createElement("form");
+    form.className = "repo-settings-form";
+    form.setAttribute("aria-labelledby", `${this.idPrefix}-user-title`);
+    form.noValidate = true;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      this.submitUserDetails();
+    });
+
+    const name = this.createTextField(t("repoSettings.userName"), "user-name");
+    const email = this.createTextField(t("repoSettings.userEmail"), "user-email");
+    name.input.value = this.data.user.name.effectiveValue ?? "";
+    email.input.value = this.data.user.email.effectiveValue ?? "";
+
+    const scopeId = `${this.idPrefix}-user-scope`;
+    const scope = document.createElement("select");
+    scope.id = scopeId;
+    scope.name = scopeId;
+    for (const item of ["local", "global"] as const) {
+      const option = document.createElement("option");
+      option.value = item;
+      option.textContent = t(
+        item === "local"
+          ? "repoSettings.userScopeLocal"
+          : "repoSettings.userScopeGlobal"
+      );
+      scope.append(option);
+    }
+    const scopeLabel = document.createElement("label");
+    scopeLabel.htmlFor = scopeId;
+    scopeLabel.textContent = t("repoSettings.userScope");
+    const scopeError = document.createElement("p");
+    scopeError.id = `${scopeId}-error`;
+    scopeError.className = "repo-settings-error";
+    scope.setAttribute("aria-describedby", scopeError.id);
+    scope.dataset.describedBy = scopeError.id;
+
+    const nameSource = document.createElement("p");
+    nameSource.className = "repo-settings-hint";
+    nameSource.dataset.testid = "user-name-source";
+    nameSource.textContent = this.createUserSourceText(this.data.user.name);
+    const emailSource = document.createElement("p");
+    emailSource.className = "repo-settings-hint";
+    emailSource.dataset.testid = "user-email-source";
+    emailSource.textContent = this.createUserSourceText(this.data.user.email);
+
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.textContent = t("repoSettings.saveUserDetails");
+    const remove = this.createButton(
+      t("repoSettings.removeUserDetailsAria"),
+      t("repoSettings.removeUserDetails"),
+      () => this.removeUserDetails(),
+      "secondary"
+    );
+    const actions = document.createElement("div");
+    actions.className = "repo-settings-form-actions";
+    actions.append(save, remove);
+
+    form.append(
+      this.createFormField(name.label, name.input, name.error, nameSource),
+      this.createFormField(email.label, email.input, email.error, emailSource),
+      this.createFormField(scopeLabel, scope, scopeError),
+      actions
+    );
+
+    this.fields.userName = name.input;
+    this.fields.userNameError = name.error;
+    this.fields.userNameSource = nameSource;
+    this.fields.userEmail = email.input;
+    this.fields.userEmailError = email.error;
+    this.fields.userEmailSource = emailSource;
+    this.fields.userScope = scope;
+    this.fields.userScopeError = scopeError;
+    name.input.addEventListener("input", () =>
+      this.clearFieldError(name.input, name.error)
+    );
+    email.input.addEventListener("input", () =>
+      this.clearFieldError(email.input, email.error)
+    );
+
+    section.append(title, description, form);
+    return section;
+  }
+
+  private createUserSourceText(userValue: {
+    effectiveValue: string | null;
+    source: RepositorySettingsUserScope | null;
+  }): string {
+    if (userValue.effectiveValue === null || userValue.source === null) {
+      return t("repoSettings.userValueNotSet");
+    }
+    return userValue.source === "local"
+      ? t("repoSettings.userValueLocal", userValue.effectiveValue)
+      : t("repoSettings.userValueGlobal", userValue.effectiveValue);
   }
 
   private createTitle(): HTMLElement {
@@ -702,6 +821,43 @@ export class RepoSettingsPanel {
       return;
     }
     this.actionHandler({ type: "saveIssueLinks", settings: { enabled, regex, urlTemplate } });
+  }
+
+  private submitUserDetails(): void {
+    const scope = this.fields.userScope.value as RepositorySettingsUserScope;
+    const name = this.fields.userName.value.trim();
+    const email = this.fields.userEmail.value.trim();
+    const nameErrors = this.validateUserDetail(name);
+    const emailErrors = this.validateUserDetail(email);
+    this.setFieldErrors(this.fields.userName, this.fields.userNameError, nameErrors);
+    this.setFieldErrors(this.fields.userEmail, this.fields.userEmailError, emailErrors);
+    if (nameErrors.length > 0 || emailErrors.length > 0) {
+      return;
+    }
+    this.actionHandler({ type: "saveUserDetails", scope, name, email });
+  }
+
+  private removeUserDetails(): void {
+    const scope = this.fields.userScope.value as RepositorySettingsUserScope;
+    const confirmed = window.confirm(
+      t(
+        scope === "local"
+          ? "repoSettings.removeUserDetailsLocalConfirm"
+          : "repoSettings.removeUserDetailsGlobalConfirm"
+      )
+    );
+    if (!confirmed) return;
+    this.actionHandler({ type: "removeUserDetails", scope });
+  }
+
+  private validateUserDetail(value: string): string[] {
+    if (value === "") {
+      return [t("repoSettings.userDetailsRequired")];
+    }
+    if (/\p{Cc}/u.test(value)) {
+      return [t("repoSettings.userDetailsControlCharacters")];
+    }
+    return [];
   }
 
   private validateRemoteName(name: string): string[] {

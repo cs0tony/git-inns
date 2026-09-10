@@ -109,7 +109,16 @@ const SETTINGS: RepositorySettingsData = {
   repositoryName: "repo",
   repositoryPath: REPO,
   remotes: [{ name: "origin", url: "https://example.com/repo.git" }],
-  issueLinks: { enabled: false, regex: "", urlTemplate: "" }
+  issueLinks: { enabled: false, regex: "", urlTemplate: "" },
+  user: {
+    name: { effectiveValue: "Test User", source: "local", localValue: "Test User", globalValue: null },
+    email: {
+      effectiveValue: "test@example.com",
+      source: "local",
+      localValue: "test@example.com",
+      globalValue: null
+    }
+  }
 };
 
 function createView(): void {

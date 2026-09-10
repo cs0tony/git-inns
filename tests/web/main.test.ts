@@ -1124,6 +1124,10 @@ function makeRepositorySettings(
       regex: "",
       urlTemplate: "",
       ...issueLinks
+    },
+    user: {
+      name: { effectiveValue: null, source: null, localValue: null, globalValue: null },
+      email: { effectiveValue: null, source: null, localValue: null, globalValue: null }
     }
   };
 }

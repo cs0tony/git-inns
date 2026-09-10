@@ -103,7 +103,11 @@ const EMPTY_REPO_SETTINGS_DATA = {
   repositoryPath: "",
   remotes: [],
   issueLinks: { enabled: false, regex: "", urlTemplate: "" },
-  pullRequest: null
+  pullRequest: null,
+  user: {
+    name: { effectiveValue: null, source: null, localValue: null, globalValue: null },
+    email: { effectiveValue: null, source: null, localValue: null, globalValue: null }
+  }
 };
 
 function getFileViewToggle(mode: FileViewType): { icon: string; title: string } {

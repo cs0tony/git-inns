@@ -98,3 +98,31 @@ backwards compatible.
 - Continue parity for file encoding, markdown/emoji rendering, column visibility,
   user details, external diff tools, and workspace review commands.
 - Add visual/manual QA coverage for the new settings, review, and tag dialogs.
+
+## Modernization wave 3
+
+Wave 3 continues the highest-value follow-ups with independently testable
+slices. It intentionally avoids copying the reference setting namespace and
+keeps the modern UI progressively disclosed rather than adding dense toolbars.
+
+| ID   | Requirement                                                                 | Modern UI / behavior expectation                                                                                    |
+| ---- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| FE-15 | Infer and validate a Pull Request destination branch                         | The Pull Request card shows the inferred default/base branch, lets the user choose an existing branch, and validates it before opening. |
+| FE-16 | Mark opened files as reviewed during an active review                        | Opening a changed file records it as reviewed, updates progress immediately, and never marks unrelated files.           |
+| FE-17 | Rich but safe commit-body rendering                                          | Commit bodies support controlled emoji and lightweight markdown rendering, with settings and escaping preserved.         |
+| FE-18 | Workspace review lifecycle                                                   | Resume, end-active, and end-all workspace review commands are discoverable and reuse the existing review state model.    |
+| FE-19 | Presentation parity groundwork                                               | Add a modern, accessible column-visibility control and preserve per-webview state without a dense settings surface.      |
+| FE-20 | Regression and manual QA gate                                                | Backend/frontend tests, typecheck, lint, and a documented smoke checklist pass before the wave ships.                    |
+
+### Task split
+
+- **R3-T1 — Review lifecycle:** automatic reviewed-file tracking on open plus
+  workspace review commands, protocol/state updates, and accessibility checks.
+- **R3-T2 — Pull Request destinations:** default/base branch inference,
+  validation, persisted selection, and Pull Request settings/menu integration.
+- **R3-T3 — Rich commit bodies:** a safe formatter module for emoji and
+  controlled Markdown, opt-in settings, and theme-aware rendering.
+- **R3-T4 — Column presentation:** persisted column visibility state and a
+  compact modern menu with keyboard/ARIA support.
+- **R3-T5 — Integration QA:** cross-cutting protocol checks, localization
+  parity, visual/manual smoke checks, and full quality gates.

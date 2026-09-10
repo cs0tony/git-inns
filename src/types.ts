@@ -118,6 +118,7 @@ export type ContextMenuActionId =
   | "stash.drop"
   | "stash.pop"
   | "tag.copyName"
+  | "tag.details"
   | "tag.deleteTag"
   | "tag.pushTag"
   | "uncommitted.clean"
@@ -258,7 +259,9 @@ export type ArchiveFormat = "zip" | "tar" | "tar.gz";
 export type GitResetMode = "soft" | "mixed" | "hard";
 export type GitFileChangeType = "A" | "M" | "D" | "R";
 import type { PullRequestProviderKind, ResolvedPullRequestConfig } from "./pullRequest";
+import type { TagDetails } from "./tagDetails";
 export type { PullRequestProviderKind, ResolvedPullRequestConfig };
+export type { TagDetails };
 
 /* Checkout / Push Result Types */
 
@@ -595,6 +598,18 @@ export interface RequestPushTag {
   command: "pushTag";
   repo: string;
   tagName: string;
+}
+
+export interface RequestTagDetails {
+  command: "tagDetails";
+  repo: string;
+  tagName: string;
+  commitHash: string;
+}
+export interface ResponseTagDetails {
+  command: "tagDetails";
+  details: TagDetails | null;
+  status: GitCommandStatus;
 }
 export interface ResponsePushTag {
   command: "pushTag";
@@ -985,6 +1000,7 @@ export type RequestMessage =
   | RequestPopStash
   | RequestPushStash
   | RequestPushTag
+  | RequestTagDetails
   | RequestRepositorySettingsAction
   | RequestExportRepositoryConfig
   | RequestImportRepositoryConfig
@@ -1041,6 +1057,7 @@ export type ResponseMessage =
   | ResponsePopStash
   | ResponsePushStash
   | ResponsePushTag
+  | ResponseTagDetails
   | ResponseRebaseBranch
   | ResponseRefresh
   | ResponseRemoveWorktree

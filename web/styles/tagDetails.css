@@ -1,0 +1,27 @@
+.tag-details {
+  min-width: 280px;
+}
+
+.tag-details-list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.tag-details-label {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-weight: 600;
+}
+
+.tag-details-value {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tag-details-message {
+  margin: 0;
+  white-space: pre-wrap;
+  font: inherit;
+}

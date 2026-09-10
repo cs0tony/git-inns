@@ -6,6 +6,7 @@ import type {
   GitRepoSet,
   RepositorySettingsData,
   ResponseMessage,
+  TagDetails,
   WorktreeCollection
 } from "../src/types";
 import { hideDialog, showErrorDialog } from "./dialogs";
@@ -44,6 +45,7 @@ export interface GitKeizuViewAPI {
   showRepositorySettingsError(status: GitCommandStatus): void;
   clearRepositorySettingsError(): void;
   updateCodeReview(repo: string, review: GitRepoSet[string]["codeReview"]): void;
+  showTagDetails(details: TagDetails): void;
 }
 
 export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): void {
@@ -241,6 +243,13 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       break;
     case "repositorySettings":
       gitKeizu.loadRepositorySettings(msg.data);
+      break;
+    case "tagDetails":
+      if (msg.details !== null) {
+        gitKeizu.showTagDetails(msg.details);
+      } else {
+        showErrorDialog(t("error.tagDetails"), msg.status, null);
+      }
       break;
     case "repositorySettingsError":
       if (gitKeizu.isCurrentRepository(msg.repo)) {

@@ -1,3 +1,4 @@
+import { createTagDetailsElement, type TagDetails } from "../src/tagDetails";
 import { t } from "./i18n";
 import { escapeHtml, refInvalid, svgIcons } from "./utils";
 
@@ -204,6 +205,10 @@ export function showErrorDialog(
     null,
     sourceElem
   );
+}
+
+export function showTagDetailsDialog(details: TagDetails, sourceElem: HTMLElement | null): void {
+  showDialog(createTagDetailsElement(details), null, t("dialog.close"), null, sourceElem);
 }
 
 function showDialog(

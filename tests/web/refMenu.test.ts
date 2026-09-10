@@ -53,7 +53,7 @@ function createMockElement(classes: string[]): HTMLElement {
   const classList = {
     contains: (cls: string) => classes.includes(cls)
   };
-  return { classList } as unknown as HTMLElement;
+  return { classList, dataset: {} } as unknown as HTMLElement;
 }
 
 const REPO = "/test/repo";
@@ -1361,7 +1361,7 @@ describe("Ref context menu structure (S13)", () => {
     };
   });
 
-  it("TC-058: keeps the tag menu unchanged", () => {
+  it("TC-058: keeps the tag menu order and adds details first", () => {
     // Case: TC-058
     // Given: a tag context source
     const menu = buildRefContextMenuItems(
@@ -1374,13 +1374,21 @@ describe("Ref context menu structure (S13)", () => {
 
     // When: the tag menu is built
 
-    // Then: it keeps the original four-element layout
+    // Then: Tag Details leads, followed by the original actions
     expect(menu.map((item) => item?.title ?? null)).toEqual([
+      "Tag Details",
       "Delete Tag&#8230;",
       "Push Tag&#8230;",
       null,
       "Copy Tag Name to Clipboard"
     ]);
+    menu[0]?.onClick?.();
+    expect(vi.mocked(sendMessage)).toHaveBeenCalledWith({
+      command: "tagDetails",
+      repo: REPO,
+      tagName: "v1.0.0",
+      commitHash: ""
+    });
   });
 
   it("TC-059: places Delete Remote Branch inside the remote More submenu", () => {

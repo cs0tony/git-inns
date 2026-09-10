@@ -59,18 +59,26 @@ function parseMessage(raw: string): string | undefined {
   return message.length === 0 ? undefined : message;
 }
 
-export function parseForCatFileTag(raw: string, fallbackName: string): TagDetails {
+export function parseForCatFileTag(
+  raw: string,
+  fallbackName: string,
+  resolvedHash?: string
+): TagDetails {
   const rawText = text(raw);
   const name = text(fallbackName);
 
   if (rawText.trim().length === 0) {
-    return { name, hash: "", tagType: "lightweight" };
+    return { name, hash: text(resolvedHash), tagType: "lightweight" };
   }
 
   const header = parseHeaders(rawText);
+  if (header.name === "" && /^tree\s+(?:[0-9a-f]{40}|[0-9a-f]{64})$/im.test(rawText)) {
+    return { name, hash: text(resolvedHash), tagType: "lightweight" };
+  }
+
   return {
     name: header.name || name,
-    hash: header.hash,
+    hash: header.hash || text(resolvedHash),
     tagType: "annotated",
     tagger: header.tagger,
     date: header.date,

@@ -46,6 +46,21 @@ describe("parseForCatFileTag", () => {
     });
   });
 
+  it("classifies a peeled commit object as lightweight", () => {
+    const commit = [
+      "tree 6f8f9a36e8344a25f699403e5cd2f79c930d0d47",
+      "author A U Thor <author@example.com> 1700000000 +0000",
+      "",
+      "Release commit"
+    ].join("\n");
+
+    expect(parseForCatFileTag(commit, "v1", "a1b2c3")).toEqual({
+      name: "v1",
+      hash: "a1b2c3",
+      tagType: "lightweight"
+    });
+  });
+
   it("falls back safely when the annotated output is incomplete", () => {
     expect(parseForCatFileTag("object no-thanks\ntag ", "fallback")).toEqual({
       name: "fallback",

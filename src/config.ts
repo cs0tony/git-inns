@@ -129,7 +129,7 @@ const CONTEXT_MENU_ACTION_IDS: Record<ContextMenuGroup, readonly ContextMenuActi
     "stash.copyName",
     "stash.copyHash"
   ],
-  tag: ["tag.deleteTag", "tag.pushTag", "tag.copyName"],
+  tag: ["tag.details", "tag.deleteTag", "tag.pushTag", "tag.copyName"],
   uncommitted: ["uncommitted.stash", "uncommitted.reset", "uncommitted.clean"]
 };
 

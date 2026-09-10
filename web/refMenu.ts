@@ -222,6 +222,18 @@ export function buildRefContextMenuItems(
   if (sourceElem.classList.contains("tag")) {
     menu = [
       {
+        title: t("Tag Details"),
+        actionId: "tag.details",
+        onClick: () => {
+          sendMessage({
+            command: "tagDetails",
+            repo,
+            tagName: refName,
+            commitHash: sourceElem.dataset.hash ?? ""
+          });
+        }
+      },
+      {
         title: `${t("Delete Tag")}${ELLIPSIS}`,
         actionId: "tag.deleteTag",
         onClick: () => {

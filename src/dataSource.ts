@@ -6,6 +6,7 @@ import { ExtensionState } from "./extensionState";
 import { DEFAULT_GIT_PATH, resolveGitExecutable } from "./gitExecutable";
 import { detectPullRequestProvider, resolvePullRequestConfig } from "./pullRequest";
 import { isSafeRemoteName, isValidRefName } from "./refValidation";
+import { parseForCatFileTag, type TagDetails } from "./tagDetails";
 import {
   ArchiveFormat,
   CheckoutBranchResult,
@@ -927,6 +928,14 @@ export class DataSource {
 
   public pushTag(repo: string, tagName: string) {
     return this.runGitCommandSpawn(["push", "origin", tagName], repo);
+  }
+
+  public async getTagDetails(repo: string, tagName: string): Promise<TagDetails | null> {
+    if (!isRefNameSafe(tagName)) return null;
+    const result = await this.runGitQuery(["cat-file", "-p", `refs/tags/${tagName}`], repo);
+    if (result.kind === "error") return null;
+    const hash = await this.resolveRefToHash(repo, `refs/tags/${tagName}`);
+    return parseForCatFileTag(result.stdout, tagName, hash ?? undefined);
   }
 
   public createBranch(repo: string, branchName: string, commitHash: string) {

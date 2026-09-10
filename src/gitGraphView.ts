@@ -501,6 +501,15 @@ export class GitKeizuView {
                 status: await this.dataSource.pushTag(msg.repo, msg.tagName)
               });
               break;
+            case "tagDetails": {
+              const details = await this.dataSource.getTagDetails(msg.repo, msg.tagName);
+              this.sendMessage({
+                command: "tagDetails",
+                details,
+                status: details === null ? "Unable to load tag details." : null
+              });
+              break;
+            }
             case "renameBranch":
               this.sendMessage({
                 command: "renameBranch",
@@ -866,6 +875,7 @@ export class GitKeizuView {
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("findwidget.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("repoSettings.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("codeReview.css")}">
+				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("tagDetails.css")}">
 				<title>Git Keizu</title>
 				<style>${colorParams}</style>
 			</head>

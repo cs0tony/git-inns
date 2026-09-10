@@ -2,7 +2,8 @@ import { getBranchLabels } from "./branchLabels";
 import {
   type CodeReviewFileState,
   renderCodeReviewPanel,
-  updateCodeReviewPanel} from "./codeReviewController";
+  updateCodeReviewPanel
+} from "./codeReviewController";
 import { buildCommitContextMenuItems } from "./commitMenu";
 import { buildSignatureChipHtml } from "./commitSignature";
 import {
@@ -13,7 +14,7 @@ import {
 } from "./contextMenu";
 import { filterContextMenuItems } from "./contextMenuVisibility";
 import { getCommitDate } from "./dates";
-import { hideDialog, isDialogActive, showErrorDialog } from "./dialogs";
+import { hideDialog, isDialogActive, showErrorDialog, showTagDetailsDialog } from "./dialogs";
 import { Dropdown } from "./dropdown";
 import { buildFileContextMenuItems, resolveFileRow, sendOpenFileAction } from "./fileMenu";
 import {
@@ -869,7 +870,9 @@ class GitKeizuView {
       }
       for (j = 0; j < branchLabels.tags.length; j++) {
         refName = escapeHtml(branchLabels.tags[j].name);
-        refs += `<span class="gitRef tag" data-name="${refName}">${svgIcons.tag}${refName}</span>`;
+        refs +=
+          `<span class="gitRef tag" data-name="${refName}" data-hash="${escapeHtml(this.commits[i].hash)}">` +
+          `${svgIcons.tag}${refName}</span>`;
       }
       const commitHash: string = this.commits[i].hash;
       const detachedWorktrees = this.worktrees.detached
@@ -1777,6 +1780,10 @@ class GitKeizuView {
     if (state === undefined) return;
     this.gitRepos[repo] = { ...state, codeReview: review };
     this.renderCodeReviewPanel();
+  }
+
+  public showTagDetails(details: GG.TagDetails): void {
+    showTagDetailsDialog(details, null);
   }
   private buildCompareSummaryHtml(compareWithHash: string): string {
     const order = this.getCommitOrder(this.expandedCommit!.hash, compareWithHash);

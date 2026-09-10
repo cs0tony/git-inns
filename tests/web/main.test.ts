@@ -6441,16 +6441,17 @@ describe("file row context menu handler", () => {
     expect(fileRow).not.toBeNull();
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
-    // Then: showContextMenu is called with the two-action file menu
+    // Then: showContextMenu is called with the three-action file menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]).not.toBeNull();
     expect(items[1]).not.toBeNull();
     expect(items[2]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
     expect(items[1]!.title).toBe("Mark as Reviewed");
-    expect(items[2]!.title).toBe("Reset File to Revision...");
+    expect(items[2]!.title).toBe("context.reopenWithEncoding");
+    expect(items[3]!.title).toBe("Reset File to Revision...");
     // sourceElem is the .gitFile row
     const sourceElem = vi.mocked(liveShowContextMenu).mock.calls[0][2];
     expect(sourceElem).toBe(fileRow);
@@ -6466,15 +6467,16 @@ describe("file row context menu handler", () => {
     expect(fileRow).not.toBeNull();
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
-    // Then: showContextMenu is called with the same two-action menu
+    // Then: showContextMenu is called with the same three-action menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]).not.toBeNull();
     expect(items[1]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
     expect(items[1]!.title).toBe("Mark as Reviewed");
-    expect(items[2]!.title).toBe("Reset File to Revision...");
+    expect(items[2]!.title).toBe("context.reopenWithEncoding");
+    expect(items[3]!.title).toBe("Reset File to Revision...");
   });
 
   // TC-209: right click 時に preventDefault/stopPropagation が適用され viewDiff が送られない
@@ -6493,7 +6495,7 @@ describe("file row context menu handler", () => {
     );
   });
 
-  // TC-210: deleted file row でも showContextMenu が呼ばれ items は 2 件
+  // TC-210: deleted file row でも showContextMenu が呼ばれ items は 3 件
   it("shows context menu for deleted file row without openFile icon (TC-210)", () => {
     // Given: a commit is expanded with a deleted file row (no .openFile icon)
     expandCommitWithFiles(COMMIT_HASH_1, DELETED_FILE_HTML);
@@ -6503,15 +6505,16 @@ describe("file row context menu handler", () => {
     expect(fileRow).not.toBeNull();
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
-    // Then: showContextMenu is still called with the two-action menu
+    // Then: showContextMenu is still called with the three-action menu
     expect(liveShowContextMenu).toHaveBeenCalledTimes(1);
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]).not.toBeNull();
     expect(items[1]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
     expect(items[1]!.title).toBe("Mark as Reviewed");
-    expect(items[2]!.title).toBe("Reset File to Revision...");
+    expect(items[2]!.title).toBe("context.reopenWithEncoding");
+    expect(items[3]!.title).toBe("Reset File to Revision...");
   });
 
   // TC-211: menu item の onClick で openFile payload が送られ viewDiff は送られない
@@ -6577,13 +6580,14 @@ describe("file row context menu handler", () => {
     expect(fileRow).not.toBeNull();
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
-    // Then: items array has exactly 2 non-null actions and no dividers
+    // Then: items array has exactly 3 non-null actions and no dividers
     const items = vi.mocked(liveShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items.every((item) => item !== null)).toBe(true);
     expect(items[0]!.title).toBe("Open File");
     expect(items[1]!.title).toBe("Mark as Reviewed");
-    expect(items[2]!.title).toBe("Reset File to Revision...");
+    expect(items[2]!.title).toBe("context.reopenWithEncoding");
+    expect(items[3]!.title).toBe("Reset File to Revision...");
   });
 
   it("rerenders only the file section when a reviewed-file response arrives", () => {
@@ -7870,6 +7874,10 @@ describe("context-menu action visibility routing", () => {
     fileRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
     const fileItems = vi.mocked(liveShowContextMenu).mock.calls[1][1];
-    expectTitles(fileItems, ["Mark as Reviewed", "Reset File to Revision..."]);
+    expectTitles(fileItems, [
+      "Mark as Reviewed",
+      "context.reopenWithEncoding",
+      "Reset File to Revision..."
+    ]);
   });
 });

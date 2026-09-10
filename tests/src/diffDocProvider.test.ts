@@ -53,7 +53,7 @@ interface MockUri {
 }
 
 type CloseTextDocumentHandler = Parameters<typeof vscode.workspace.onDidCloseTextDocument>[0];
-type MockDataSource = Pick<DataSource, "getCommitFile">;
+type MockDataSource = Pick<DataSource, "getCommitFileRaw">;
 
 function asDataSource(dataSource: MockDataSource): DataSource {
   return dataSource as unknown as DataSource;
@@ -92,7 +92,7 @@ describe("encodeDiffDocUri version and Uri.from construction (S7)", () => {
     // Then: scheme/path are set and query has commit&repo but no version
     expect(result.scheme).toBe("git-keizu");
     expect(result.path).toBe("src/f.ts");
-    expect(result.query).toBe("commit=abc123&repo=%2Fp%2Fr");
+    expect(result.query).toBe("commit=abc123&encoding=utf8&repo=%2Fp%2Fr");
     expect(getPathFromStr).toHaveBeenCalledWith("src/f.ts");
   });
 
@@ -102,7 +102,7 @@ describe("encodeDiffDocUri version and Uri.from construction (S7)", () => {
     const result = encodeDiffDocUri("/r", "f.ts", "abc", "1720000000000");
 
     // Then: query includes commit, repo, and version fields
-    expect(result.query).toBe("commit=abc&repo=%2Fr&version=1720000000000");
+    expect(result.query).toBe("commit=abc&encoding=utf8&repo=%2Fr&version=1720000000000");
   });
 
   it("percent-encodes a space in the commit component (TC-033)", () => {
@@ -155,12 +155,12 @@ describe("encodeDiffDocUri version and Uri.from construction (S7)", () => {
 });
 
 describe("encode/decode roundtrip and version cache key (S8)", () => {
-  let mockDataSource: { getCommitFile: ReturnType<typeof vi.fn> };
+  let mockDataSource: { getCommitFileRaw: ReturnType<typeof vi.fn> };
   let provider: DiffDocProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDataSource = { getCommitFile: vi.fn() };
+    mockDataSource = { getCommitFileRaw: vi.fn() };
     provider = new DiffDocProvider(asDataSource(mockDataSource));
   });
 
@@ -173,7 +173,12 @@ describe("encode/decode roundtrip and version cache key (S8)", () => {
     const decoded = decodeDiffDocUri(encoded);
 
     // Then: filePath/commit/repo are symmetrically restored
-    expect(decoded).toEqual({ filePath: "src/f.ts", commit: "abc", repo: "/p/r" });
+    expect(decoded).toEqual({
+      filePath: "src/f.ts",
+      commit: "abc",
+      repo: "/p/r",
+      encoding: "utf8"
+    });
   });
 
   it("round-trips while tolerating an extra version field (TC-039)", () => {
@@ -193,7 +198,9 @@ describe("encode/decode roundtrip and version cache key (S8)", () => {
   it("busts the cache when the version differs for the same commit (TC-040)", async () => {
     // Case: TC-040
     // Given: two URIs identical except for the version field
-    mockDataSource.getCommitFile.mockResolvedValueOnce("A").mockResolvedValueOnce("B");
+    mockDataSource.getCommitFileRaw
+      .mockResolvedValueOnce(Buffer.from("A"))
+      .mockResolvedValueOnce(Buffer.from("B"));
     const uriA = encodeDiffDocUri("/r", "f.ts", "abc", "A");
     const uriB = encodeDiffDocUri("/r", "f.ts", "abc", "B");
 
@@ -203,13 +210,13 @@ describe("encode/decode roundtrip and version cache key (S8)", () => {
 
     // Then: the toString keys differ and getCommitFile is called for each
     expect(uriA.toString()).not.toBe(uriB.toString());
-    expect(mockDataSource.getCommitFile).toHaveBeenCalledTimes(2);
+    expect(mockDataSource.getCommitFileRaw).toHaveBeenCalledTimes(2);
   });
 
   it("keeps a stable cache key when no version is present (TC-041)", async () => {
     // Case: TC-041
     // Given: the same version-less URI requested twice
-    mockDataSource.getCommitFile.mockResolvedValue("content");
+    mockDataSource.getCommitFileRaw.mockResolvedValue(Buffer.from("content"));
     const first = encodeDiffDocUri("/r", "f.ts", "abc");
     const second = encodeDiffDocUri("/r", "f.ts", "abc");
 
@@ -219,7 +226,7 @@ describe("encode/decode roundtrip and version cache key (S8)", () => {
 
     // Then: the second request hits the cache; getCommitFile runs only once
     expect(first.toString()).toBe(second.toString());
-    expect(mockDataSource.getCommitFile).toHaveBeenCalledTimes(1);
+    expect(mockDataSource.getCommitFileRaw).toHaveBeenCalledTimes(1);
   });
 
   it("restores special characters in commit through a single decode (TC-042)", () => {
@@ -255,7 +262,8 @@ describe("decodeDiffDocUri", () => {
     expect(result).toEqual({
       filePath: "/src/file.ts",
       commit: "abc123",
-      repo: "/path/to/repo"
+      repo: "/path/to/repo",
+      encoding: "utf8"
     });
   });
 
@@ -274,7 +282,8 @@ describe("decodeDiffDocUri", () => {
     expect(result).toEqual({
       filePath: "/file.ts",
       commit: "abc def",
-      repo: "/repo"
+      repo: "/repo",
+      encoding: "utf8"
     });
   });
 
@@ -304,7 +313,8 @@ describe("decodeDiffDocUri", () => {
     expect(result).toEqual({
       filePath: "/file.ts",
       commit: "abc",
-      repo: undefined
+      repo: undefined,
+      encoding: "utf8"
     });
   });
 
@@ -320,7 +330,8 @@ describe("decodeDiffDocUri", () => {
     expect(result).toEqual({
       filePath: "/file.ts",
       commit: undefined,
-      repo: "/repo"
+      repo: "/repo",
+      encoding: "utf8"
     });
   });
 
@@ -350,7 +361,8 @@ describe("decodeDiffDocUri", () => {
     expect(result).toEqual({
       filePath: "/file.ts",
       commit: "",
-      repo: "/repo"
+      repo: "/repo",
+      encoding: "utf8"
     });
   });
 
@@ -378,7 +390,8 @@ describe("decodeDiffDocUri", () => {
     expect(result).toEqual({
       filePath: "",
       commit: "abc",
-      repo: "/repo"
+      repo: "/repo",
+      encoding: "utf8"
     });
   });
 
@@ -386,7 +399,7 @@ describe("decodeDiffDocUri", () => {
     // Case: TC-019
     // Given: URI with encoded special characters %20 (space), %26 (&), %3D (=) in commit
     const uri = {
-      query: "commit=%20%26%3D&repo=%2Frepo",
+      query: "commit=%20%26%3D&encoding=utf8&repo=%2Frepo",
       path: "/file.ts"
     };
 
@@ -397,7 +410,8 @@ describe("decodeDiffDocUri", () => {
     expect(result).toEqual({
       filePath: "/file.ts",
       commit: " &=",
-      repo: "/repo"
+      repo: "/repo",
+      encoding: "utf8"
     });
   });
 });
@@ -412,7 +426,7 @@ describe("DiffDocProvider", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDataSource = { getCommitFile: vi.fn() };
+    mockDataSource = { getCommitFileRaw: vi.fn() };
     provider = new DiffDocProvider(asDataSource(mockDataSource));
   });
 
@@ -436,24 +450,24 @@ describe("DiffDocProvider", () => {
     it("TC-021: evicts cache entry when document is closed", async () => {
       // Case: TC-021
       // Given: A document is cached via provideTextDocumentContent
-      const uriStr = "git-keizu:/src/file.ts?commit=abc123&repo=%2Frepo";
+      const uriStr = "git-keizu:/src/file.ts?commit=abc123&encoding=utf8&repo=%2Frepo";
       const mockUri = {
-        query: "commit=abc123&repo=%2Frepo",
+        query: "commit=abc123&encoding=utf8&repo=%2Frepo",
         path: "/src/file.ts",
         toString: () => uriStr
       };
-      mockDataSource.getCommitFile.mockResolvedValue("file content");
+      mockDataSource.getCommitFileRaw.mockResolvedValue(Buffer.from("file content"));
       await provider.provideTextDocumentContent(asUri(mockUri));
-      expect(mockDataSource.getCommitFile).toHaveBeenCalledTimes(1);
+      expect(mockDataSource.getCommitFileRaw).toHaveBeenCalledTimes(1);
 
       // When: The matching document is closed
       const closeCallback = getCloseCallback();
       closeCallback(asTextDocument({ uri: { path: "", query: "", toString: () => uriStr } }));
 
       // Then: Next access fetches from DataSource again (cache was evicted)
-      mockDataSource.getCommitFile.mockResolvedValue("new content");
+      mockDataSource.getCommitFileRaw.mockResolvedValue(Buffer.from("new content"));
       const result = await provider.provideTextDocumentContent(asUri(mockUri));
-      expect(mockDataSource.getCommitFile).toHaveBeenCalledTimes(2);
+      expect(mockDataSource.getCommitFileRaw).toHaveBeenCalledTimes(2);
       expect(result).toBe("new content");
     });
 
@@ -481,18 +495,18 @@ describe("DiffDocProvider", () => {
       // Case: TC-023
       // Given: DiffDocProvider with 2 cached documents
       const uri1 = {
-        query: "commit=a&repo=%2Frepo",
+        query: "commit=a&encoding=utf8&repo=%2Frepo",
         path: "/file1.ts",
         toString: () => "uri1"
       };
       const uri2 = {
-        query: "commit=b&repo=%2Frepo",
+        query: "commit=b&encoding=utf8&repo=%2Frepo",
         path: "/file2.ts",
         toString: () => "uri2"
       };
-      mockDataSource.getCommitFile
-        .mockResolvedValueOnce("content1")
-        .mockResolvedValueOnce("content2");
+      mockDataSource.getCommitFileRaw
+        .mockResolvedValueOnce(Buffer.from("content1"))
+        .mockResolvedValueOnce(Buffer.from("content2"));
       await provider.provideTextDocumentContent(asUri(uri1));
       await provider.provideTextDocumentContent(asUri(uri2));
 
@@ -527,18 +541,18 @@ describe("DiffDocProvider", () => {
       // Case: TC-025
       // Given: DiffDocProvider with multiple cached documents
       const uri1 = {
-        query: "commit=a&repo=%2Frepo",
+        query: "commit=a&encoding=utf8&repo=%2Frepo",
         path: "/file1.ts",
         toString: () => "uri1"
       };
       const uri2 = {
-        query: "commit=b&repo=%2Frepo",
+        query: "commit=b&encoding=utf8&repo=%2Frepo",
         path: "/file2.ts",
         toString: () => "uri2"
       };
-      mockDataSource.getCommitFile
-        .mockResolvedValueOnce("content1")
-        .mockResolvedValueOnce("content2");
+      mockDataSource.getCommitFileRaw
+        .mockResolvedValueOnce(Buffer.from("content1"))
+        .mockResolvedValueOnce(Buffer.from("content2"));
       await provider.provideTextDocumentContent(asUri(uri1));
       await provider.provideTextDocumentContent(asUri(uri2));
 
@@ -546,10 +560,10 @@ describe("DiffDocProvider", () => {
       provider.dispose();
 
       // Then: Cache is cleared — re-fetching hits DataSource again
-      mockDataSource.getCommitFile.mockResolvedValueOnce("fresh");
+      mockDataSource.getCommitFileRaw.mockResolvedValueOnce(Buffer.from("fresh"));
       const result = await provider.provideTextDocumentContent(asUri(uri1));
       expect(result).toBe("fresh");
-      expect(mockDataSource.getCommitFile).toHaveBeenCalledTimes(3);
+      expect(mockDataSource.getCommitFileRaw).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -562,18 +576,22 @@ describe("DiffDocProvider", () => {
       // Case: TC-026
       // Given: Cache miss for the requested URI
       const mockUri = {
-        query: "commit=abc123&repo=%2Frepo",
+        query: "commit=abc123&encoding=utf8&repo=%2Frepo",
         path: "/src/file.ts",
         toString: () => "git-keizu:/src/file.ts?commit=abc123&repo=%2Frepo"
       };
-      mockDataSource.getCommitFile.mockResolvedValue("file content");
+      mockDataSource.getCommitFileRaw.mockResolvedValue(Buffer.from("file content"));
 
       // When: provideTextDocumentContent is called
       const result = await provider.provideTextDocumentContent(asUri(mockUri));
 
-      // Then: getCommitFile is called with decoded params and result is returned
-      expect(mockDataSource.getCommitFile).toHaveBeenCalledTimes(1);
-      expect(mockDataSource.getCommitFile).toHaveBeenCalledWith("/repo", "abc123", "/src/file.ts");
+      // Then: getCommitFileRaw is called with decoded params and result is decoded
+      expect(mockDataSource.getCommitFileRaw).toHaveBeenCalledTimes(1);
+      expect(mockDataSource.getCommitFileRaw).toHaveBeenCalledWith(
+        "/repo",
+        "abc123",
+        "/src/file.ts"
+      );
       expect(result).toBe("file content");
     });
 
@@ -581,19 +599,19 @@ describe("DiffDocProvider", () => {
       // Case: TC-027
       // Given: URI already cached with "cached content"
       const mockUri = {
-        query: "commit=abc123&repo=%2Frepo",
+        query: "commit=abc123&encoding=utf8&repo=%2Frepo",
         path: "/src/file.ts",
         toString: () => "git-keizu:/src/file.ts?commit=abc123&repo=%2Frepo"
       };
-      mockDataSource.getCommitFile.mockResolvedValue("cached content");
+      mockDataSource.getCommitFileRaw.mockResolvedValue(Buffer.from("cached content"));
       await provider.provideTextDocumentContent(asUri(mockUri));
 
       // When: Same URI is requested again
-      mockDataSource.getCommitFile.mockClear();
+      mockDataSource.getCommitFileRaw.mockClear();
       const result = await provider.provideTextDocumentContent(asUri(mockUri));
 
-      // Then: Cached value is returned, getCommitFile is NOT called again
-      expect(mockDataSource.getCommitFile).not.toHaveBeenCalled();
+      // Then: Cached value is returned, getCommitFileRaw is NOT called again
+      expect(mockDataSource.getCommitFileRaw).not.toHaveBeenCalled();
       expect(result).toBe("cached content");
     });
 
@@ -601,32 +619,32 @@ describe("DiffDocProvider", () => {
       // Case: TC-028
       // Given: Cache miss, getCommitFile returns empty string
       const mockUri = {
-        query: "commit=abc&repo=%2Frepo",
+        query: "commit=abc&encoding=utf8&repo=%2Frepo",
         path: "/file.ts",
         toString: () => "git-keizu:/file.ts?commit=abc&repo=%2Frepo"
       };
-      mockDataSource.getCommitFile.mockResolvedValue("");
+      mockDataSource.getCommitFileRaw.mockResolvedValue(Buffer.from(""));
 
       // When: provideTextDocumentContent is called
       const result = await provider.provideTextDocumentContent(asUri(mockUri));
 
       // Then: Empty string is returned and cached
       expect(result).toBe("");
-      mockDataSource.getCommitFile.mockClear();
+      mockDataSource.getCommitFileRaw.mockClear();
       const cachedResult = await provider.provideTextDocumentContent(asUri(mockUri));
       expect(cachedResult).toBe("");
-      expect(mockDataSource.getCommitFile).not.toHaveBeenCalled();
+      expect(mockDataSource.getCommitFileRaw).not.toHaveBeenCalled();
     });
 
-    it("TC-029: rejects when getCommitFile fails", async () => {
+    it("TC-029: rejects when getCommitFileRaw fails", async () => {
       // Case: TC-029
-      // Given: Cache miss, getCommitFile rejects with an Error
+      // Given: Cache miss, getCommitFileRaw rejects with an Error
       const mockUri = {
-        query: "commit=abc&repo=%2Frepo",
+        query: "commit=abc&encoding=utf8&repo=%2Frepo",
         path: "/file.ts",
         toString: () => "git-keizu:/file.ts?commit=abc&repo=%2Frepo"
       };
-      mockDataSource.getCommitFile.mockRejectedValue(new Error("git error"));
+      mockDataSource.getCommitFileRaw.mockRejectedValue(new Error("git error"));
 
       // When: provideTextDocumentContent is called
       // Then: Promise rejects with the same error (no try-catch in source)

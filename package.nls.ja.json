@@ -15,6 +15,7 @@
   "config.dateType.enum.commitDate": "コミットの committer date を使用します",
   "config.dateType.description": "Git Keizu 全体で表示する日付種別を指定します。",
   "config.fetchAvatars.description": "コミット author / committer のアバターを取得します。この設定を有効にすると、リポジトリの remote origin に応じて、commit author / committer のメールアドレスが GitHub、GitLab、または Gravatar に送信されることに同意したものとみなされます。",
+  "config.fileEncoding.description": "変更リビジョンファイルのデコードに使用するエンコーディングを指定します。「エンコーディングを指定して開く」で選択したリポジトリ / ファイル設定が優先されます。",
   "config.graphColours.item.description": "色 (HEX、RGB または RGBA)",
   "config.graphColours.description": "グラフで使用する色を指定します。",
   "config.graphStyle.enum.rounded": "グラフ上でブランチ間を遷移するときに滑らかな曲線を使用します",

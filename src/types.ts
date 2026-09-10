@@ -103,6 +103,7 @@ export type ContextMenuActionId =
   | "commit.revert"
   | "file.markReviewed"
   | "file.markNotReviewed"
+  | "file.reopenWithEncoding"
   | "file.resetToRevision"
   | "ref.copyName"
   | "ref.copyWorktreePath"
@@ -152,8 +153,10 @@ export type ActiveCodeReviewByRepo = Record<string, ActiveCodeReview>;
 export interface GitRepoState {
   columnWidths: number[] | null;
   codeReview?: ActiveCodeReview | null;
+  encoding?: FileEncoding;
   columnVisibility?: ColumnVisibility;
   commitOrdering?: RepoCommitOrdering;
+  fileEncodings?: Record<string, FileEncoding>;
   fileViewType?: "tree" | "list";
   recentActions?: RecentActionId[];
 }
@@ -204,6 +207,7 @@ export interface GitKeizuViewState {
   dateFormat: DateFormat;
   dialogDefaults: DialogDefaults;
   fetchAvatars: boolean;
+  fileEncoding: FileEncoding;
   graphColours: string[];
   graphStyle: GraphStyle;
   initialLoadCommits: number;
@@ -259,6 +263,13 @@ export interface WorktreeCollection {
 export type CommitOrdering = "date" | "topo" | "author-date";
 export type RepoCommitOrdering = CommitOrdering | "default";
 export type CommitBodyRendering = "plain" | "rich";
+export type FileEncoding =
+  | "utf8"
+  | "shift_jis"
+  | "euc-jp"
+  | "iso-2022-jp"
+  | "utf-16le"
+  | "windows-1252";
 
 export interface ColumnVisibility {
   readonly graph: true;
@@ -803,6 +814,14 @@ export interface RequestOpenFile {
   commitHash: string;
 }
 
+export interface RequestReopenFile {
+  command: "reopenFile";
+  repo: string;
+  filePath: string;
+  commitHash: string;
+  encoding: string;
+}
+
 export interface RequestOpenPullRequest {
   command: "openPullRequest";
   repo: string;
@@ -814,6 +833,14 @@ export interface ResponseOpenPullRequest {
 }
 export interface ResponseOpenFile {
   command: "openFile";
+  status: GitCommandStatus;
+}
+
+export interface ResponseReopenFile {
+  command: "reopenFile";
+  repo: string;
+  filePath: string;
+  encoding: FileEncoding;
   status: GitCommandStatus;
 }
 
@@ -1013,6 +1040,7 @@ export type RequestMessage =
   | RequestMergeBranch
   | RequestMergeCommit
   | RequestOpenFile
+  | RequestReopenFile
   | RequestOpenTerminal
   | RequestOpenWorktreeInNewWindow
   | RequestOpenPullRequest
@@ -1070,6 +1098,7 @@ export type ResponseMessage =
   | ResponseMergeBranch
   | ResponseMergeCommit
   | ResponseOpenFile
+  | ResponseReopenFile
   | ResponseOpenTerminal
   | ResponseOpenWorktreeInNewWindow
   | ResponseOpenPullRequest

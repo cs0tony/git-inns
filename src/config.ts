@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { normalizeFileEncoding } from "./fileEncoding";
 import {
   CommitBodyRendering,
   CommitOrdering,
@@ -10,6 +11,7 @@ import {
   DateFormat,
   DateType,
   DialogDefaults,
+  FileEncoding,
   GraphStyle,
   TabIconColourTheme
 } from "./types";
@@ -120,7 +122,13 @@ const CONTEXT_MENU_ACTION_IDS: Record<ContextMenuGroup, readonly ContextMenuActi
     "commit.drop",
     "commit.copyHash"
   ],
-  file: ["file.openFile", "file.markReviewed", "file.markNotReviewed", "file.resetToRevision"],
+  file: [
+    "file.openFile",
+    "file.markReviewed",
+    "file.markNotReviewed",
+    "file.reopenWithEncoding",
+    "file.resetToRevision"
+  ],
   remoteBranch: [
     "ref.checkoutBranch",
     "ref.createPullRequest",
@@ -262,6 +270,10 @@ class Config {
 
   public fetchAvatars() {
     return this.workspaceConfiguration.get("fetchAvatars", false);
+  }
+
+  public fileEncoding(): FileEncoding {
+    return normalizeFileEncoding(this.workspaceConfiguration.get<unknown>("fileEncoding"));
   }
 
   public graphColours() {

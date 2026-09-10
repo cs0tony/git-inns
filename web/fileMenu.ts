@@ -1,5 +1,6 @@
+import { type FileEncoding, SUPPORTED_FILE_ENCODINGS } from "../src/fileEncoding";
 import { recordRecentAction } from "./contextMenu";
-import { showConfirmationDialog } from "./dialogs";
+import { showConfirmationDialog, showSelectDialog } from "./dialogs";
 import { t } from "./i18n";
 import { abbrevCommit, escapeHtml, sendMessage, UNCOMMITTED_CHANGES_HASH } from "./utils";
 
@@ -58,7 +59,8 @@ export function buildFileContextMenuItems(
   fileRow: HTMLElement | null,
   expandedCommit: FileMenuExpandedCommit | null,
   repo: string | null,
-  onOpenFile?: () => void
+  onOpenFile?: () => void,
+  currentEncoding?: FileEncoding
 ): ContextMenuElement[] {
   if (fileRow === null || expandedCommit === null || repo === null) return [];
   const encodedPath = fileRow.dataset[DATASET_NEW_FILE_PATH_KEY];
@@ -96,6 +98,32 @@ export function buildFileContextMenuItems(
       }
     },
     reviewedMenuItem,
+    {
+      title: t("context.reopenWithEncoding"),
+      actionId: "file.reopenWithEncoding",
+      onClick: () => {
+        showSelectDialog(
+          t("context.reopenWithEncoding"),
+          currentEncoding ?? "utf8",
+          SUPPORTED_FILE_ENCODINGS.map((encoding) => ({
+            name: t(`encoding.${encoding}`),
+            value: encoding
+          })),
+          t("dialog.reopen"),
+          (encoding: string) => {
+            if (encoding === undefined) return;
+            sendMessage({
+              command: "reopenFile",
+              repo,
+              commitHash: expandedCommit.hash,
+              filePath,
+              encoding
+            });
+          },
+          fileRow
+        );
+      }
+    },
     {
       title: t("context.resetFile"),
       actionId: "file.resetToRevision",

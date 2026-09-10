@@ -6,12 +6,13 @@ vi.mock("../../web/contextMenu", () => ({
 }));
 
 vi.mock("../../web/dialogs", () => ({
-  showConfirmationDialog: vi.fn()
+  showConfirmationDialog: vi.fn(),
+  showSelectDialog: vi.fn()
 }));
 
 import { recordRecentAction } from "../../web/contextMenu";
 import { filterContextMenuItems } from "../../web/contextMenuVisibility";
-import { showConfirmationDialog } from "../../web/dialogs";
+import { showConfirmationDialog, showSelectDialog } from "../../web/dialogs";
 import { buildFileContextMenuItems, resolveFileRow, sendOpenFileAction } from "../../web/fileMenu";
 import { vscode } from "../../web/utils";
 
@@ -25,6 +26,7 @@ const COMMIT_HASH = "abc123def456";
 (globalThis as Record<string, unknown>).webviewMessages = {
   ...((globalThis as Record<string, unknown>).webviewMessages as Record<string, string>),
   "context.markReviewed": "Mark as Reviewed",
+  "context.reopenWithEncoding": "Reopen with Encoding...",
   "context.markNotReviewed": "Mark as Not Reviewed",
   "context.resetFile": "Reset File to Revision..."
 };
@@ -180,11 +182,12 @@ describe("buildFileContextMenuItems", () => {
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
     // Then: both file actions are present
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]).not.toBeNull();
     expect(items[0]!.title).toBe("Open File");
     expect(items[1]!.title).toBe("Mark as Reviewed");
-    expect(items[2]!.title).toBe("Reset File to Revision...");
+    expect(findMenuItem(items, "Reopen with Encoding...")).toBeDefined();
+    expect(findMenuItem(items, "Reset File to Revision...")).toBeDefined();
   });
 
   // TC-008: deleted file row でも both file actions を返す
@@ -197,7 +200,7 @@ describe("buildFileContextMenuItems", () => {
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
     // Then: still returns both items
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(findMenuItem(items, "Open File")).toBeDefined();
     expect(findMenuItem(items, "Mark as Reviewed")).toBeDefined();
     expect(findMenuItem(items, "Reset File to Revision...")).toBeDefined();
@@ -265,7 +268,7 @@ describe("buildFileContextMenuItems recent action metadata (S3)", () => {
     const items = buildFileContextMenuItems(row, commit, TEST_REPO);
 
     // Then: the Open File item is recent-enabled with file.openFile
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]!.recentActionId).toBe("file.openFile");
   });
 
@@ -431,5 +434,56 @@ describe("reviewed file context action", () => {
     expect(visible.some((item) => item?.actionId === "file.markNotReviewed")).toBe(true);
     expect(visible.some((item) => item?.actionId === "file.markReviewed")).toBe(false);
     expect(findMenuItem(visible, "Open File")).toBeDefined();
+  });
+});
+
+describe("reopen with encoding context action", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("is offered as a compact submenu-free file action", () => {
+    const row = makeFileRow({ newfilepath: encodeURIComponent("src/file.ts") });
+    const items = buildFileContextMenuItems(row, makeExpandedCommit(), TEST_REPO);
+    const item = findMenuItem(items, "Reopen with Encoding...");
+
+    expect(item.actionId).toBe("file.reopenWithEncoding");
+    item.onClick();
+
+    expect(showSelectDialog).toHaveBeenCalledTimes(1);
+    const [message, selected, options] = vi.mocked(showSelectDialog).mock.calls[0];
+    expect(message).toBe("Reopen with Encoding...");
+    expect(selected).toBe("utf8");
+    expect(options.map((option) => option.value)).toEqual([
+      "utf8",
+      "shift_jis",
+      "euc-jp",
+      "iso-2022-jp",
+      "utf-16le",
+      "windows-1252"
+    ]);
+  });
+
+  it("sends the selected encoding for immediate host validation and reopening", () => {
+    const row = makeFileRow({ newfilepath: encodeURIComponent("src/テスト file.ts") });
+    const items = buildFileContextMenuItems(
+      row,
+      makeExpandedCommit(),
+      TEST_REPO,
+      undefined,
+      "shift_jis"
+    );
+
+    findMenuItem(items, "Reopen with Encoding...").onClick();
+    const selectEncoding = vi.mocked(showSelectDialog).mock.calls[0][4];
+    selectEncoding("windows-1252");
+
+    expect(vscode.postMessage).toHaveBeenCalledWith({
+      command: "reopenFile",
+      repo: TEST_REPO,
+      commitHash: COMMIT_HASH,
+      filePath: "src/テスト file.ts",
+      encoding: "windows-1252"
+    });
   });
 });

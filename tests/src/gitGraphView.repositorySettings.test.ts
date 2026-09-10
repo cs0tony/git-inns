@@ -50,6 +50,7 @@ vi.mock("../../src/config", () => ({
     dateFormat: () => "Date & Time",
     tabIconColourTheme: () => "colour",
     fetchAvatars: () => false,
+    fileEncoding: () => "utf8",
     graphColours: () => ["#0085d9"],
     graphStyle: () => "rounded",
     initialLoadCommits: () => 300,

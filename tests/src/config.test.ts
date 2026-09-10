@@ -1171,6 +1171,7 @@ describe("contextMenuActionsVisibility", () => {
       "file.markNotReviewed": true,
       "file.markReviewed": true,
       "file.openFile": true,
+      "file.reopenWithEncoding": true,
       "file.resetToRevision": true
     });
   });

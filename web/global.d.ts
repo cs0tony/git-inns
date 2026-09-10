@@ -13,6 +13,7 @@ declare global {
 
   interface Config {
     fetchAvatars: boolean;
+    fileEncoding: GG.FileEncoding;
     contextMenuActionsVisibility: GG.ContextMenuActionsVisibility;
     customBranchGlobPatterns: GG.CustomBranchGlobPattern[];
     graphColours: string[];

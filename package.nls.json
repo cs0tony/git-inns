@@ -15,6 +15,7 @@
   "config.dateType.enum.commitDate": "Use the committer date of a commit",
   "config.dateType.description": "Specifies the date type to be displayed throughout Git Keizu.",
   "config.fetchAvatars.description": "Fetch avatars of commit authors and committers. By enabling this setting, you consent to commit author and committer email addresses being sent GitHub, GitLab or Gravatar, depending on the repositories remote origin.",
+  "config.fileEncoding.description": "Specifies the encoding used to decode changed revision files. Repository and file choices made with Reopen with Encoding take priority.",
   "config.graphColours.item.description": "Colour (HEX, RGB or RGBA)",
   "config.graphColours.description": "Specifies the colours used on the graph.",
   "config.graphStyle.enum.rounded": "Use smooth curves when transitioning between branches on the graph",

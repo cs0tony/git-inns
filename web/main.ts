@@ -2093,6 +2093,28 @@ class GitKeizuView {
     setFileRowReviewed(request.filePath, true);
     this.renderCodeReviewPanel();
   }
+
+  public handleReopenFileResponse(
+    repo: string,
+    filePath: string,
+    encoding: GG.FileEncoding,
+    status: GG.GitCommandStatus
+  ): void {
+    if (status !== null || this.currentRepo !== repo) return;
+    const state = this.gitRepos[repo];
+    if (state === undefined) return;
+    const fileEncodings = { ...state.fileEncodings };
+    fileEncodings[filePath] = encoding;
+    this.gitRepos[repo] = { ...state, fileEncodings };
+  }
+
+  private getFileEncoding(repo: string, filePath: string): GG.FileEncoding {
+    const repoState = this.gitRepos[repo];
+    const fileEncoding = repoState?.fileEncodings?.[filePath];
+    if (fileEncoding !== undefined) return fileEncoding;
+    return repoState?.encoding ?? this.config.fileEncoding;
+  }
+
   private scrollToExpandedCommit(detailsElem: HTMLElement) {
     if (this.expandedCommit === null || this.expandedCommit.srcElem === null) return;
     const scrollTop = this.scrollContainerElem.scrollTop;
@@ -2211,14 +2233,21 @@ class GitKeizuView {
       const repo = this.currentRepo;
       const encodedPath = sourceElem.dataset.newfilepath;
       if (expandedCommit === null || encodedPath === undefined) return;
-      const items = buildFileContextMenuItems(sourceElem, expandedCommit, repo, () => {
-        this.pendingOpenedReviewFile = {
-          repo,
-          commitHash: expandedCommit.hash,
-          compareWithHash: expandedCommit.compareWithHash,
-          filePath: decodeURIComponent(encodedPath)
-        };
-      });
+      const filePath = decodeURIComponent(encodedPath);
+      const items = buildFileContextMenuItems(
+        sourceElem,
+        expandedCommit,
+        repo,
+        () => {
+          this.pendingOpenedReviewFile = {
+            repo,
+            commitHash: expandedCommit.hash,
+            compareWithHash: expandedCommit.compareWithHash,
+            filePath
+          };
+        },
+        this.getFileEncoding(repo, filePath)
+      );
       if (items.length === 0) return;
       showContextMenu(
         <MouseEvent>e,
@@ -2308,6 +2337,7 @@ let gitKeizu = new GitKeizuView(
   viewState.lastActiveRepo,
   {
     fetchAvatars: viewState.fetchAvatars,
+    fileEncoding: viewState.fileEncoding,
     contextMenuActionsVisibility: viewState.contextMenuActionsVisibility,
     customBranchGlobPatterns: viewState.customBranchGlobPatterns,
     graphColours: viewState.graphColours,

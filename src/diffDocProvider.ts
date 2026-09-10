@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import { DataSource } from "./dataSource";
+import { decodeGitBytes, normalizeFileEncoding } from "./fileEncoding";
 import { getPathFromStr } from "./utils";
 
 export class DiffDocProvider implements vscode.TextDocumentContentProvider {
@@ -31,13 +32,13 @@ export class DiffDocProvider implements vscode.TextDocumentContentProvider {
     let existing = this.docs.get(uri.toString());
     if (existing) return existing.value;
 
-    let request = decodeDiffDocUri(uri);
-    const data = await this.dataSource.getCommitFile(
+    const request = decodeDiffDocUri(uri);
+    const data = await this.dataSource.getCommitFileRaw(
       request.repo,
       request.commit,
       request.filePath
     );
-    let document = new DiffDocument(data);
+    const document = new DiffDocument(decodeGitBytes(data, request.encoding));
     this.docs.set(uri.toString(), document);
     return document.value;
   }
@@ -59,9 +60,12 @@ export function encodeDiffDocUri(
   repo: string,
   filePath: string,
   commit: string,
-  version?: string
+  version?: string,
+  encoding?: string
 ): vscode.Uri {
   const queryFields = [`commit=${encodeURIComponent(commit)}`, `repo=${encodeURIComponent(repo)}`];
+  const normalizedEncoding = normalizeFileEncoding(encoding);
+  queryFields.splice(1, 0, `encoding=${encodeURIComponent(normalizedEncoding)}`);
   if (version !== undefined) {
     queryFields.push(`version=${encodeURIComponent(version)}`);
   }
@@ -73,16 +77,20 @@ export function encodeDiffDocUri(
 }
 
 export function decodeDiffDocUri(uri: vscode.Uri) {
-  let queryArgs = decodeUriQueryArgs(uri.query);
-  return { filePath: uri.path, commit: queryArgs.commit, repo: queryArgs.repo };
+  const queryArgs = decodeUriQueryArgs(uri.query);
+  return {
+    filePath: uri.path,
+    commit: queryArgs.commit,
+    repo: queryArgs.repo,
+    encoding: normalizeFileEncoding(queryArgs.encoding)
+  };
 }
 
 function decodeUriQueryArgs(query: string) {
-  let queryComps = query.split("&"),
-    queryArgs: { [key: string]: string } = {},
-    i;
-  for (i = 0; i < queryComps.length; i++) {
-    let pair = queryComps[i].split("=");
+  const queryComps = query.split("&");
+  const queryArgs: { [key: string]: string } = {};
+  for (let i = 0; i < queryComps.length; i++) {
+    const pair = queryComps[i].split("=");
     queryArgs[pair[0]] = pair[1] !== undefined ? decodeURIComponent(pair[1]) : "";
   }
   return queryArgs;

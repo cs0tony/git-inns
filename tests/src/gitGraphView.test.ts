@@ -99,6 +99,7 @@ vi.mock("../../src/config", () => ({
     tabIconColourTheme: () => "colour",
     dateFormat: () => "Date & Time",
     fetchAvatars: () => false,
+    fileEncoding: () => "utf8",
     graphColours: () => ["#0085d9"],
     graphStyle: () => "rounded",
     initialLoadCommits: () => 300,
@@ -603,8 +604,20 @@ describe("GitKeizuView viewDiff with compareWithHash", () => {
 
     // Then: encodeDiffDocUri is called for both left (fromHash) and right (compareWithHash) URIs
     expect(mocks.encodeDiffDocUri).toHaveBeenCalledTimes(2);
-    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(TEST_REPO, "src/old.ts", commitHash);
-    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(TEST_REPO, "src/new.ts", compareWithHash);
+    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
+      TEST_REPO,
+      "src/old.ts",
+      commitHash,
+      undefined,
+      "utf8"
+    );
+    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
+      TEST_REPO,
+      "src/new.ts",
+      compareWithHash,
+      undefined,
+      "utf8"
+    );
 
     // Then: vscode.diff command is executed with the generated URIs
     expect(mocks.executeCommand).toHaveBeenCalledTimes(1);
@@ -639,8 +652,20 @@ describe("GitKeizuView viewDiff with compareWithHash", () => {
 
     // Then: encodeDiffDocUri is called with commitHash^ and commitHash (parent comparison)
     expect(mocks.encodeDiffDocUri).toHaveBeenCalledTimes(2);
-    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(TEST_REPO, "src/file.ts", `${commitHash}^`);
-    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(TEST_REPO, "src/file.ts", commitHash);
+    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
+      TEST_REPO,
+      "src/file.ts",
+      `${commitHash}^`,
+      undefined,
+      "utf8"
+    );
+    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
+      TEST_REPO,
+      "src/file.ts",
+      commitHash,
+      undefined,
+      "utf8"
+    );
 
     // Then: Response indicates success
     expect(mocks.postMessage).toHaveBeenCalledWith({
@@ -2768,7 +2793,13 @@ describe("GitKeizuView viewDiff HEAD resolution and version query (S24)", () => 
 
     // Then: HEAD is resolved and the resolved hash is used for the left URI
     expect(mocks.resolveRefToHash).toHaveBeenCalledWith(TEST_REPO, "HEAD");
-    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(TEST_REPO, "src/old.ts", "deadbeef");
+    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
+      TEST_REPO,
+      "src/old.ts",
+      "deadbeef",
+      undefined,
+      "utf8"
+    );
   });
 
   it("uses the commit hash directly for a normal commit in compare mode (TC-090)", async () => {
@@ -2789,7 +2820,13 @@ describe("GitKeizuView viewDiff HEAD resolution and version query (S24)", () => 
 
     // Then: resolveRefToHash is not consulted and the commit hash is used directly
     expect(mocks.resolveRefToHash).not.toHaveBeenCalled();
-    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(TEST_REPO, "src/old.ts", commitHash);
+    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
+      TEST_REPO,
+      "src/old.ts",
+      commitHash,
+      undefined,
+      "utf8"
+    );
   });
 
   it("falls back to 'HEAD' when resolveRefToHash returns null in compare mode (TC-091)", async () => {
@@ -2809,7 +2846,13 @@ describe("GitKeizuView viewDiff HEAD resolution and version query (S24)", () => 
     });
 
     // Then: the left URI falls back to the literal "HEAD"
-    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(TEST_REPO, "src/old.ts", "HEAD");
+    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
+      TEST_REPO,
+      "src/old.ts",
+      "HEAD",
+      undefined,
+      "utf8"
+    );
   });
 
   it("resolves HEAD and appends a version query in uncommitted delete mode (TC-092)", async () => {
@@ -2828,12 +2871,19 @@ describe("GitKeizuView viewDiff HEAD resolution and version query (S24)", () => 
     });
 
     // Then: the left URI uses the resolved hash and the right URI carries a version query
-    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(TEST_REPO, "src/file.ts", "cafe01");
+    expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
+      TEST_REPO,
+      "src/file.ts",
+      "cafe01",
+      undefined,
+      "utf8"
+    );
     expect(mocks.encodeDiffDocUri).toHaveBeenCalledWith(
       TEST_REPO,
       "src/file.ts",
       UNCOMMITTED_CHANGES_HASH,
-      expect.any(String)
+      expect.any(String),
+      "utf8"
     );
   });
 

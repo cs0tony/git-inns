@@ -816,14 +816,20 @@ export class DataSource {
   }
 
   public getCommitFile(repo: string, commitHash: string, filePath: string) {
+    return this.getCommitFileRaw(repo, commitHash, filePath).then((bytes) =>
+      bytes.toString("utf8")
+    );
+  }
+
+  public getCommitFileRaw(repo: string, commitHash: string, filePath: string): Promise<Buffer> {
     const baseHash = commitHash.replace(/\^$/, "");
     if (!isValidCommitHash(baseHash) && !isValidGitRef(baseHash)) {
-      return Promise.resolve("");
+      return Promise.resolve(Buffer.alloc(0));
     }
     if (filePath.split("/").includes("..")) {
-      return Promise.resolve("");
+      return Promise.resolve(Buffer.alloc(0));
     }
-    return this.spawnGit(["show", `${commitHash}:${filePath}`], repo, (stdout) => stdout, "");
+    return this.spawnGitBuffer(["show", `${commitHash}:${filePath}`], repo);
   }
 
   public resolveRefToHash(repo: string, ref: string): Promise<string | null> {
@@ -1938,6 +1944,29 @@ export class DataSource {
       cmd.on("close", (code: number | null) => {
         if (err) return;
         resolve(code === 0 ? successValue(Buffer.concat(stdoutChunks).toString()) : errorValue);
+      });
+    });
+  }
+
+  private spawnGitBuffer(args: string[], repo: string): Promise<Buffer> {
+    return new Promise<Buffer>((resolve) => {
+      const stdoutChunks: Buffer[] = [];
+      let err = false;
+      const cmd = cp.spawn(this.gitPath, args, {
+        cwd: repo,
+        env: { ...process.env, LC_ALL: "C" }
+      });
+      cmd.stdout.on("data", (d: string | Buffer) => {
+        stdoutChunks.push(Buffer.from(d));
+      });
+      cmd.stderr.on("data", () => {});
+      cmd.on("error", () => {
+        resolve(Buffer.alloc(0));
+        err = true;
+      });
+      cmd.on("close", (code: number | null) => {
+        if (err) return;
+        resolve(code === 0 ? Buffer.concat(stdoutChunks) : Buffer.alloc(0));
       });
     });
   }

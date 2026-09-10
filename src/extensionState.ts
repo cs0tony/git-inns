@@ -3,6 +3,7 @@ import * as path from "node:path";
 
 import { ExtensionContext, Memento } from "vscode";
 
+import { isSupportedFileEncoding, normalizeFileEncoding } from "./fileEncoding";
 import {
   isSafePullRequestBranch,
   type ResolvedPullRequestConfig,
@@ -13,6 +14,7 @@ import {
   type ActiveCodeReviewByRepo,
   Avatar,
   AvatarCache,
+  FileEncoding,
   GitRepoSet,
   GitRepoState,
   PullRequestSettingsInput,
@@ -142,7 +144,63 @@ export class ExtensionState {
     );
   }
 
-  /* Reviewed Files */
+  /* Encoding Overrides */
+  public getFileEncoding(repo: string, filePath: string): FileEncoding | null {
+    if (repo === "") return null;
+    const normalizedPath = normalizeReviewedFilePath(filePath);
+    if (normalizedPath === null) return null;
+    const state = this.getRepos()[repo];
+    const fileEncodings = state?.fileEncodings;
+    if (fileEncodings !== undefined && normalizedPath in fileEncodings) {
+      return normalizeFileEncoding(fileEncodings[normalizedPath]);
+    }
+    return state?.encoding === undefined ? null : normalizeFileEncoding(state.encoding);
+  }
+
+  public async setFileEncoding(
+    repo: string,
+    filePath: string | null,
+    encoding: string | null
+  ): Promise<boolean> {
+    if (repo === "") return false;
+    if (encoding !== null && !isSupportedFileEncoding(encoding)) return false;
+    const normalizedEncoding = encoding === null ? null : normalizeFileEncoding(encoding);
+
+    let normalizedPath: string | null = null;
+    if (filePath !== null) {
+      normalizedPath = normalizeReviewedFilePath(filePath);
+      if (normalizedPath === null) return false;
+    }
+
+    const repos = this.getRepos();
+    const state = repos[repo];
+    if (state === undefined) return false;
+    const nextState: GitRepoState = { ...state, columnWidths: state.columnWidths ?? null };
+    if (filePath === null) {
+      if (normalizedEncoding === null) {
+        delete nextState.encoding;
+      } else {
+        nextState.encoding = normalizedEncoding;
+      }
+    } else {
+      const fileEncodings = { ...state.fileEncodings };
+      if (normalizedEncoding === null) {
+        delete fileEncodings[normalizedPath!];
+      } else {
+        fileEncodings[normalizedPath!] = normalizedEncoding;
+      }
+      if (Object.keys(fileEncodings).length === 0) {
+        delete nextState.fileEncodings;
+      } else {
+        nextState.fileEncodings = fileEncodings;
+      }
+    }
+
+    repos[repo] = nextState;
+    await this.workspaceState.update(REPO_STATES, this.normalizeRepoSet(repos));
+    return true;
+  }
+
   public getActiveCodeReview(repo: string): ActiveCodeReview | null {
     if (repo === "") return null;
     return this.getRepos()[repo]?.codeReview ?? null;

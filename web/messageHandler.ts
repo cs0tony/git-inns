@@ -1,4 +1,5 @@
 import type {
+  FileEncoding,
   GitCommandStatus,
   GitCommitDetails,
   GitCommitNode,
@@ -45,6 +46,12 @@ export interface GitKeizuViewAPI {
   showRepositorySettingsError(status: GitCommandStatus): void;
   clearRepositorySettingsError(): void;
   handleOpenFileResponse(status: GitCommandStatus): void;
+  handleReopenFileResponse(
+    repo: string,
+    filePath: string,
+    encoding: FileEncoding,
+    status: GitCommandStatus
+  ): void;
   updateCodeReview(repo: string, review: GitRepoSet[string]["codeReview"]): void;
   showTagDetails(details: TagDetails): void;
 }
@@ -201,6 +208,12 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       gitKeizu.handleOpenFileResponse(msg.status);
       if (msg.status !== null) {
         showErrorDialog(t("error.openFile"), msg.status, null);
+      }
+      break;
+    case "reopenFile":
+      gitKeizu.handleReopenFileResponse(msg.repo, msg.filePath, msg.encoding, msg.status);
+      if (msg.status !== null) {
+        showErrorDialog(t("error.reopenFile"), msg.status, null);
       }
       break;
     case "openTerminal":

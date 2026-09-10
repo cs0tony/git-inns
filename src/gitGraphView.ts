@@ -8,6 +8,7 @@ import { getConfig, MIN_COMMIT_LOAD_COUNT, normalizeCommitLoadCount } from "./co
 import { DataSource } from "./dataSource";
 import { encodeDiffDocUri } from "./diffDocProvider";
 import { ExtensionState } from "./extensionState";
+import { isSupportedFileEncoding, normalizeFileEncoding } from "./fileEncoding";
 import { getLocale, loadWebviewMessages, t as hostT } from "./i18n";
 import { buildPullRequestUrl } from "./pullRequest";
 import { isSafeRemoteName } from "./refValidation";
@@ -32,7 +33,14 @@ import {
   type ResponsePush,
   UNCOMMITTED_CHANGES_HASH
 } from "./types";
-import { abbrevCommit, copyToClipboard, getPathFromUri, openFile } from "./utils";
+import {
+  abbrevCommit,
+  copyToClipboard,
+  getPathFromStr,
+  getPathFromUri,
+  isValidCommitHash,
+  openFile
+} from "./utils";
 
 const CSS_COLOR_VAR_PREFIX = "--git-keizu-color";
 const DEFAULT_PUSH_REMOTE = "origin";
@@ -895,6 +903,20 @@ export class GitKeizuView {
               this.sendMessage({ command: "openFile", status });
               break;
             }
+            case "reopenFile":
+              this.sendMessage({
+                command: "reopenFile",
+                repo: msg.repo,
+                filePath: msg.filePath,
+                encoding: normalizeFileEncoding(msg.encoding),
+                status: await this.reopenRevisionFile(
+                  msg.repo,
+                  msg.filePath,
+                  msg.commitHash,
+                  msg.encoding
+                )
+              });
+              break;
           }
         } finally {
           this.repoFileWatcher.unmute();
@@ -994,6 +1016,7 @@ export class GitKeizuView {
       dateFormat: config.dateFormat(),
       dialogDefaults: config.dialogDefaults(),
       fetchAvatars: config.fetchAvatars() && this.extensionState.isAvatarStorageAvailable(),
+      fileEncoding: config.fileEncoding(),
       graphColours: config.graphColours(),
       graphStyle: config.graphStyle(),
       initialLoadCommits: config.initialLoadCommits(),
@@ -1288,6 +1311,7 @@ export class GitKeizuView {
     type: GitFileChangeType,
     compareWithHash?: string
   ): Promise<boolean> {
+    const encodingFor = (filePath: string) => this.resolveFileEncoding(repo, filePath);
     const pathComponents = newFilePath.split("/");
     const fileName = pathComponents[pathComponents.length - 1];
 
@@ -1303,12 +1327,30 @@ export class GitKeizuView {
       const title = hostT("{0} ({1} ↔ {2})", fileName, abbrevFrom, abbrevTo);
 
       try {
-        const leftUri = encodeDiffDocUri(repo, oldFilePath, actualFromHash);
+        const leftUri = encodeDiffDocUri(
+          repo,
+          oldFilePath,
+          actualFromHash,
+          undefined,
+          encodingFor(oldFilePath)
+        );
         const rightUri = isWorkingTreeTarget
           ? type === "D"
-            ? encodeDiffDocUri(repo, oldFilePath, UNCOMMITTED_CHANGES_HASH, Date.now().toString())
+            ? encodeDiffDocUri(
+                repo,
+                oldFilePath,
+                UNCOMMITTED_CHANGES_HASH,
+                Date.now().toString(),
+                encodingFor(oldFilePath)
+              )
             : vscode.Uri.file(path.join(repo, newFilePath))
-          : encodeDiffDocUri(repo, newFilePath, compareWithHash);
+          : encodeDiffDocUri(
+              repo,
+              newFilePath,
+              compareWithHash,
+              undefined,
+              encodingFor(newFilePath)
+            );
 
         await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
           preview: true
@@ -1327,11 +1369,29 @@ export class GitKeizuView {
         const resolvedHead = (await this.dataSource.resolveRefToHash(repo, "HEAD")) ?? "HEAD";
         const leftUri =
           type === "A"
-            ? encodeDiffDocUri(repo, newFilePath, resolvedHead)
-            : encodeDiffDocUri(repo, oldFilePath, resolvedHead);
+            ? encodeDiffDocUri(
+                repo,
+                newFilePath,
+                resolvedHead,
+                undefined,
+                encodingFor(newFilePath)
+              )
+            : encodeDiffDocUri(
+                repo,
+                oldFilePath,
+                resolvedHead,
+                undefined,
+                encodingFor(oldFilePath)
+              );
         const rightUri =
           type === "D"
-            ? encodeDiffDocUri(repo, oldFilePath, UNCOMMITTED_CHANGES_HASH, Date.now().toString())
+            ? encodeDiffDocUri(
+                repo,
+                oldFilePath,
+                UNCOMMITTED_CHANGES_HASH,
+                Date.now().toString(),
+                encodingFor(oldFilePath)
+              )
             : vscode.Uri.file(path.join(repo, newFilePath));
         await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
           preview: true
@@ -1354,8 +1414,14 @@ export class GitKeizuView {
     try {
       await vscode.commands.executeCommand(
         "vscode.diff",
-        encodeDiffDocUri(repo, oldFilePath, `${commitHash}^`),
-        encodeDiffDocUri(repo, newFilePath, commitHash),
+        encodeDiffDocUri(
+          repo,
+          oldFilePath,
+          `${commitHash}^`,
+          undefined,
+          encodingFor(oldFilePath)
+        ),
+        encodeDiffDocUri(repo, newFilePath, commitHash, undefined, encodingFor(newFilePath)),
         title,
         { preview: true }
       );
@@ -1363,6 +1429,52 @@ export class GitKeizuView {
     } catch {
       return false;
     }
+  }
+
+  private resolveFileEncoding(repo: string, filePath: string) {
+    const override = this.extensionState.getFileEncoding?.(repo, filePath);
+    return override ?? getConfig().fileEncoding?.() ?? "utf8";
+  }
+
+  private async reopenRevisionFile(
+    repo: string,
+    filePath: string,
+    commitHash: string,
+    encodingInput: string
+  ): Promise<GitCommandStatus> {
+    if (!isSupportedFileEncoding(encodingInput)) {
+      return "The requested file encoding is not supported.";
+    }
+    const encoding = normalizeFileEncoding(encodingInput);
+    const normalizedPath = normalizeReopenFilePath(filePath);
+    if (normalizedPath === null) {
+      return "The file path is invalid.";
+    }
+
+    let revision = commitHash;
+    if (revision === UNCOMMITTED_CHANGES_HASH) {
+      const head = await this.dataSource.resolveRefToHash(repo, "HEAD");
+      if (head === null) return "Unable to resolve HEAD.";
+      revision = head;
+    } else if (!isValidCommitHash(revision)) {
+      return "The commit hash is invalid.";
+    }
+
+    try {
+      await vscode.commands.executeCommand(
+        "vscode.open",
+        encodeDiffDocUri(repo, normalizedPath, revision, undefined, encoding),
+        {
+          preview: true,
+          viewColumn: getConfig().openNewTabEditorGroup()
+        }
+      );
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+
+    const saved = await this.extensionState.setFileEncoding(repo, normalizedPath, encoding);
+    return saved ? null : "Unable to save the file encoding selection.";
   }
 }
 
@@ -1377,6 +1489,33 @@ function buildCheckoutBranchResponse(result: CheckoutBranchResult): ResponseChec
     case "completed":
       return { command: "checkoutBranch", kind: "completed", status: result.status };
   }
+}
+
+function normalizeReopenFilePath(filePath: string): string | null {
+  const normalizedPath = getPathFromStr(filePath);
+  if (
+    normalizedPath === "" ||
+    normalizedPath.startsWith("/") ||
+    /^[a-z]:/i.test(normalizedPath) ||
+    containsControlCharacter(normalizedPath)
+  ) {
+    return null;
+  }
+
+  const segments = normalizedPath.split("/");
+  if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    return null;
+  }
+
+  return normalizedPath;
+}
+
+function containsControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
 }
 
 function describeCheckoutResult(result: CheckoutBranchResult): GitCommandStatus {

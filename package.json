@@ -185,6 +185,19 @@
           "default": false,
           "description": "%config.fetchAvatars.description%"
         },
+        "git-keizu.fileEncoding": {
+          "type": "string",
+          "enum": [
+            "utf8",
+            "shift_jis",
+            "euc-jp",
+            "iso-2022-jp",
+            "utf-16le",
+            "windows-1252"
+          ],
+          "default": "utf8",
+          "description": "%config.fileEncoding.description%"
+        },
         "git-keizu.graphColours": {
           "type": "array",
           "items": {

@@ -31,10 +31,10 @@ function git(cwd: string, args: string[]): string {
 
 function refExists(repo: string, ref: string): boolean {
   return (
-      cp.spawnSync("git", ["rev-parse", "--verify", "--quiet", ref], {
-        cwd: repo,
-        encoding: "utf8"
-      }).status === 0
+    cp.spawnSync("git", ["rev-parse", "--verify", "--quiet", ref], {
+      cwd: repo,
+      encoding: "utf8"
+    }).status === 0
   );
 }
 
@@ -71,9 +71,10 @@ function createExtensionState(issueLinks?: Record<string, RepositorySettingsIssu
     })
   } as unknown as Memento;
   const extensionState = {
-    getRepositorySettingsIssueLinks: vi.fn((repo: string) =>
-      storedIssueLinks[repo] ?? { enabled: false, regex: "", urlTemplate: "" }
+    getRepositorySettingsIssueLinks: vi.fn(
+      (repo: string) => storedIssueLinks[repo] ?? { enabled: false, regex: "", urlTemplate: "" }
     ),
+    getRepositoryPullRequest: vi.fn(() => null),
     saveRepositorySettingsIssueLinks: vi.fn((repo: string, settings: unknown) => {
       storedIssueLinks[repo] = settings as RepositorySettingsIssueLinks;
       void workspaceState.update("repositorySettingsIssueLinks", storedIssueLinks);
@@ -128,7 +129,8 @@ describe("DataSource repository settings", () => {
           },
           { name: "upstream", url: "https://example.com/upstream.git" }
         ],
-        issueLinks: { enabled: false, regex: "", urlTemplate: "" }
+        issueLinks: { enabled: false, regex: "", urlTemplate: "" },
+        pullRequest: null
       }
     });
   });
@@ -169,7 +171,9 @@ describe("DataSource repository settings", () => {
     );
     expect(git(fixture.repo, ["remote"])).not.toContain("-bad");
 
-    expect(await dataSource.addRemote(fixture.repo, "new", "https://example.com/new.git")).toBeNull();
+    expect(
+      await dataSource.addRemote(fixture.repo, "new", "https://example.com/new.git")
+    ).toBeNull();
     expect(git(fixture.repo, ["remote", "get-url", "new"])).toBe("https://example.com/new.git");
 
     expect(

@@ -28,6 +28,7 @@ function createData(overrides: Partial<RepoSettingsData> = {}): RepoSettingsData
       regex: "#(\\d+)",
       urlTemplate: "https://github.com/example/git-keizu/issues/{0}"
     },
+    pullRequest: null,
     ...overrides
   };
 }
@@ -123,7 +124,7 @@ describe("repository settings panel", () => {
       "Configuration export"
     ]);
     expect(document.body.textContent).toContain(
-      "Provider integration will become available in a future release."
+      "Choose a provider and source remote. Pull Request creation opens a pre-filled comparison in your browser."
     );
     expect(document.body.textContent).toContain(
       "Sharing repository settings is not available yet."

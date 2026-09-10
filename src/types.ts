@@ -248,6 +248,8 @@ export type RepoCommitOrdering = CommitOrdering | "default";
 export type ArchiveFormat = "zip" | "tar" | "tar.gz";
 export type GitResetMode = "soft" | "mixed" | "hard";
 export type GitFileChangeType = "A" | "M" | "D" | "R";
+import type { PullRequestProviderKind, ResolvedPullRequestConfig } from "./pullRequest";
+export type { PullRequestProviderKind, ResolvedPullRequestConfig };
 
 /* Checkout / Push Result Types */
 
@@ -293,6 +295,7 @@ export interface RepositorySettingsData {
   repositoryPath: string;
   remotes: RepositorySettingsRemote[];
   issueLinks: RepositorySettingsIssueLinks;
+  pullRequest: ResolvedPullRequestConfig | null;
 }
 
 export type RepositorySettingsResult =
@@ -312,7 +315,16 @@ export type RepositorySettingsAction =
   | { type: "fetchRemote"; name: string }
   | { type: "fetchPruneRemote"; name: string }
   | { type: "pruneTagsRemote"; name: string }
-  | { type: "saveIssueLinks"; settings: RepositorySettingsIssueLinks };
+  | { type: "saveIssueLinks"; settings: RepositorySettingsIssueLinks }
+  | { type: "savePullRequest"; settings: PullRequestSettingsInput };
+
+export interface PullRequestSettingsInput {
+  provider: PullRequestProviderKind;
+  remoteName: string;
+  hostRootUrl?: string;
+  customName?: string;
+  customTemplateUrl?: string;
+}
 
 /* Named Constants */
 

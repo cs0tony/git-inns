@@ -3,11 +3,13 @@ import * as path from "node:path";
 
 import { ExtensionContext, Memento } from "vscode";
 
+import { type ResolvedPullRequestConfig, resolvePullRequestConfig } from "./pullRequest";
 import {
   Avatar,
   AvatarCache,
   GitRepoSet,
   GitRepoState,
+  PullRequestSettingsInput,
   RecentActionId,
   RepositorySettingsIssueLinks,
   ReviewedFilesByRepo
@@ -19,6 +21,7 @@ const AVATAR_CACHE = "avatarCache";
 const LAST_ACTIVE_REPO = "lastActiveRepo";
 const REPO_STATES = "repoStates";
 const REPOSITORY_SETTINGS_ISSUE_LINKS = "repositorySettingsIssueLinks";
+const REPOSITORY_PULL_REQUESTS = "repositoryPullRequests";
 const MAX_RECENT_ACTIONS = 5;
 const REVIEWED_FILES = "reviewedFiles";
 const EMPTY_ISSUE_LINKS: RepositorySettingsIssueLinks = {
@@ -27,6 +30,7 @@ const EMPTY_ISSUE_LINKS: RepositorySettingsIssueLinks = {
   urlTemplate: ""
 };
 type RepositorySettingsIssueLinkMap = Record<string, RepositorySettingsIssueLinks>;
+type RepositoryPullRequestMap = Record<string, ResolvedPullRequestConfig>;
 
 export class ExtensionState {
   private globalState: Memento;
@@ -75,9 +79,7 @@ export class ExtensionState {
   }
 
   /* Repository Settings */
-  public getRepositorySettingsIssueLinks(
-    repo: string
-  ): RepositorySettingsIssueLinks {
+  public getRepositorySettingsIssueLinks(repo: string): RepositorySettingsIssueLinks {
     const settings = this.workspaceState.get<RepositorySettingsIssueLinkMap>(
       REPOSITORY_SETTINGS_ISSUE_LINKS,
       {}
@@ -85,16 +87,51 @@ export class ExtensionState {
     return normalizeIssueLinks(settings[repo]);
   }
 
-  public saveRepositorySettingsIssueLinks(
-    repo: string,
-    issueLinks: RepositorySettingsIssueLinks
-  ) {
+  public saveRepositorySettingsIssueLinks(repo: string, issueLinks: RepositorySettingsIssueLinks) {
     const settings = this.workspaceState.get<RepositorySettingsIssueLinkMap>(
       REPOSITORY_SETTINGS_ISSUE_LINKS,
       {}
     );
     settings[repo] = normalizeIssueLinks(issueLinks);
     this.workspaceState.update(REPOSITORY_SETTINGS_ISSUE_LINKS, settings);
+  }
+
+  public getRepositoryPullRequest(repo: string): ResolvedPullRequestConfig | null {
+    return this.readPullRequests()[repo] ?? null;
+  }
+
+  public async saveRepositoryPullRequest(
+    repo: string,
+    remoteUrl: string,
+    input: PullRequestSettingsInput
+  ): Promise<ResolvedPullRequestConfig> {
+    const config = resolvePullRequestConfig({
+      ...input,
+      remoteUrl
+    });
+    const settings = this.readPullRequests();
+    settings[repo] = config;
+    await this.workspaceState.update(REPOSITORY_PULL_REQUESTS, settings);
+    return config;
+  }
+
+  private readPullRequests(): RepositoryPullRequestMap {
+    const value = this.workspaceState.get<RepositoryPullRequestMap>(REPOSITORY_PULL_REQUESTS, {});
+    if (typeof value !== "object" || value === null) return {};
+
+    return Object.fromEntries(
+      Object.entries(value).filter((entry): entry is [string, ResolvedPullRequestConfig] => {
+        const config = entry[1];
+        return (
+          typeof config === "object" &&
+          config !== null &&
+          typeof config.sourceRemoteName === "string" &&
+          typeof config.sourceOwner === "string" &&
+          typeof config.sourceRepo === "string" &&
+          typeof config.hostRootUrl === "string"
+        );
+      })
+    );
   }
 
   /* Reviewed Files */

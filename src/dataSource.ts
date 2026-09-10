@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX, getConfig } from "./config";
 import { ExtensionState } from "./extensionState";
 import { DEFAULT_GIT_PATH, resolveGitExecutable } from "./gitExecutable";
+import { detectPullRequestProvider, resolvePullRequestConfig } from "./pullRequest";
 import { isSafeRemoteName, isValidRefName } from "./refValidation";
 import {
   ArchiveFormat,
@@ -189,7 +190,11 @@ function containsUnsafePathCharacters(value: string): boolean {
 }
 
 function isSafeArchiveOutputPath(repo: string, outputPath: string, format: ArchiveFormat): boolean {
-  if (outputPath === "" || containsUnsafePathCharacters(outputPath) || !path.isAbsolute(outputPath)) {
+  if (
+    outputPath === "" ||
+    containsUnsafePathCharacters(outputPath) ||
+    !path.isAbsolute(outputPath)
+  ) {
     return false;
   }
 
@@ -199,7 +204,10 @@ function isSafeArchiveOutputPath(repo: string, outputPath: string, format: Archi
   const resolvedOutputPath = path.resolve(outputPath);
   const resolvedRepoPath = path.resolve(repo);
   const relativeToRepo = path.relative(resolvedRepoPath, resolvedOutputPath);
-  if (relativeToRepo === "" || (!relativeToRepo.startsWith("..") && !path.isAbsolute(relativeToRepo))) {
+  if (
+    relativeToRepo === "" ||
+    (!relativeToRepo.startsWith("..") && !path.isAbsolute(relativeToRepo))
+  ) {
     return false;
   }
 
@@ -296,15 +304,9 @@ export class DataSource {
     const committerName = config.useMailmap() ? "%cN" : "%cn";
     const committerEmail = config.useMailmap() ? "%cE" : "%ce";
     this.gitLogFormat = ["%H", "%P", authorName, authorEmail, dateType, "%s"].join(gitLogSeparator);
-    this.gitStashFormat = [
-      "%H",
-      "%P",
-      "%gD",
-      authorName,
-      authorEmail,
-      dateType,
-      "%s"
-    ].join(gitLogSeparator);
+    this.gitStashFormat = ["%H", "%P", "%gD", authorName, authorEmail, dateType, "%s"].join(
+      gitLogSeparator
+    );
     const commitDetailsFields = [
       "%H",
       "%P",
@@ -1343,17 +1345,31 @@ export class DataSource {
       return { kind: "error", status: result.status };
     }
 
+    const remotes = parseRemoteVerbose(result.stdout);
+    const storedPullRequest = this.extensionState?.getRepositoryPullRequest(repo) ?? null;
+    const detected = remotes.find((remote) => detectPullRequestProvider(remote.url) !== null);
+    const pullRequest =
+      storedPullRequest ??
+      (detected === undefined
+        ? null
+        : resolvePullRequestConfig({
+            provider: detectPullRequestProvider(detected.url)!,
+            remoteName: detected.name,
+            remoteUrl: detected.url
+          }));
+
     return {
       kind: "ok",
       data: {
         repositoryName: getRepositoryName(repo),
         repositoryPath: repo,
-        remotes: parseRemoteVerbose(result.stdout),
+        remotes,
         issueLinks: this.extensionState?.getRepositorySettingsIssueLinks(repo) ?? {
           enabled: false,
           regex: "",
           urlTemplate: ""
-        }
+        },
+        pullRequest
       }
     };
   }
@@ -1373,13 +1389,7 @@ export class DataSource {
       case "addRemote":
         return this.addRemote(repo, action.name, action.url, action.pushUrl);
       case "editRemote":
-        return this.editRemote(
-          repo,
-          action.originalName,
-          action.name,
-          action.url,
-          action.pushUrl
-        );
+        return this.editRemote(repo, action.originalName, action.name, action.url, action.pushUrl);
       case "deleteRemote":
         return this.deleteRemote(repo, action.name);
       case "fetchRemote":
@@ -1391,6 +1401,18 @@ export class DataSource {
       case "saveIssueLinks":
         await this.saveRepositorySettingsIssueLinks(repo, action.settings);
         return null;
+      case "savePullRequest": {
+        const settings = await this.getRepositorySettings(repo);
+        const remote =
+          settings.kind === "ok"
+            ? settings.data.remotes.find(
+                (candidate) => candidate.name === action.settings.remoteName
+              )
+            : undefined;
+        if (remote === undefined) return UNKNOWN_REMOTE_MESSAGE;
+        await this.extensionState?.saveRepositoryPullRequest(repo, remote.url, action.settings);
+        return null;
+      }
     }
   }
 
@@ -1441,10 +1463,7 @@ export class DataSource {
       if (renameStatus !== null) return renameStatus;
     }
 
-    const urlStatus = await this.runGitCommandSpawn(
-      ["remote", "set-url", name, url],
-      repo
-    );
+    const urlStatus = await this.runGitCommandSpawn(["remote", "set-url", name, url], repo);
     if (urlStatus !== null) return urlStatus;
     if (pushUrl === undefined) return null;
     return this.runGitCommandSpawn(["remote", "set-url", "--push", name, pushUrl], repo);

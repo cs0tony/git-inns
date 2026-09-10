@@ -85,7 +85,8 @@ const EMPTY_REPO_SETTINGS_DATA = {
   repositoryName: "",
   repositoryPath: "",
   remotes: [],
-  issueLinks: { enabled: false, regex: "", urlTemplate: "" }
+  issueLinks: { enabled: false, regex: "", urlTemplate: "" },
+  pullRequest: null
 };
 
 function getFileViewToggle(mode: FileViewType): { icon: string; title: string } {
@@ -1712,10 +1713,8 @@ class GitKeizuView {
       `<b>${t("commitDetails.date")} </b>${new Date(commitDetails.date * SECONDS_TO_MS).toString()}${signatureHtml ? `<br>${signatureHtml}` : ""}</span>` +
       avatarHtml +
       "</span></span><br><br>" +
-      renderCommitBodyIssueLinks(
-        commitDetails.body,
-        this.repositoryIssueLinks,
-        (issueId) => t("commitDetails.issueLinkTitle", issueId)
+      renderCommitBodyIssueLinks(commitDetails.body, this.repositoryIssueLinks, (issueId) =>
+        t("commitDetails.issueLinkTitle", issueId)
       )
     );
   }

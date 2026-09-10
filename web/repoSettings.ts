@@ -1,4 +1,5 @@
 import type {
+  PullRequestProviderKind,
   RepositorySettingsAction,
   RepositorySettingsData,
   RepositorySettingsIssueLinks,
@@ -19,6 +20,12 @@ interface SettingsFields {
   issueRegexError: HTMLElement;
   issueTemplate: HTMLInputElement;
   issueTemplateError: HTMLElement;
+  pullCustomName: HTMLInputElement;
+  pullCustomNameError: HTMLElement;
+  pullCustomTemplate: HTMLInputElement;
+  pullCustomTemplateError: HTMLElement;
+  pullProvider: HTMLSelectElement;
+  pullRemote: HTMLSelectElement;
   remoteName: HTMLInputElement;
   remoteNameError: HTMLElement;
   remotePushUrl: HTMLInputElement;
@@ -137,11 +144,7 @@ export class RepoSettingsPanel {
     main.append(
       this.createRemotesSection(),
       this.createIssueLinkSection(),
-      this.createComingSoonSection(
-        `${this.idPrefix}-pull-requests`,
-        t("repoSettings.pullProviders"),
-        t("repoSettings.pullProvidersDescription")
-      ),
+      this.createPullRequestSection(),
       this.createComingSoonSection(
         `${this.idPrefix}-export`,
         t("repoSettings.export"),
@@ -396,6 +399,123 @@ export class RepoSettingsPanel {
     return section;
   }
 
+  private createPullRequestSection(): HTMLElement {
+    const section = document.createElement("section");
+    section.className = "repo-settings-section";
+    section.setAttribute("aria-labelledby", `${this.idPrefix}-pull-title`);
+
+    const title = document.createElement("h3");
+    title.id = `${this.idPrefix}-pull-title`;
+    title.textContent = t("repoSettings.pullProviders");
+    const description = document.createElement("p");
+    description.className = "repo-settings-section-description";
+    description.textContent = t("repoSettings.pullProvidersHelp");
+
+    const form = document.createElement("form");
+    form.className = "repo-settings-form";
+    form.noValidate = true;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      this.submitPullRequest();
+    });
+
+    const providerId = `${this.idPrefix}-pull-provider`;
+    const provider = document.createElement("select");
+    provider.id = providerId;
+    provider.name = providerId;
+    for (const providerKind of ["github", "gitlab", "bitbucket", "custom"] as const) {
+      const option = document.createElement("option");
+      option.value = providerKind;
+      option.textContent = t(`repoSettings.provider.${providerKind}`);
+      provider.append(option);
+    }
+    provider.value = this.data.pullRequest?.provider ?? "github";
+    const providerLabel = document.createElement("label");
+    providerLabel.htmlFor = providerId;
+    providerLabel.textContent = t("repoSettings.pullProvider");
+
+    const remoteId = `${this.idPrefix}-pull-remote`;
+    const remote = document.createElement("select");
+    remote.id = remoteId;
+    remote.name = remoteId;
+    for (const item of this.data.remotes) {
+      const option = document.createElement("option");
+      option.value = item.name;
+      option.textContent = item.name;
+      remote.append(option);
+    }
+    remote.value = this.data.pullRequest?.sourceRemoteName ?? this.data.remotes[0]?.name ?? "";
+    const remoteLabel = document.createElement("label");
+    remoteLabel.htmlFor = remoteId;
+    remoteLabel.textContent = t("repoSettings.pullSourceRemote");
+
+    const custom = this.createTextField(t("repoSettings.pullCustomName"), "pull-custom-name");
+    custom.input.value = this.data.pullRequest?.customName ?? "";
+    const template = this.createTextField(
+      t("repoSettings.pullCustomTemplate"),
+      "pull-custom-template"
+    );
+    template.input.value = this.data.pullRequest?.customTemplateUrl ?? "";
+    template.input.placeholder = "https://example.com/{sourceBranch}";
+
+    const submit = this.createButton(
+      t("repoSettings.savePullRequest"),
+      t("repoSettings.savePullRequest"),
+      () => this.submitPullRequest(),
+      "primary"
+    );
+    form.append(
+      this.createFormField(providerLabel, provider, custom.error),
+      this.createFormField(remoteLabel, remote, custom.error),
+      this.createFormField(custom.label, custom.input, custom.error),
+      this.createFormField(template.label, template.input, template.error),
+      submit
+    );
+
+    this.fields.pullProvider = provider;
+    this.fields.pullRemote = remote;
+    this.fields.pullCustomName = custom.input;
+    this.fields.pullCustomNameError = custom.error;
+    this.fields.pullCustomTemplate = template.input;
+    this.fields.pullCustomTemplateError = template.error;
+
+    section.append(title, description, form);
+    return section;
+  }
+
+  private submitPullRequest(): void {
+    const provider = this.fields.pullProvider.value as PullRequestProviderKind;
+    const remoteName = this.fields.pullRemote.value;
+    const customName = this.fields.pullCustomName.value.trim();
+    const customTemplateUrl = this.fields.pullCustomTemplate.value.trim();
+    const customErrors =
+      provider === "custom" && customTemplateUrl === ""
+        ? [t("repoSettings.pullCustomTemplateRequired")]
+        : [];
+    const remoteErrors = remoteName === "" ? [t("repoSettings.pullRemoteRequired")] : [];
+    this.setFieldErrors(
+      this.fields.pullCustomTemplate,
+      this.fields.pullCustomTemplateError,
+      customErrors
+    );
+    this.setFieldErrors(this.fields.pullRemote, this.fields.pullCustomNameError, remoteErrors);
+    if (customErrors.length > 0 || remoteErrors.length > 0) return;
+
+    this.actionHandler({
+      type: "savePullRequest",
+      settings: {
+        provider,
+        remoteName,
+        ...(provider === "custom"
+          ? {
+              customName: customName === "" ? undefined : customName,
+              customTemplateUrl
+            }
+          : {})
+      }
+    });
+  }
+
   private createTextField(
     labelText: string,
     kind: string
@@ -420,7 +540,7 @@ export class RepoSettingsPanel {
 
   private createFormField(
     label: HTMLLabelElement,
-    input: HTMLInputElement,
+    input: HTMLInputElement | HTMLSelectElement,
     error: HTMLElement
   ): HTMLElement {
     const field = document.createElement("div");
@@ -593,7 +713,7 @@ export class RepoSettingsPanel {
   }
 
   private setFieldErrors(
-    input: HTMLInputElement,
+    input: HTMLInputElement | HTMLSelectElement,
     errorElement: HTMLElement,
     messages: string[]
   ): void {
@@ -608,7 +728,10 @@ export class RepoSettingsPanel {
     input.setAttribute("aria-describedby", errorElement.id);
   }
 
-  private clearFieldError(input: HTMLInputElement, errorElement: HTMLElement): void {
+  private clearFieldError(
+    input: HTMLInputElement | HTMLSelectElement,
+    errorElement: HTMLElement
+  ): void {
     errorElement.textContent = "";
     input.classList.remove("invalid");
     input.removeAttribute("aria-invalid");

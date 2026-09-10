@@ -6,6 +6,7 @@ export interface ResolvedPullRequestConfig {
   sourceOwner: string;
   sourceRepo: string;
   hostRootUrl: string;
+  destinationBranch?: string;
   customName?: string;
   customTemplateUrl?: string;
 }
@@ -15,6 +16,7 @@ export interface PullRequestConfigInput {
   remoteUrl: string;
   provider: PullRequestProviderKind;
   hostRootUrl?: string;
+  destinationBranch?: string;
   customName?: string;
   customTemplateUrl?: string;
 }
@@ -37,6 +39,36 @@ const PROVIDER_HOST_PATTERNS: ReadonlyArray<{
   { kind: "gitlab", pattern: /(^|\.)gitlab\./ },
   { kind: "bitbucket", pattern: /(^|\.)bitbucket\./ }
 ];
+
+const DEFAULT_DESTINATION_CANDIDATES = ["main", "master", "develop", "trunk"] as const;
+
+/** Infer an existing destination branch, preferring the source remote's HEAD. */
+export function inferPullRequestDestination(
+  remoteHead: string | null,
+  existingBranches: readonly string[]
+): string | null {
+  const branches = existingBranches.filter(isSafePullRequestBranch);
+
+  if (remoteHead !== null && branches.includes(remoteHead)) {
+    return remoteHead;
+  }
+
+  return DEFAULT_DESTINATION_CANDIDATES.find((candidate) => branches.includes(candidate)) ?? null;
+}
+
+/** Whether a value can be used safely as a generated pull-request branch parameter. */
+export function isSafePullRequestBranch(value: string | undefined): value is string {
+  if (value === undefined) {
+    return false;
+  }
+
+  try {
+    assertSafeBranch(value, "branch");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Detect a supported provider from an HTTPS or SSH Git remote URL. */
 export function detectPullRequestProvider(remoteUrl: string): PullRequestProviderKind | null {
@@ -64,6 +96,19 @@ export function resolvePullRequestConfig(input: PullRequestConfigInput): Resolve
   const provider = requireProvider(input.provider);
   const customName = optionalText(input.customName, "customName");
   const customTemplateUrl = optionalText(input.customTemplateUrl, "customTemplateUrl");
+  let destinationBranch: string | undefined;
+  if (input.destinationBranch !== undefined) {
+    destinationBranch = requireText(input.destinationBranch, "destinationBranch");
+    if (
+      // A symmetric whitespace envelope is normalized away; one-sided whitespace
+      // is ambiguous user input and is rejected before it reaches Git or a URL.
+      input.destinationBranch !== destinationBranch &&
+      !(input.destinationBranch.startsWith(" ") && input.destinationBranch.endsWith(" "))
+    ) {
+      throw new Error("destinationBranch must be a non-empty branch name without whitespace");
+    }
+    assertSafeBranch(destinationBranch, "destinationBranch");
+  }
 
   if (provider === "custom" && customTemplateUrl === undefined) {
     throw new Error("A custom pull-request provider requires customTemplateUrl");
@@ -84,23 +129,20 @@ export function resolvePullRequestConfig(input: PullRequestConfigInput): Resolve
       : normalizeHttpUrl(input.hostRootUrl, "hostRootUrl");
   const { owner, repo } = deriveOwnerAndRepo(endpoint);
 
-  return customName === undefined && customTemplateUrl === undefined
-    ? {
-        provider,
-        sourceRemoteName: remoteName,
-        sourceOwner: owner,
-        sourceRepo: repo,
-        hostRootUrl
-      }
-    : {
-        provider,
-        sourceRemoteName: remoteName,
-        sourceOwner: owner,
-        sourceRepo: repo,
-        hostRootUrl,
-        ...(customName === undefined ? {} : { customName }),
-        ...(customTemplateUrl === undefined ? {} : { customTemplateUrl })
-      };
+  const baseConfig = {
+    provider,
+    sourceRemoteName: remoteName,
+    sourceOwner: owner,
+    sourceRepo: repo,
+    hostRootUrl,
+    ...(destinationBranch === undefined ? {} : { destinationBranch })
+  };
+
+  return {
+    ...baseConfig,
+    ...(customName === undefined ? {} : { customName }),
+    ...(customTemplateUrl === undefined ? {} : { customTemplateUrl })
+  };
 }
 
 /** Build a browser URL that starts the pull-request creation flow. */
@@ -110,7 +152,7 @@ export function buildPullRequestUrl(
   options: BuildPullRequestUrlOptions = {}
 ): string {
   assertSafeBranch(sourceBranch, "sourceBranch");
-  const targetBranch = options.targetBranch;
+  const targetBranch = options.targetBranch ?? config.destinationBranch;
 
   if (targetBranch !== undefined) {
     assertSafeBranch(targetBranch, "targetBranch");

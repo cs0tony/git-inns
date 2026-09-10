@@ -1,3 +1,5 @@
+import { isSafePullRequestBranch } from "./pullRequest";
+
 export interface ShareableIssueLinks {
   enabled: boolean;
   regex: string;
@@ -7,6 +9,7 @@ export interface ShareableIssueLinks {
 export interface ShareablePullRequestConfig {
   provider: "github" | "gitlab" | "bitbucket" | "custom";
   sourceRemote: string;
+  destinationBranch?: string;
   customName?: string;
   customTemplateUrl?: string;
 }
@@ -24,9 +27,17 @@ const ISSUE_LINK_FIELDS = new Set(["enabled", "regex", "urlTemplate"]);
 const PULL_REQUEST_FIELDS = new Set([
   "customName",
   "customTemplateUrl",
+  "destinationBranch",
   "provider",
   "sourceRemote"
 ]);
+const PULL_REQUEST_FIELD_ORDER = [
+  "destinationBranch",
+  "customName",
+  "customTemplateUrl",
+  "provider",
+  "sourceRemote"
+];
 const PULL_REQUEST_PROVIDERS = new Set(["bitbucket", "custom", "github", "gitlab"]);
 
 export function exportRepositoryConfig(input: RepositoryConfigFile): string {
@@ -154,6 +165,14 @@ function validatePullRequest(value: unknown): string | null {
     return "pullRequest.sourceRemote must be a valid remote name";
   }
 
+  if (
+    hasOwnField(value, "destinationBranch") &&
+    (typeof value.destinationBranch !== "string" ||
+      !isSafePullRequestBranch(value.destinationBranch))
+  ) {
+    return "pullRequest.destinationBranch contains an unsafe Git branch name";
+  }
+
   const hasCustomName = hasOwnField(value, "customName");
   const hasCustomTemplateUrl = hasOwnField(value, "customTemplateUrl");
   if (provider === "custom") {
@@ -246,7 +265,7 @@ function canonicalJson(value: unknown): string {
       }
 
       return Object.keys(nestedValue)
-        .sort()
+        .sort(compareCanonicalFields)
         .reduce<RecordValue>((sorted, field) => {
           sorted[field] = nestedValue[field];
           return sorted;
@@ -254,4 +273,18 @@ function canonicalJson(value: unknown): string {
     },
     2
   );
+}
+
+function compareCanonicalFields(left: string, right: string): number {
+  const leftOrder = PULL_REQUEST_FIELD_ORDER.indexOf(left);
+  const rightOrder = PULL_REQUEST_FIELD_ORDER.indexOf(right);
+
+  if (leftOrder !== -1 || rightOrder !== -1) {
+    return (
+      (leftOrder === -1 ? Number.MAX_SAFE_INTEGER : leftOrder) -
+      (rightOrder === -1 ? Number.MAX_SAFE_INTEGER : rightOrder)
+    );
+  }
+
+  return left < right ? -1 : left > right ? 1 : 0;
 }

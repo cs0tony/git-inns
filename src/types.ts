@@ -302,12 +302,19 @@ export interface RepositorySettingsRemote {
   pushUrl?: string;
 }
 
+export interface RepositorySettingsPullRequestDestination {
+  branches: string[];
+  defaultBranch: string | null;
+  selectedBranch: string | null;
+}
+
 export interface RepositorySettingsData {
   repositoryName: string;
   repositoryPath: string;
   remotes: RepositorySettingsRemote[];
   issueLinks: RepositorySettingsIssueLinks;
   pullRequest: ResolvedPullRequestConfig | null;
+  pullRequestDestination?: RepositorySettingsPullRequestDestination;
 }
 
 export type RepositorySettingsResult =
@@ -334,6 +341,7 @@ export interface PullRequestSettingsInput {
   provider: PullRequestProviderKind;
   remoteName: string;
   hostRootUrl?: string;
+  destinationBranch?: string;
   customName?: string;
   customTemplateUrl?: string;
 }

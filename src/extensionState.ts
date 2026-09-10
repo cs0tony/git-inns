@@ -3,7 +3,11 @@ import * as path from "node:path";
 
 import { ExtensionContext, Memento } from "vscode";
 
-import { type ResolvedPullRequestConfig, resolvePullRequestConfig } from "./pullRequest";
+import {
+  isSafePullRequestBranch,
+  type ResolvedPullRequestConfig,
+  resolvePullRequestConfig
+} from "./pullRequest";
 import {
   type ActiveCodeReview,
   Avatar,
@@ -129,7 +133,9 @@ export class ExtensionState {
           typeof config.sourceRemoteName === "string" &&
           typeof config.sourceOwner === "string" &&
           typeof config.sourceRepo === "string" &&
-          typeof config.hostRootUrl === "string"
+          typeof config.hostRootUrl === "string" &&
+          (config.destinationBranch === undefined ||
+            isSafePullRequestBranch(config.destinationBranch))
         );
       })
     );

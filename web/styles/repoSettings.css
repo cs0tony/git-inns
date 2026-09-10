@@ -195,7 +195,8 @@
   color: var(--vscode-dropdown-foreground);
 }
 
-.repo-settings input.invalid {
+.repo-settings input.invalid,
+.repo-settings select.invalid {
   border-color: var(--vscode-inputValidation-errorBorder);
   border-width: 2px;
 }
@@ -247,6 +248,12 @@
   min-height: 16px;
   margin: 0;
   color: var(--vscode-errorForeground);
+  font-size: 12px;
+}
+
+.repo-settings-hint {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
   font-size: 12px;
 }
 

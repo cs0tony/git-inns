@@ -4,7 +4,12 @@ import * as path from "node:path";
 import { CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX, getConfig } from "./config";
 import { ExtensionState } from "./extensionState";
 import { DEFAULT_GIT_PATH, resolveGitExecutable } from "./gitExecutable";
-import { detectPullRequestProvider, resolvePullRequestConfig } from "./pullRequest";
+import {
+  detectPullRequestProvider,
+  inferPullRequestDestination,
+  isSafePullRequestBranch,
+  resolvePullRequestConfig
+} from "./pullRequest";
 import { isSafeRemoteName, isValidRefName } from "./refValidation";
 import { parseForCatFileTag, type TagDetails } from "./tagDetails";
 import {
@@ -27,6 +32,7 @@ import {
   RemoteBranchTarget,
   RepositorySettingsAction,
   RepositorySettingsIssueLinks,
+  RepositorySettingsPullRequestDestination,
   RepositorySettingsRemote,
   RepositorySettingsResult,
   UNCOMMITTED_CHANGES_HASH,
@@ -96,6 +102,7 @@ const INVALID_COMMIT_HASH_MESSAGE = "Invalid commit hash.";
 const INVALID_REF_NAME_MESSAGE = "Invalid ref name.";
 const INVALID_REMOTE_NAME_MESSAGE = "Invalid remote name.";
 const INVALID_REMOTE_URL_MESSAGE = "Invalid remote URL.";
+const INVALID_PULL_REQUEST_DESTINATION_MESSAGE = "Invalid pull-request destination branch.";
 const UNKNOWN_REMOTE_MESSAGE = "The remote is not registered in this repository.";
 const GIT_QUERY_FAILED_MESSAGE = "Git command failed.";
 const REFS_HEADS_PREFIX = "refs/heads/";
@@ -279,6 +286,20 @@ function parseRemoteVerbose(stdout: string): RepositorySettingsRemote[] {
             }
           ]
     );
+}
+
+function parseLocalBranches(stdout: string): string[] {
+  return stdout
+    .split(eolRegex)
+    .map((line) => line.trim())
+    .filter(isSafePullRequestBranch)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function parseRemoteHead(stdout: string, remoteName: string): string | null {
+  const refPrefix = `refs/remotes/${remoteName}/`;
+  const ref = stdout.trim();
+  return ref.startsWith(refPrefix) ? ref.slice(refPrefix.length) : null;
 }
 
 export class DataSource {
@@ -1357,15 +1378,46 @@ export class DataSource {
     const remotes = parseRemoteVerbose(result.stdout);
     const storedPullRequest = this.extensionState?.getRepositoryPullRequest(repo) ?? null;
     const detected = remotes.find((remote) => detectPullRequestProvider(remote.url) !== null);
+    const sourceRemoteName = storedPullRequest?.sourceRemoteName ?? detected?.name;
+    let destination: RepositorySettingsPullRequestDestination | undefined;
+
+    if (sourceRemoteName !== undefined) {
+      const [branchesResult, remoteHeadResult] = await Promise.all([
+        this.runGitQuery(["for-each-ref", "--format=%(refname:short)", "refs/heads"], repo),
+        this.runGitQuery(["symbolic-ref", "--quiet", `refs/remotes/${sourceRemoteName}/HEAD`], repo)
+      ]);
+      const branches =
+        branchesResult.kind === "ok" ? parseLocalBranches(branchesResult.stdout) : [];
+      const remoteHead =
+        remoteHeadResult.kind === "ok"
+          ? parseRemoteHead(remoteHeadResult.stdout, sourceRemoteName)
+          : null;
+      const defaultBranch = inferPullRequestDestination(remoteHead, branches);
+      destination = {
+        branches,
+        defaultBranch,
+        selectedBranch: null
+      };
+    }
+
+    const defaultBranch = destination?.defaultBranch ?? null;
     const pullRequest =
-      storedPullRequest ??
-      (detected === undefined
-        ? null
-        : resolvePullRequestConfig({
-            provider: detectPullRequestProvider(detected.url)!,
-            remoteName: detected.name,
-            remoteUrl: detected.url
-          }));
+      storedPullRequest === null
+        ? detected === undefined
+          ? null
+          : resolvePullRequestConfig({
+              provider: detectPullRequestProvider(detected.url)!,
+              remoteName: detected.name,
+              remoteUrl: detected.url,
+              ...(defaultBranch === null ? {} : { destinationBranch: defaultBranch })
+            })
+        : defaultBranch === null || storedPullRequest.destinationBranch !== undefined
+          ? storedPullRequest
+          : { ...storedPullRequest, destinationBranch: defaultBranch };
+
+    if (destination !== undefined) {
+      destination.selectedBranch = storedPullRequest?.destinationBranch ?? null;
+    }
 
     return {
       kind: "ok",
@@ -1378,7 +1430,8 @@ export class DataSource {
           regex: "",
           urlTemplate: ""
         },
-        pullRequest
+        pullRequest,
+        ...(destination === undefined ? {} : { pullRequestDestination: destination })
       }
     };
   }
@@ -1411,18 +1464,31 @@ export class DataSource {
         await this.saveRepositorySettingsIssueLinks(repo, action.settings);
         return null;
       case "savePullRequest": {
+        if (
+          action.settings.destinationBranch !== undefined &&
+          !(await this.hasLocalBranch(repo, action.settings.destinationBranch))
+        ) {
+          return INVALID_PULL_REQUEST_DESTINATION_MESSAGE;
+        }
         const settings = await this.getRepositorySettings(repo);
-        const remote =
-          settings.kind === "ok"
-            ? settings.data.remotes.find(
-                (candidate) => candidate.name === action.settings.remoteName
-              )
-            : undefined;
+        if (settings.kind === "error") return GIT_QUERY_FAILED_MESSAGE;
+        const remote = settings.data.remotes.find(
+          (candidate) => candidate.name === action.settings.remoteName
+        );
         if (remote === undefined) return UNKNOWN_REMOTE_MESSAGE;
         await this.extensionState?.saveRepositoryPullRequest(repo, remote.url, action.settings);
         return null;
       }
     }
+  }
+
+  private async hasLocalBranch(repo: string, branchName: string): Promise<boolean> {
+    if (!isSafePullRequestBranch(branchName)) return false;
+    const result = await this.runGitQuery(
+      ["for-each-ref", "--format=%(refname:short)", "refs/heads"],
+      repo
+    );
+    return result.kind === "ok" && parseLocalBranches(result.stdout).includes(branchName);
   }
 
   public async addRemote(

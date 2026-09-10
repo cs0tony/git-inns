@@ -132,6 +132,7 @@
   "repoSettings.provider.custom": "Custom",
   "Create Pull Request": "Create Pull Request",
   "error.openPullRequest": "Unable to create Pull Request",
+  "error.codeReview": "Code review action failed",
   "error.exportRepositoryConfig": "Unable to export repository configuration",
   "error.importRepositoryConfig": "Unable to import repository configuration",
   "repoSettings.export": "Configuration export",

@@ -43,6 +43,7 @@ export interface GitKeizuViewAPI {
   loadRepositorySettings(data: RepositorySettingsData): void;
   showRepositorySettingsError(status: GitCommandStatus): void;
   clearRepositorySettingsError(): void;
+  updateCodeReview(repo: string, review: GitRepoSet[string]["codeReview"]): void;
 }
 
 export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): void {
@@ -114,6 +115,23 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
       } else {
         gitKeizu.updateReviewedFiles(msg.repo, msg.commitHash, msg.reviewedFiles);
       }
+      break;
+    case "codeReview":
+      if (msg.status !== null) {
+        showErrorDialog(t("error.codeReview"), msg.status, null);
+      }
+      gitKeizu.updateCodeReview(
+        msg.repo,
+        msg.active && msg.commitHash !== null
+          ? {
+              id: msg.id ?? `${msg.commitHash}:${msg.compareWithHash ?? ""}`,
+              commitHash: msg.commitHash,
+              compareWithHash: msg.compareWithHash,
+              files: msg.files,
+              startedAt: Date.now()
+            }
+          : null
+      );
       break;
     case "compareCommits":
       if (msg.fileChanges === null) {

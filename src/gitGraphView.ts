@@ -298,6 +298,53 @@ export class GitKeizuView {
               });
               break;
             }
+            case "startCodeReview": {
+              const review = await this.extensionState.startCodeReview(
+                msg.repo,
+                crypto.randomUUID(),
+                msg.commitHash,
+                msg.compareWithHash,
+                msg.files
+              );
+              this.sendMessage(
+                review === null
+                  ? {
+                      command: "codeReview",
+                      repo: msg.repo,
+                      id: null,
+                      active: false,
+                      commitHash: null,
+                      compareWithHash: null,
+                      files: [],
+                      status: "Unable to start the code review."
+                    }
+                  : {
+                      command: "codeReview",
+                      repo: msg.repo,
+                      id: review.id,
+                      active: true,
+                      commitHash: review.commitHash,
+                      compareWithHash: review.compareWithHash,
+                      files: review.files,
+                      status: null
+                    }
+              );
+              break;
+            }
+            case "endCodeReview": {
+              const ended = await this.extensionState.endCodeReview(msg.repo);
+              this.sendMessage({
+                command: "codeReview",
+                repo: msg.repo,
+                id: null,
+                active: false,
+                commitHash: null,
+                compareWithHash: null,
+                files: [],
+                status: ended ? null : "No active code review."
+              });
+              break;
+            }
             case "compareCommits":
               this.sendMessage({
                 command: "compareCommits",
@@ -818,6 +865,7 @@ export class GitKeizuView {
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("codicon-overrides.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("findwidget.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("repoSettings.css")}">
+				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("codeReview.css")}">
 				<title>Git Keizu</title>
 				<style>${colorParams}</style>
 			</head>

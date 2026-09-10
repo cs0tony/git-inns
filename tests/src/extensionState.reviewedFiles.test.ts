@@ -110,9 +110,56 @@ describe("ExtensionState reviewed files", () => {
     const { state, workspaceState } = createState();
     workspaceState.update.mockRejectedValueOnce(new Error("storage unavailable"));
 
-    await expect(
-      state.setFileReviewed("/repo", COMMIT_HASH, "a.ts", true)
-    ).resolves.toBe(false);
+    await expect(state.setFileReviewed("/repo", COMMIT_HASH, "a.ts", true)).resolves.toBe(false);
     expect(state.getReviewedFiles("/repo", COMMIT_HASH)).toEqual([]);
+  });
+});
+
+describe("ExtensionState active code review", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("starts, persists, and ends a normalized review", async () => {
+    const { state } = createState();
+    await state.setFileReviewed("/repo", COMMIT_HASH, "b.ts", true);
+
+    const review = await state.startCodeReview("/repo", "review-1", COMMIT_HASH, null, [
+      "src\\b.ts",
+      "a.ts",
+      "a.ts"
+    ]);
+
+    expect(review).toEqual({
+      id: "review-1",
+      commitHash: COMMIT_HASH,
+      compareWithHash: null,
+      files: ["a.ts", "src/b.ts"],
+      startedAt: expect.any(Number)
+    });
+    expect(state.getActiveCodeReview("/repo")).toEqual(review);
+
+    await expect(state.endCodeReview("/repo")).resolves.toBe(true);
+    expect(state.getActiveCodeReview("/repo")).toBeNull();
+  });
+
+  it("rejects unsafe reviews", async () => {
+    const { state } = createState();
+
+    await expect(
+      state.startCodeReview("", "review", COMMIT_HASH, null, ["a.ts"])
+    ).resolves.toBeNull();
+    await expect(
+      state.startCodeReview("/repo", "", COMMIT_HASH, null, ["a.ts"])
+    ).resolves.toBeNull();
+    await expect(
+      state.startCodeReview("/repo", "review", "bad", null, ["a.ts"])
+    ).resolves.toBeNull();
+    await expect(
+      state.startCodeReview("/repo", "review", COMMIT_HASH, "../bad", ["a.ts"])
+    ).resolves.toBeNull();
+    await expect(
+      state.startCodeReview("/repo", "review", COMMIT_HASH, null, [])
+    ).resolves.toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import { ExtensionContext, Memento } from "vscode";
 
 import { type ResolvedPullRequestConfig, resolvePullRequestConfig } from "./pullRequest";
 import {
+  type ActiveCodeReview,
   Avatar,
   AvatarCache,
   GitRepoSet,
@@ -135,6 +136,54 @@ export class ExtensionState {
   }
 
   /* Reviewed Files */
+  public getActiveCodeReview(repo: string): ActiveCodeReview | null {
+    if (repo === "") return null;
+    return this.getRepos()[repo]?.codeReview ?? null;
+  }
+
+  public async startCodeReview(
+    repo: string,
+    id: string,
+    commitHash: string,
+    compareWithHash: string | null,
+    files: string[]
+  ): Promise<ActiveCodeReview | null> {
+    if (repo === "" || id === "" || !isValidCommitHash(commitHash)) return null;
+    if (compareWithHash !== null && !isValidCommitHash(compareWithHash)) return null;
+    const normalizedFiles = normalizeReviewedFilePaths(files);
+    if (normalizedFiles.length === 0) return null;
+
+    const review: ActiveCodeReview = {
+      id,
+      commitHash,
+      compareWithHash,
+      files: normalizedFiles,
+      startedAt: Date.now()
+    };
+    const repos = this.getRepos();
+    const state = repos[repo];
+    if (state === undefined) return null;
+    repos[repo] = { ...state, codeReview: review };
+    await this.workspaceState.update(REPO_STATES, this.normalizeRepoSet(repos));
+    return review;
+  }
+
+  public async endCodeReview(repo: string): Promise<boolean> {
+    const repos = this.getRepos();
+    const state = repos[repo];
+    if (
+      repo === "" ||
+      state === undefined ||
+      state.codeReview === undefined ||
+      state.codeReview === null
+    ) {
+      return false;
+    }
+    repos[repo] = { ...state, codeReview: null };
+    await this.workspaceState.update(REPO_STATES, this.normalizeRepoSet(repos));
+    return true;
+  }
+
   public getReviewedFiles(repo: string, commitHash: string): string[] {
     if (repo === "" || !isValidCommitHash(commitHash)) return [];
 

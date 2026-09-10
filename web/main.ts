@@ -1,4 +1,8 @@
 import { getBranchLabels } from "./branchLabels";
+import {
+  type CodeReviewFileState,
+  renderCodeReviewPanel,
+  updateCodeReviewPanel} from "./codeReviewController";
 import { buildCommitContextMenuItems } from "./commitMenu";
 import { buildSignatureChipHtml } from "./commitSignature";
 import {
@@ -1654,6 +1658,7 @@ class GitKeizuView {
     const html =
       `<td></td><td colspan="${COMMIT_DETAILS_COLSPAN}">` +
       `<div id="commitDetailsSummary">${summaryHtml}</div>` +
+      `<div id="codeReviewMount" class="code-review-mount"></div>` +
       filesSectionHtml +
       `<div id="commitDetailsClose">${svgIcons.close}</div>` +
       "</td>";
@@ -1679,6 +1684,99 @@ class GitKeizuView {
     });
     this.bindFileViewListeners();
     this.bindParentHashListeners();
+    this.renderCodeReviewPanel();
+  }
+
+  private renderCodeReviewPanel(): void {
+    const mount = document.getElementById("codeReviewMount");
+    if (
+      mount === null ||
+      this.currentRepo === null ||
+      this.expandedCommit === null ||
+      this.expandedCommit.commitDetails === null ||
+      this.expandedCommit.hash === UNCOMMITTED_CHANGES_HASH
+    ) {
+      return;
+    }
+
+    const repoState = this.gitRepos[this.currentRepo];
+    const review = repoState?.codeReview ?? null;
+    const active =
+      review !== null &&
+      review.commitHash === this.expandedCommit.hash &&
+      review.compareWithHash === this.expandedCommit.compareWithHash;
+    const filePaths =
+      review !== null && active
+        ? review.files
+        : this.expandedCommit.commitDetails.fileChanges.map(
+            (change) => change.newFilePath || change.oldFilePath
+          );
+    const reviewed = new Set(this.expandedCommit.reviewedFiles);
+    const files: CodeReviewFileState[] = filePaths.map((path) => ({
+      path,
+      reviewed: reviewed.has(path)
+    }));
+    const compareLabel =
+      this.expandedCommit.compareWithHash === null
+        ? abbrevCommit(this.expandedCommit.hash)
+        : `${abbrevCommit(this.expandedCommit.hash)} ↔ ${abbrevCommit(
+            this.expandedCommit.compareWithHash
+          )}`;
+    const callbacks = {
+      onStart: () => {
+        if (this.currentRepo === null || this.expandedCommit === null) return;
+        sendMessage({
+          command: "startCodeReview",
+          repo: this.currentRepo,
+          commitHash: this.expandedCommit.hash,
+          compareWithHash: this.expandedCommit.compareWithHash,
+          files: filePaths
+        });
+      },
+      onEnd: () => {
+        if (this.currentRepo === null) return;
+        sendMessage({ command: "endCodeReview", repo: this.currentRepo });
+      },
+      onToggleReviewed: (path: string, nextReviewed: boolean) => {
+        if (this.currentRepo === null || this.expandedCommit === null) return;
+        sendMessage({
+          command: "setFileReviewed",
+          repo: this.currentRepo,
+          commitHash: this.expandedCommit.hash,
+          filePath: path,
+          reviewed: nextReviewed
+        });
+      },
+      onFocusFile: (path: string) => {
+        const row = document.querySelector<HTMLElement>(
+          `[data-new-file-path="${encodeURIComponent(path)}"]`
+        );
+        row?.click();
+      }
+    };
+
+    if (mount.firstElementChild === null) {
+      mount.replaceChildren(renderCodeReviewPanel({ files, active, compareLabel, callbacks }));
+    } else if (mount.firstElementChild instanceof HTMLElement) {
+      updateCodeReviewPanel(mount.firstElementChild, {
+        files,
+        active,
+        compareLabel,
+        callbacks
+      });
+    }
+  }
+
+  public renderCodeReviewPanelPublic(): void {
+    this.renderCodeReviewPanel();
+  }
+
+  public updateCodeReview(repo: string, review: GG.ActiveCodeReview | null): void {
+    if (!this.isCurrentRepository(repo)) return;
+    const state = this.gitRepos[repo];
+    if (state === undefined) return;
+    this.gitRepos[repo] = { ...state, codeReview: review };
+    this.renderCodeReviewPanel();
   }
   private buildCompareSummaryHtml(compareWithHash: string): string {
     const order = this.getCommitOrder(this.expandedCommit!.hash, compareWithHash);

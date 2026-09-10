@@ -140,8 +140,16 @@ export type ContextMenuActionsVisibility = Readonly<
 export type GitRepoSet = { [repo: string]: GitRepoState };
 export type ReviewedFilesByCommit = Record<string, string[]>;
 export type ReviewedFilesByRepo = Record<string, ReviewedFilesByCommit>;
+export interface ActiveCodeReview {
+  id: string;
+  commitHash: string;
+  compareWithHash: string | null;
+  files: string[];
+  startedAt: number;
+}
 export interface GitRepoState {
   columnWidths: number[] | null;
+  codeReview?: ActiveCodeReview | null;
   commitOrdering?: RepoCommitOrdering;
   fileViewType?: "tree" | "list";
   recentActions?: RecentActionId[];
@@ -402,6 +410,28 @@ export interface RequestSetFileReviewed {
   commitHash: string;
   filePath: string;
   reviewed: boolean;
+}
+
+export interface RequestStartCodeReview {
+  command: "startCodeReview";
+  repo: string;
+  commitHash: string;
+  compareWithHash: string | null;
+  files: string[];
+}
+export interface RequestEndCodeReview {
+  command: "endCodeReview";
+  repo: string;
+}
+export interface ResponseCodeReview {
+  command: "codeReview";
+  repo: string;
+  id: string | null;
+  active: boolean;
+  commitHash: string | null;
+  compareWithHash: string | null;
+  files: string[];
+  status: GitCommandStatus;
 }
 export interface ResponseFileReviewed {
   command: "fileReviewed";
@@ -965,6 +995,8 @@ export type RequestMessage =
   | RequestResetFileToRevision
   | RequestResetUncommitted
   | RequestSetFileReviewed
+  | RequestStartCodeReview
+  | RequestEndCodeReview
   | RequestRevealWorktreeInOS
   | RequestRevertCommit
   | RequestSaveRepoState
@@ -1015,6 +1047,7 @@ export type ResponseMessage =
   | ResponseSelectRepo
   | ResponseSetShowRecentActions
   | ResponseFileReviewed
+  | ResponseCodeReview
   | ResponseRenameBranch
   | ResponseResetToCommit
   | ResponseResetFileToRevision

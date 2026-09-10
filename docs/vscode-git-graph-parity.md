@@ -42,18 +42,34 @@ fully implement yet. The most material gaps are:
 This wave delivers a useful, independently verifiable slice instead of attempting a
 risky one-shot port of all 110 reference settings:
 
-| ID | Requirement | Modern UI expectation |
-|---|---|---|
-| FE-1 | Configurable fetch with `--prune` and `--prune-tags` | The Fetch control remains one-click; advanced choices use a compact menu/dialog and persist as settings. |
-| FE-2 | Reflog-only commits and first-parent traversal | Advanced load options are read from settings without cluttering the toolbar. |
-| FE-3 | Mailmap-aware author/committer rendering | Identities remain visually identical while respecting `.mailmap`. |
-| FE-4 | Signature status and details | Signed commits get a theme-aware chip/badge with a concise accessible tooltip. |
-| FE-5 | Drop Commit | Context menu action with explicit destructive confirmation and linear-history safety checks. |
-| FE-6 | Reset selected file to a revision | File-row context action with confirmation and a modern status/result toast. |
-| FE-7 | Export commit archive | Commit context action opens a native save dialog and supports `zip`, `tar`, and `tar.gz`. |
-| FE-8 | Repository settings foundation | A modern panel/card can list remotes and expose issue-link settings; implementation can be staged. |
-| FE-9 | Code review foundation | File rows support reviewed-state tracking and persistence. |
-| FE-10 | Accessibility pass | New controls expose names/roles, support focus, and honour reduced motion. |
+| ID    | Requirement                                          | Modern UI expectation                                                                                    |
+| ----- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| FE-1  | Configurable fetch with `--prune` and `--prune-tags` | The Fetch control remains one-click; advanced choices use a compact menu/dialog and persist as settings. |
+| FE-2  | Reflog-only commits and first-parent traversal       | Advanced load options are read from settings without cluttering the toolbar.                             |
+| FE-3  | Mailmap-aware author/committer rendering             | Identities remain visually identical while respecting `.mailmap`.                                        |
+| FE-4  | Signature status and details                         | Signed commits get a theme-aware chip/badge with a concise accessible tooltip.                           |
+| FE-5  | Drop Commit                                          | Context menu action with explicit destructive confirmation and linear-history safety checks.             |
+| FE-6  | Reset selected file to a revision                    | File-row context action with confirmation and a modern status/result toast.                              |
+| FE-7  | Export commit archive                                | Commit context action opens a native save dialog and supports `zip`, `tar`, and `tar.gz`.                |
+| FE-8  | Repository settings foundation                       | A modern panel/card can list remotes and expose issue-link settings; implementation can be staged.       |
+| FE-9  | Code review foundation                               | File rows support reviewed-state tracking and persistence.                                               |
+| FE-10 | Accessibility pass                                   | New controls expose names/roles, support focus, and honour reduced motion.                               |
+
+## Modernization wave 2
+
+The second wave closes four high-value reference features while preserving the
+existing `git-keizu.*` settings namespace:
+
+| ID    | Requirement                       | Delivered experience                                                                                                                                           |
+| ----- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FE-11 | Pull Request provider integration | Repository settings detect GitHub, GitLab, and Bitbucket remotes, support custom host/template providers, and branch menus can open the matching Pull Request. |
+| FE-12 | Repository configuration sharing  | Settings cards provide native export/import flows with canonical JSON and validated inputs.                                                                    |
+| FE-13 | Code Review lifecycle             | Commit Details gains a review progress panel, reviewed-file toggles, and persisted start/resume/end state.                                                     |
+| FE-14 | Tag details                       | Tag context menus open a modern accessible dialog; annotated tags expose tagger, date, and message, while lightweight tags are classified explicitly.          |
+
+This wave was split into independently tested backend/UI modules and then
+integrated with the protocol, host dispatch, persistence, settings, context
+menus, styling, and localization layers.
 
 ## Deliberate compatibility rule
 
@@ -70,3 +86,15 @@ backwards compatible.
 - **T3 — action modernization:** Drop Commit, Reset File, and Export Archive dialogs.
 - **T4 — repository settings:** remote and issue-link settings panel skeleton.
 - **T5 — accessibility/QA:** ARIA, focus, reduced motion, tests, typecheck, and lint.
+- **T6 — Pull Requests:** provider URL resolution, repository settings, and branch menu integration.
+- **T7 — configuration sharing:** canonical export parsing, native dialogs, and settings actions.
+- **T8 — code review:** standalone panel controller, lifecycle state, and Commit Details integration.
+- **T9 — tag details:** Git object parsing, context menu dispatch, and dialog rendering.
+
+## Remaining follow-up opportunities
+
+- Infer and validate Pull Request destination/base branches more deeply.
+- Mark review files as reviewed automatically when they are opened.
+- Continue parity for file encoding, markdown/emoji rendering, column visibility,
+  user details, external diff tools, and workspace review commands.
+- Add visual/manual QA coverage for the new settings, review, and tag dialogs.

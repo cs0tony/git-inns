@@ -75,6 +75,7 @@ describe("Config fallback defaults vs package.json", () => {
         (c) => c.sourceCodeProviderIntegrationLocation()
       ],
       ["TC-055", "repository.commits.order", (c) => c.commitOrdering()],
+      ["TC-055a", "commitBodyRendering", (c) => c.commitBodyRendering()],
       ["TC-056", "repository.commits.mute.mergeCommits", (c) => c.muteCommitsMergeCommits()],
       [
         "TC-057",
@@ -246,6 +247,17 @@ describe("package.json contributes.configuration schema", () => {
     const schema = getPackageProperty("loadMoreCommits");
     // Then: minimum is 1
     expect(schema?.minimum).toBe(1);
+  });
+
+  it("TC-001a: commitBodyRendering is a plain/rich enum that defaults to plain", () => {
+    // Given: the package schema for the renderer setting
+    const schema = getPackageProperty("commitBodyRendering");
+
+    // Then: backward compatibility is explicit and the enum matches the formatter
+    expect(schema).toBeDefined();
+    expect(schema?.type).toBe("string");
+    expect(schema?.enum).toEqual(["plain", "rich"]);
+    expect(schema?.default).toBe("plain");
   });
 
   it("customBranchGlobPatterns is a required name/glob object array", () => {

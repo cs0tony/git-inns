@@ -35,6 +35,10 @@ const mocks = vi.hoisted(() => ({
   getUncommittedDetails: vi.fn(),
   resolveRefToHash: vi.fn(),
   reveal: vi.fn(),
+  showErrorMessage: vi.fn(),
+  showInformationMessage: vi.fn(),
+  showQuickPick: vi.fn(),
+  showWarningMessage: vi.fn(),
   panelDisposeHandler: null as (() => void) | null,
   panelViewStateHandler: null as (() => void) | null,
   messageHandler: { current: null as ((msg: unknown) => Promise<void>) | null }
@@ -64,7 +68,11 @@ vi.mock("vscode", () => ({
       dispose: vi.fn()
     })),
     activeTextEditor: undefined,
-    createTerminal: mocks.createTerminal
+    createTerminal: mocks.createTerminal,
+    showErrorMessage: mocks.showErrorMessage,
+    showInformationMessage: mocks.showInformationMessage,
+    showQuickPick: mocks.showQuickPick,
+    showWarningMessage: mocks.showWarningMessage
   },
   Uri: {
     file: vi.fn((p: string) => ({ fsPath: p, toString: () => p }))
@@ -74,7 +82,8 @@ vi.mock("vscode", () => ({
 }));
 
 vi.mock("node:crypto", () => ({
-  randomBytes: vi.fn(() => ({ toString: () => "test-nonce" }))
+  randomBytes: vi.fn(() => ({ toString: () => "test-nonce" })),
+  randomUUID: vi.fn(() => "generated-review-id")
 }));
 
 vi.mock("../../src/config", () => ({
@@ -99,6 +108,7 @@ vi.mock("../../src/config", () => ({
     keyboardShortcutScrollToStash: () => "s",
     loadMoreCommits: () => 100,
     loadMoreCommitsAutomatically: () => true,
+    commitBodyRendering: () => "plain",
     muteCommitsMergeCommits: () => true,
     muteCommitsNotAncestorsOfHead: () => false,
     commitOrdering: () => "date",
@@ -163,6 +173,7 @@ import type { DataSource } from "../../src/dataSource";
 import type { ExtensionState } from "../../src/extensionState";
 import { GitKeizuView } from "../../src/gitGraphView";
 import type { RepoManager } from "../../src/repoManager";
+import type { ActiveCodeReview } from "../../src/types";
 import { UNCOMMITTED_CHANGES_HASH } from "../../src/types";
 
 const TEST_REPO = "/test/repo";
@@ -4533,5 +4544,244 @@ describe("GitKeizuView reviewed-file message routing", () => {
     const response = sentMessages("fileReviewed")[0] as { status: string };
     expect(response.status).not.toBe("");
     expect(mocks.getCommits).not.toHaveBeenCalled();
+  });
+});
+
+describe("GitKeizuView workspace review lifecycle", () => {
+  const REVIEW: ActiveCodeReview = {
+    id: "review-1",
+    commitHash: "abcdef123456",
+    compareWithHash: null,
+    files: ["a.ts"],
+    startedAt: 1
+  };
+
+  afterEach(() => {
+    GitKeizuView.currentPanel?.dispose();
+    GitKeizuView.currentPanel = undefined;
+  });
+
+  function createDeps(options: {
+    activeReviews?: Record<string, ActiveCodeReview>;
+    repos?: Record<string, unknown>;
+  }) {
+    const activeReviews = options.activeReviews ?? {};
+    mocks.getRepos.mockReturnValue(options.repos ?? { [TEST_REPO]: "Test Repo" });
+    const setLastActiveRepo = vi.fn();
+    const extensionState = {
+      getActiveCodeReview: vi.fn((repo: string) => activeReviews[repo] ?? null),
+      getActiveCodeReviews: vi.fn(() => activeReviews),
+      endCodeReview: vi.fn().mockResolvedValue(true),
+      endAllCodeReviews: vi.fn().mockResolvedValue(Object.keys(activeReviews).length),
+      getLastActiveRepo: vi.fn(() => TEST_REPO),
+      isAvatarStorageAvailable: vi.fn(() => false),
+      setLastActiveRepo,
+      startCodeReview: vi.fn().mockResolvedValue(REVIEW),
+      waitForAvatarStorage: vi.fn().mockResolvedValue(undefined)
+    } as unknown as ExtensionState;
+    const dataSource = {} as DataSource;
+    const avatarManager = {
+      registerView: vi.fn(),
+      deregisterView: vi.fn()
+    } as unknown as AvatarManager;
+    const repoManager = {
+      getRepos: mocks.getRepos,
+      registerViewCallback: vi.fn(),
+      deregisterViewCallback: vi.fn(),
+      setRepoState: vi.fn()
+    } as unknown as RepoManager;
+
+    return { avatarManager, dataSource, extensionState, repoManager, setLastActiveRepo };
+  }
+
+  function createPanel(deps: ReturnType<typeof createDeps>) {
+    GitKeizuView.createOrShow(
+      "/test/extension",
+      deps.dataSource,
+      deps.extensionState,
+      deps.avatarManager,
+      deps.repoManager
+    );
+    mocks.postMessage.mockClear();
+  }
+
+  it("refreshes enablement from reviews that still exist in the repository set", async () => {
+    const deps = createDeps({ activeReviews: { [TEST_REPO]: REVIEW, "/gone": REVIEW } });
+
+    await GitKeizuView.refreshActiveReviewCommandEnablement(
+      deps.extensionState,
+      deps.repoManager
+    );
+
+    expect(mocks.executeCommand).toHaveBeenCalledWith(
+      "setContext",
+      "git-keizu.hasActiveReviews",
+      true
+    );
+  });
+
+  it("reports zero reviews without opening a graph", async () => {
+    const deps = createDeps({});
+    mocks.showInformationMessage.mockResolvedValue(undefined);
+
+    await GitKeizuView.resumeActiveReview(
+      "/test/extension",
+      deps.dataSource,
+      deps.extensionState,
+      deps.avatarManager,
+      deps.repoManager
+    );
+
+    expect(mocks.showInformationMessage).toHaveBeenCalledWith("There are no active code reviews.");
+    expect(GitKeizuView.currentPanel).toBeUndefined();
+  });
+
+  it("opens the sole active review without a picker and restores repository context", async () => {
+    const deps = createDeps({ activeReviews: { [TEST_REPO]: REVIEW } });
+
+    await GitKeizuView.resumeActiveReview(
+      "/test/extension",
+      deps.dataSource,
+      deps.extensionState,
+      deps.avatarManager,
+      deps.repoManager
+    );
+
+    expect(GitKeizuView.currentPanel).toBeDefined();
+    expect(deps.setLastActiveRepo).toHaveBeenCalledWith(TEST_REPO);
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      command: "selectRepo",
+      repo: TEST_REPO
+    });
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      command: "codeReview",
+      repo: TEST_REPO,
+      id: REVIEW.id,
+      active: true,
+      commitHash: REVIEW.commitHash,
+      compareWithHash: null,
+      files: ["a.ts"],
+      status: null
+    });
+  });
+
+  it("uses an explicit choice when several repositories have active reviews", async () => {
+    const secondRepo = "/zzz/repo";
+    const deps = createDeps({
+      activeReviews: { [TEST_REPO]: REVIEW, [secondRepo]: REVIEW },
+      repos: { [TEST_REPO]: "Test Repo", [secondRepo]: "Other Repo" }
+    });
+    createPanel(deps);
+    mocks.showQuickPick.mockImplementation(async (items: { reviewIndex: number }[]) => items[1]);
+
+    await GitKeizuView.resumeActiveReview(
+      "/test/extension",
+      deps.dataSource,
+      deps.extensionState,
+      deps.avatarManager,
+      deps.repoManager
+    );
+
+    expect(mocks.showQuickPick).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ placeHolder: "Select the active code review to resume:" })
+    );
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      command: "codeReview",
+      repo: secondRepo,
+      id: REVIEW.id,
+      active: true,
+      commitHash: REVIEW.commitHash,
+      compareWithHash: null,
+      files: ["a.ts"],
+      status: null
+    });
+  });
+
+  it("ends a sole selected review and immediately refreshes its open webview", async () => {
+    const deps = createDeps({ activeReviews: { [TEST_REPO]: REVIEW } });
+    createPanel(deps);
+    mocks.showInformationMessage.mockResolvedValue(undefined);
+
+    await GitKeizuView.endActiveReview(deps.extensionState, deps.repoManager);
+
+    expect(deps.extensionState.endCodeReview).toHaveBeenCalledWith(TEST_REPO);
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      command: "codeReview",
+      repo: TEST_REPO,
+      id: null,
+      active: false,
+      commitHash: null,
+      compareWithHash: null,
+      files: [],
+      status: null
+    });
+  });
+
+  it("requires confirmation before ending all reviews", async () => {
+    const deps = createDeps({ activeReviews: { [TEST_REPO]: REVIEW } });
+    createPanel(deps);
+    mocks.showWarningMessage.mockResolvedValue(undefined);
+
+    await GitKeizuView.endAllReviews(deps.extensionState, deps.repoManager);
+
+    expect(mocks.showWarningMessage).toHaveBeenCalledWith(
+      "End the active code review?",
+      { modal: true },
+      "End All Reviews"
+    );
+    expect(deps.extensionState.endAllCodeReviews).not.toHaveBeenCalled();
+  });
+
+  it("ends all confirmed reviews and updates the current repository webview", async () => {
+    const deps = createDeps({ activeReviews: { [TEST_REPO]: REVIEW } });
+    createPanel(deps);
+    mocks.showInformationMessage.mockResolvedValue(undefined);
+    mocks.showWarningMessage.mockResolvedValue("End All Reviews");
+
+    await GitKeizuView.endAllReviews(deps.extensionState, deps.repoManager);
+
+    expect(deps.extensionState.endAllCodeReviews).toHaveBeenCalledTimes(1);
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      command: "codeReview",
+      repo: TEST_REPO,
+      id: null,
+      active: false,
+      commitHash: null,
+      compareWithHash: null,
+      files: [],
+      status: null
+    });
+  });
+
+  it("sends normalized codeReview responses after webview start and end requests", async () => {
+    const deps = createDeps({ activeReviews: {} });
+    createPanel(deps);
+
+    await mocks.messageHandler.current!({
+      command: "startCodeReview",
+      repo: TEST_REPO,
+      commitHash: REVIEW.commitHash,
+      compareWithHash: null,
+      files: ["a.ts", "a.ts"]
+    });
+    await mocks.messageHandler.current!({ command: "endCodeReview", repo: TEST_REPO });
+
+    expect(deps.extensionState.startCodeReview).toHaveBeenCalledWith(
+      TEST_REPO,
+      "generated-review-id",
+      REVIEW.commitHash,
+      null,
+      ["a.ts", "a.ts"]
+    );
+    const reviews = sentMessages("codeReview");
+    expect(reviews).toHaveLength(2);
+    expect(reviews[0]).toMatchObject({ active: true, id: REVIEW.id });
+    expect(reviews[1]).toMatchObject({ active: false, id: null, status: null });
+    expect(mocks.executeCommand).toHaveBeenCalledWith(
+      "setContext",
+      "git-keizu.hasActiveReviews",
+      false
+    );
   });
 });

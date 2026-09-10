@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import {
+  CommitBodyRendering,
   CommitOrdering,
   ContextMenuActionId,
   ContextMenuActionsVisibility,
@@ -17,6 +18,12 @@ const KEYBINDING_PATTERN = /^CTRL\/CMD \+ [A-Z]$/;
 const UNASSIGNED = "UNASSIGNED";
 
 export const MIN_COMMIT_LOAD_COUNT = 1;
+
+const COMMIT_BODY_RENDERING_VALUES: readonly CommitBodyRendering[] = ["plain", "rich"];
+
+export function normalizeCommitBodyRendering(value: unknown): CommitBodyRendering {
+  return COMMIT_BODY_RENDERING_VALUES.find((candidate) => candidate === value) ?? "plain";
+}
 
 export function normalizeCommitLoadCount(value: number, defaultValue: number): number {
   const count = Number.isFinite(value) ? value : defaultValue;
@@ -332,6 +339,12 @@ class Config {
 
   public commitOrdering(): CommitOrdering {
     return this.workspaceConfiguration.get("repository.commits.order", "date");
+  }
+
+  public commitBodyRendering(): CommitBodyRendering {
+    return normalizeCommitBodyRendering(
+      this.workspaceConfiguration.get<unknown>("commitBodyRendering", "plain")
+    );
   }
 
   public customBranchGlobPatterns(): CustomBranchGlobPattern[] {

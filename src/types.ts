@@ -148,9 +148,11 @@ export interface ActiveCodeReview {
   files: string[];
   startedAt: number;
 }
+export type ActiveCodeReviewByRepo = Record<string, ActiveCodeReview>;
 export interface GitRepoState {
   columnWidths: number[] | null;
   codeReview?: ActiveCodeReview | null;
+  columnVisibility?: ColumnVisibility;
   commitOrdering?: RepoCommitOrdering;
   fileViewType?: "tree" | "list";
   recentActions?: RecentActionId[];
@@ -195,6 +197,7 @@ export interface DialogDefaults {
 }
 
 export interface GitKeizuViewState {
+  commitBodyRendering?: CommitBodyRendering;
   commitOrdering: CommitOrdering;
   contextMenuActionsVisibility: ContextMenuActionsVisibility;
   customBranchGlobPatterns: CustomBranchGlobPattern[];
@@ -255,6 +258,14 @@ export interface WorktreeCollection {
 
 export type CommitOrdering = "date" | "topo" | "author-date";
 export type RepoCommitOrdering = CommitOrdering | "default";
+export type CommitBodyRendering = "plain" | "rich";
+
+export interface ColumnVisibility {
+  readonly graph: true;
+  readonly author: boolean;
+  readonly date: boolean;
+  readonly commit: boolean;
+}
 export type ArchiveFormat = "zip" | "tar" | "tar.gz";
 export type GitResetMode = "soft" | "mixed" | "hard";
 export type GitFileChangeType = "A" | "M" | "D" | "R";

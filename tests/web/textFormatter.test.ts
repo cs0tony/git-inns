@@ -185,6 +185,21 @@ describe("formatCommitBody: emoji", () => {
   });
 });
 
+describe("formatCommitBody: controlled host text rendering", () => {
+  it("lets a host renderer add safe issue links while preserving Markdown structure", () => {
+    const html = formatCommitBody("**Fix** `#42`", {
+      mode: "rich",
+      textRenderer: (value) =>
+        value.replace("#42", '<a href="https://example.test/issues/42">#42</a>')
+    });
+
+    expect(html).toBe(
+      '<p class="commit-body-paragraph"><strong class="commit-body-bold">Fix</strong> ' +
+        '<code class="commit-body-inline-code"><a href="https://example.test/issues/42">#42</a></code></p>'
+    );
+  });
+});
+
 describe("formatCommitBody: end-to-end safety", () => {
   it("produces only supported semantic elements", () => {
     const body = [

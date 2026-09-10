@@ -105,12 +105,20 @@ const mocks = vi.hoisted(() => {
   );
   const createOrShow = vi.fn();
   const notifyShowRecentActionsChanged = vi.fn();
+  const refreshActiveReviewCommandEnablement = vi.fn();
+  const resumeActiveReview = vi.fn();
+  const endActiveReview = vi.fn();
+  const endAllReviews = vi.fn();
   const gitKeizuViewModule = {
     GitKeizuView: {
       createOrShow,
       currentPanel: undefined as
         | { notifyShowRecentActionsChanged: typeof notifyShowRecentActionsChanged }
-        | undefined
+        | undefined,
+      refreshActiveReviewCommandEnablement,
+      resumeActiveReview,
+      endActiveReview,
+      endAllReviews
     }
   };
   const ExtensionStateMock = vi.fn(function (
@@ -238,6 +246,9 @@ const OUTPUT_CHANNEL_NAME = "Git Keizu";
 const ACTIVATION_SUCCESS_MESSAGE = "Extension activated successfully";
 const VIEW_COMMAND = "git-keizu.view";
 const CLEAR_AVATAR_CACHE_COMMAND = "git-keizu.clearAvatarCache";
+const RESUME_ACTIVE_REVIEW_COMMAND = "git-keizu.resumeActiveReview";
+const END_ACTIVE_REVIEW_COMMAND = "git-keizu.endActiveReview";
+const END_ALL_REVIEWS_COMMAND = "git-keizu.endAllReviews";
 const SHOW_STATUS_BAR_ITEM_SETTING = "git-keizu.showStatusBarItem";
 const DATE_TYPE_SETTING = "git-keizu.dateType";
 const MAX_DEPTH_OF_REPO_SEARCH_SETTING = "git-keizu.maxDepthOfRepoSearch";
@@ -258,6 +269,7 @@ const MICROTASK_FLUSH_ROUNDS = 5;
 const ZERO_CALLS = 0;
 const ONE_CALL = 1;
 const TWO_COMMANDS = 2;
+const FIVE_COMMANDS = 5;
 
 function createMockContext(
   pushMock = vi.fn(() => DEFAULT_SUBSCRIPTION_PUSH_RESULT)
@@ -393,6 +405,10 @@ function invokeClearAvatarCacheCommand(): void {
   handler();
 }
 
+async function invokeReviewCommand(command: string, arg?: unknown): Promise<void> {
+  await getRegisteredCommandHandler(command)(arg);
+}
+
 function resetMockState(): void {
   vi.clearAllMocks();
   mocks.commandHandlers.clear();
@@ -520,7 +536,7 @@ describe("extension", () => {
           mocks.extensionStateInstance,
           mocks.statusBarItemInstance
         );
-        expect(mocks.registerCommand).toHaveBeenCalledTimes(TWO_COMMANDS);
+        expect(mocks.registerCommand).toHaveBeenCalledTimes(FIVE_COMMANDS);
         expect(mocks.registerCommand).toHaveBeenNthCalledWith(
           ONE_CALL,
           VIEW_COMMAND,
@@ -530,6 +546,27 @@ describe("extension", () => {
           TWO_COMMANDS,
           CLEAR_AVATAR_CACHE_COMMAND,
           expect.any(Function)
+        );
+        expect(mocks.registerCommand).toHaveBeenNthCalledWith(
+          3,
+          RESUME_ACTIVE_REVIEW_COMMAND,
+          expect.any(Function)
+        );
+        expect(mocks.registerCommand).toHaveBeenNthCalledWith(
+          4,
+          END_ACTIVE_REVIEW_COMMAND,
+          expect.any(Function)
+        );
+        expect(mocks.registerCommand).toHaveBeenNthCalledWith(
+          5,
+          END_ALL_REVIEWS_COMMAND,
+          expect.any(Function)
+        );
+        expect(
+          mocks.gitKeizuViewModule.GitKeizuView.refreshActiveReviewCommandEnablement
+        ).toHaveBeenCalledWith(
+          mocks.extensionStateInstance,
+          mocks.repoManagerInstance
         );
         expect(mocks.diffDocProviderConstruct).toHaveBeenCalledTimes(ONE_CALL);
         expect(mocks.diffDocProviderConstruct).toHaveBeenCalledWith(mocks.dataSourceInstance);
@@ -545,6 +582,9 @@ describe("extension", () => {
           mocks.outputChannel,
           getCommandDisposable(VIEW_COMMAND),
           getCommandDisposable(CLEAR_AVATAR_CACHE_COMMAND),
+          getCommandDisposable(RESUME_ACTIVE_REVIEW_COMMAND),
+          getCommandDisposable(END_ACTIVE_REVIEW_COMMAND),
+          getCommandDisposable(END_ALL_REVIEWS_COMMAND),
           getDiffDocProviderInstance(),
           getTextDocumentDisposable(),
           getConfigurationDisposable(),
@@ -605,7 +645,7 @@ describe("extension", () => {
         await expectRejectedError(activate(toExtensionContext(context)), PUSH_FAILED_MESSAGE);
 
         // Then: the same Error and message are propagated and the activation log is never written
-        expect(mocks.registerCommand).toHaveBeenCalledTimes(TWO_COMMANDS);
+        expect(mocks.registerCommand).toHaveBeenCalledTimes(FIVE_COMMANDS);
         expect(mocks.registerTextDocumentContentProvider).toHaveBeenCalledTimes(ONE_CALL);
         expect(mocks.onDidChangeConfiguration).toHaveBeenCalledTimes(ONE_CALL);
         expect(pushMock).toHaveBeenCalledTimes(ONE_CALL);
@@ -877,6 +917,57 @@ describe("extension", () => {
     });
 
     describe("configuration change routing", () => {
+      describe("workspace review lifecycle commands", () => {
+        it("dispatches resume with the full view dependencies and command argument", async () => {
+          await activateExtension();
+          const arg = vscode.Uri.file(DEFAULT_REPO_PATH);
+
+          await invokeReviewCommand(RESUME_ACTIVE_REVIEW_COMMAND, arg);
+
+          expect(mocks.gitKeizuViewModule.GitKeizuView.resumeActiveReview).toHaveBeenCalledTimes(
+            ONE_CALL
+          );
+          expect(mocks.gitKeizuViewModule.GitKeizuView.resumeActiveReview).toHaveBeenCalledWith(
+            DEFAULT_EXTENSION_PATH,
+            mocks.dataSourceInstance,
+            mocks.extensionStateInstance,
+            mocks.avatarManagerInstance,
+            mocks.repoManagerInstance,
+            arg
+          );
+        });
+
+        it("dispatches end-active with repository state dependencies", async () => {
+          await activateExtension();
+          const arg = { rootUri: vscode.Uri.file(DEFAULT_REPO_PATH) };
+
+          await invokeReviewCommand(END_ACTIVE_REVIEW_COMMAND, arg);
+
+          expect(mocks.gitKeizuViewModule.GitKeizuView.endActiveReview).toHaveBeenCalledTimes(
+            ONE_CALL
+          );
+          expect(mocks.gitKeizuViewModule.GitKeizuView.endActiveReview).toHaveBeenCalledWith(
+            mocks.extensionStateInstance,
+            mocks.repoManagerInstance,
+            arg
+          );
+        });
+
+        it("dispatches end-all with repository state dependencies", async () => {
+          await activateExtension();
+
+          await invokeReviewCommand(END_ALL_REVIEWS_COMMAND);
+
+          expect(mocks.gitKeizuViewModule.GitKeizuView.endAllReviews).toHaveBeenCalledTimes(
+            ONE_CALL
+          );
+          expect(mocks.gitKeizuViewModule.GitKeizuView.endAllReviews).toHaveBeenCalledWith(
+            mocks.extensionStateInstance,
+            mocks.repoManagerInstance
+          );
+        });
+      });
+
       it("TC-024: refreshes the status bar item when only showStatusBarItem changes", async () => {
         // Case: TC-024
         // Given: activate registers the configuration listener and only showStatusBarItem matches

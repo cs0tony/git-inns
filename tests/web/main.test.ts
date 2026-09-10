@@ -5180,6 +5180,32 @@ function setupViewStateWithOrdering(globalOrdering: string, repoOrdering?: strin
   };
 }
 
+function setupViewStateWithCommitBody(rendering: "plain" | "rich"): void {
+  (globalThis as Record<string, unknown>).viewState = {
+    repos: { [TEST_REPO]: { columnWidths: null } },
+    lastActiveRepo: TEST_REPO,
+    commitOrdering: "date",
+    commitBodyRendering: rendering,
+    dateFormat: "Date & Time",
+    customBranchGlobPatterns: [],
+    fetchAvatars: false,
+    graphColours: ["#0085d9"],
+    graphStyle: "rounded",
+    initialLoadCommits: 300,
+    keybindings: { find: "f", refresh: "r", scrollToHead: "h", scrollToStash: "s" },
+    loadMoreCommits: 100,
+    loadMoreCommitsAutomatically: true,
+    showCurrentBranchByDefault: false,
+    dialogDefaults: {
+      merge: { noFastForward: true, squashCommits: false, noCommit: false },
+      cherryPick: { recordOrigin: false, noCommit: false },
+      stashUncommittedChanges: { includeUntracked: false },
+      createWorktree: { openTerminal: true },
+      removeWorktree: { deleteBranch: true }
+    }
+  };
+}
+
 function getLoadCommitsMessages(
   mockPostMessage: ReturnType<typeof vi.fn>
 ): Record<string, unknown>[] {
@@ -5302,7 +5328,6 @@ describe("Commit ordering effective sort order (S34)", () => {
 
 describe("Commit ordering context menu (S34)", () => {
   let freshVscode: typeof vscode;
-  let freshShowContextMenu: typeof showContextMenu;
 
   beforeAll(async () => {
     vi.resetModules();
@@ -5313,9 +5338,6 @@ describe("Commit ordering context menu (S34)", () => {
     const utilsMod = await import("../../web/utils");
     freshVscode = utilsMod.vscode;
     vi.mocked(freshVscode.getState).mockReturnValueOnce(null);
-
-    const ctxMod = await import("../../web/contextMenu");
-    freshShowContextMenu = ctxMod.showContextMenu;
 
     await import("../../web/main");
     loadTestCommits();
@@ -5330,25 +5352,29 @@ describe("Commit ordering context menu (S34)", () => {
       moreCommitsAvailable: false,
       hard: false
     });
-    vi.mocked(freshShowContextMenu).mockClear();
     vi.mocked(freshVscode.postMessage).mockClear();
   });
 
+  function openHeaderMenu(): void {
+    document
+      .getElementById("tableColHeaders")!
+      .dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX: 100, clientY: 50 })
+      );
+  }
+
+  function menuItems(): NodeListOf<HTMLLIElement> {
+    return document.querySelectorAll<HTMLLIElement>(".columnVisibilityMenu [role^='menuitem']");
+  }
+
   it('shows "Default", "Date", "Author Date", "Topological" menu items on table header right-click (TC-190)', () => {
-    // Given: table headers are rendered
-    const colHeaders = document.getElementById("tableColHeaders");
-    expect(colHeaders).not.toBeNull();
-
     // When: right-click on table headers
-    colHeaders!.dispatchEvent(
-      new MouseEvent("contextmenu", { bubbles: true, clientX: 100, clientY: 50 })
-    );
+    openHeaderMenu();
 
-    // Then: showContextMenu is called with 4 items
-    expect(freshShowContextMenu).toHaveBeenCalledTimes(1);
-    const items = vi.mocked(freshShowContextMenu).mock.calls[0][1];
-    expect(items).toHaveLength(4);
-    const titles = items.map((item) => item!.title);
+    // Then: the combined menu has four ordering actions and three column toggles
+    const items = menuItems();
+    expect(items).toHaveLength(7);
+    const titles = Array.from(items, (item) => item.textContent);
     expect(titles.some((t) => t.includes("Default"))).toBe(true);
     expect(titles.some((t) => t.includes("Date") && !t.includes("Author"))).toBe(true);
     expect(titles.some((t) => t.includes("Author Date"))).toBe(true);
@@ -5357,32 +5383,23 @@ describe("Commit ordering context menu (S34)", () => {
 
   it('shows checkmark on "Topological" when effective ordering is "topo" (TC-191)', () => {
     // Given: effective ordering is "topo" (repo override from beforeAll)
-    const colHeaders = document.getElementById("tableColHeaders")!;
-
     // When: right-click on table headers
-    colHeaders.dispatchEvent(
-      new MouseEvent("contextmenu", { bubbles: true, clientX: 100, clientY: 50 })
-    );
+    openHeaderMenu();
 
-    // Then: "Topological" has checkmark prefix, others don't
-    const items = vi.mocked(freshShowContextMenu).mock.calls[0][1];
-    expect(items[0]!.title).toBe("Default");
-    expect(items[1]!.title).toBe("Date");
-    expect(items[2]!.title).toBe("Author Date");
-    expect(items[3]!.title).toBe("\u2713 Topological");
+    // Then: ordering state is exposed through ARIA radio state
+    expect(document.querySelector('[data-option-id="ordering-default"]')!.getAttribute("aria-checked")).toBe("false");
+    expect(document.querySelector('[data-option-id="ordering-date"]')!.getAttribute("aria-checked")).toBe("false");
+    expect(document.querySelector('[data-option-id="ordering-author-date"]')!.getAttribute("aria-checked")).toBe("false");
+    expect(document.querySelector('[data-option-id="ordering-topo"]')!.getAttribute("aria-checked")).toBe("true");
   });
 
   it('updates repoState and sends saveRepoState when "Author Date" is selected (TC-192)', () => {
     // Given: context menu is shown
-    const colHeaders = document.getElementById("tableColHeaders")!;
-    colHeaders.dispatchEvent(
-      new MouseEvent("contextmenu", { bubbles: true, clientX: 100, clientY: 50 })
-    );
-    const items = vi.mocked(freshShowContextMenu).mock.calls[0][1];
+    openHeaderMenu();
     vi.mocked(freshVscode.postMessage).mockClear();
 
     // When: "Author Date" is clicked
-    items[2]!.onClick();
+    document.querySelector<HTMLLIElement>('[data-option-id="ordering-author-date"]')!.click();
 
     // Then: saveRepoState message is sent with commitOrdering="author-date"
     const saveStateCalls = vi
@@ -5400,15 +5417,11 @@ describe("Commit ordering context menu (S34)", () => {
 
   it("calls requestLoadCommits with hard refresh when sort order is selected (TC-193)", () => {
     // Given: context menu is shown
-    const colHeaders = document.getElementById("tableColHeaders")!;
-    colHeaders.dispatchEvent(
-      new MouseEvent("contextmenu", { bubbles: true, clientX: 100, clientY: 50 })
-    );
-    const items = vi.mocked(freshShowContextMenu).mock.calls[0][1];
+    openHeaderMenu();
     vi.mocked(freshVscode.postMessage).mockClear();
 
     // When: "Date" is clicked
-    items[1]!.onClick();
+    document.querySelector<HTMLLIElement>('[data-option-id="ordering-date"]')!.click();
 
     // Then: loadCommits message is sent with hard=true
     const loadCommitsCalls = vi
@@ -5416,6 +5429,73 @@ describe("Commit ordering context menu (S34)", () => {
       .mock.calls.filter((call) => (call[0] as Record<string, unknown>).command === "loadCommits");
     expect(loadCommitsCalls.length).toBeGreaterThan(0);
     expect((loadCommitsCalls[0][0] as Record<string, unknown>).hard).toBe(true);
+  });
+});
+
+describe("Commit body rendering mode", () => {
+  it("keeps escaped single-line rendering by default", async () => {
+    vi.resetModules();
+    dropdownCallCount = 0;
+    setupTestDOM();
+    setupViewState();
+
+    const { vscode: freshVscode } = await import("../../web/utils");
+    vi.mocked(freshVscode.getState).mockReturnValueOnce(null);
+    await import("../../web/main");
+    loadTestCommits();
+
+    clickCommit(COMMIT_HASH_1);
+    dispatchMessage({
+      command: "commitDetails",
+      commitDetails: {
+        ...makeCommitDetails(COMMIT_HASH_1),
+        body: "First\n<b>Second</b>"
+      }
+    });
+
+    expect(document.querySelector("#commitDetailsSummary .commitBodyRich")).toBeNull();
+    expect(document.querySelector("#commitDetailsSummary")?.innerHTML).toContain(
+      "&lt;b&gt;Second&lt;/b&gt;"
+    );
+  });
+
+  it("renders controlled Markdown and issue links without collapsing lines in rich mode", async () => {
+    vi.resetModules();
+    dropdownCallCount = 0;
+    setupTestDOM();
+    setupViewStateWithCommitBody("rich");
+
+    const { vscode: freshVscode } = await import("../../web/utils");
+    vi.mocked(freshVscode.getState).mockReturnValueOnce(null);
+    await import("../../web/main");
+    loadTestCommits();
+    dispatchMessage({
+      command: "repositorySettings",
+      repo: TEST_REPO,
+      data: makeRepositorySettings(TEST_REPO, {
+        enabled: true,
+        regex: "#(\\d+)",
+        urlTemplate: "https://example.test/issues/{0}"
+      })
+    });
+
+    clickCommit(COMMIT_HASH_1);
+    dispatchMessage({
+      command: "commitDetails",
+      commitDetails: {
+        ...makeCommitDetails(COMMIT_HASH_1),
+        body: "**Fix** #42\nRelated: <script>alert(1)</script>"
+      }
+    });
+
+    const richBody = document.querySelector("#commitDetailsSummary .commitBodyRich");
+    expect(richBody).not.toBeNull();
+    expect(
+      richBody?.querySelector("a[href='https://example.test/issues/42']")
+    ).not.toBeNull();
+    expect(richBody?.querySelector("strong.commit-body-bold")?.textContent).toBe("Fix");
+    expect(richBody?.innerHTML).toContain("<br>Related: ");
+    expect(richBody?.innerHTML).not.toContain("<script>");
   });
 });
 

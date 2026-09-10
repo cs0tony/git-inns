@@ -6,10 +6,12 @@ export interface CommitBodyFormatOptions {
   mode?: CommitBodyFormatMode;
   emoji?: boolean;
   customEmoji?: EmojiMappingInput;
+  textRenderer?: (value: string) => string;
 }
 
 interface TokenOptions {
   emojiMappings?: ReadonlyMap<string, string>;
+  textRenderer?: (value: string) => string;
 }
 
 const HTML_ESCAPE_PATTERN = /[&<>"'/]/g;
@@ -123,7 +125,8 @@ function combineEmojiMappings(custom: EmojiMappingInput | undefined): Map<string
 }
 
 function escapeText(value: string, options: TokenOptions = {}): string {
-  return escapeHtml(replaceEmoji(value, options.emojiMappings));
+  const text = replaceEmoji(value, options.emojiMappings);
+  return options.textRenderer ? options.textRenderer(text) : escapeHtml(text);
 }
 
 function isSafeHttpUrl(value: string): boolean {
@@ -148,7 +151,7 @@ function buildLink(destination: string, label: string, options: TokenOptions): s
   );
 }
 
-function renderInlineCode(value: string): string {
+function renderInlineCode(value: string, options: TokenOptions = {}): string {
   let content = value;
   const hasPadding =
     content.length > 1 &&
@@ -160,7 +163,7 @@ function renderInlineCode(value: string): string {
     content = content.slice(1, -1);
   }
 
-  return `<code class="commit-body-inline-code">${escapeHtml(content)}</code>`;
+  return `<code class="commit-body-inline-code">${escapeText(content, options)}</code>`;
 }
 
 function renderInline(value: string, options: TokenOptions = {}): string {
@@ -204,7 +207,7 @@ function renderInline(value: string, options: TokenOptions = {}): string {
     const code = /^(`+)([\s\S]*?)\1/y.exec(value.slice(index));
     if (code !== null && code[2] !== "") {
       appendText(index);
-      html += renderInlineCode(code[2]!);
+      html += renderInlineCode(code[2]!, options);
       index += code[0].length;
       textStart = index;
       continue;
@@ -247,11 +250,15 @@ function renderHeading(level: string, content: string, options: TokenOptions): s
   );
 }
 
-function renderCodeBlock(content: string, language: string | null = null): string {
+function renderCodeBlock(
+  content: string,
+  language: string | null = null,
+  options: TokenOptions = {}
+): string {
   const languageClass = language === null ? "" : ` language-${language}`;
   return (
     `<pre class="commit-body-code-block">` +
-    `<code class="commit-body-inline-code${languageClass}">${escapeHtml(content)}</code></pre>`
+    `<code class="commit-body-inline-code${languageClass}">${escapeText(content, options)}</code></pre>`
   );
 }
 
@@ -284,7 +291,10 @@ export function formatCommitBody(body: string, options: CommitBodyFormatOptions 
 
   const emojiMappings =
     options.emoji === true ? combineEmojiMappings(options.customEmoji) : undefined;
-  const tokenOptions: TokenOptions = { emojiMappings };
+  const tokenOptions: TokenOptions = {
+    emojiMappings,
+    textRenderer: options.textRenderer
+  };
   const lines = body.replace(/\r\n?/gu, "\n").split("\n");
   const blocks: string[] = [];
   let index = 0;
@@ -315,7 +325,7 @@ export function formatCommitBody(body: string, options: CommitBodyFormatOptions 
       }
 
       const language = safeLanguageToken(fence.info);
-      blocks.push(renderCodeBlock(contentLines.join("\n"), language));
+      blocks.push(renderCodeBlock(contentLines.join("\n"), language, tokenOptions));
       continue;
     }
 
@@ -340,7 +350,7 @@ export function formatCommitBody(body: string, options: CommitBodyFormatOptions 
         index += 1;
       }
 
-      blocks.push(renderCodeBlock(contentLines.join("\n")));
+      blocks.push(renderCodeBlock(contentLines.join("\n"), null, tokenOptions));
       continue;
     }
 

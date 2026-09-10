@@ -59,6 +59,7 @@ vi.mock("../../src/config", () => ({
     keyboardShortcutScrollToStash: () => "s",
     loadMoreCommits: () => 100,
     loadMoreCommitsAutomatically: () => true,
+    commitBodyRendering: () => "plain",
     muteCommitsMergeCommits: () => false,
     muteCommitsNotAncestorsOfHead: () => false,
     commitOrdering: () => "date",

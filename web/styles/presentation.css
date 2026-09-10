@@ -1,0 +1,108 @@
+/* Table presentation */
+.columnHidden {
+  display: none !important;
+}
+
+#tableHeaderGraphCol {
+  cursor: context-menu;
+}
+
+#tableHeaderGraphCol:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+
+.columnVisibilityMenu {
+  position: fixed;
+  z-index: 17;
+  min-width: 172px;
+  margin: 0;
+  padding: 4px 0;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  border-radius: 6px;
+  background: var(--vscode-menu-background);
+  color: var(--vscode-menu-foreground);
+  box-shadow: 0 6px 18px var(--vscode-widget-shadow);
+  list-style: none;
+}
+
+.columnVisibilityItem {
+  min-height: 26px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  margin: 2px 4px;
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.columnVisibilityItem:focus {
+  outline: none;
+  background: var(--vscode-menu-selectionBackground);
+  color: var(--vscode-menu-selectionForeground);
+}
+
+.columnVisibilityItem.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Rich Commit Details body */
+.commitBodyRich {
+  display: block;
+  max-width: 100%;
+  color: var(--vscode-editor-foreground);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.commitBodyRich .commit-body-heading {
+  margin: 10px 0 5px;
+  color: var(--vscode-editor-foreground);
+  line-height: 1.25;
+}
+
+.commitBodyRich .commit-body-heading:first-child {
+  margin-top: 0;
+}
+
+.commitBodyRich .commit-body-paragraph {
+  margin: 0 0 8px;
+}
+
+.commitBodyRich .commit-body-bold,
+.commitBodyRich .commit-body-italic {
+  color: inherit;
+}
+
+.commitBodyRich .commit-body-link {
+  color: var(--vscode-textLink-foreground);
+}
+
+.commitBodyRich .commit-body-link:hover {
+  color: var(--vscode-textLink-activeForeground);
+}
+
+.commitBodyRich .commit-body-inline-code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--vscode-textCodeBlock-background);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+}
+
+.commitBodyRich .commit-body-code-block {
+  overflow: auto;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 5px;
+  background: var(--vscode-textCodeBlock-background);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .columnVisibilityItem {
+    transition: none;
+  }
+}

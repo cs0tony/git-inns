@@ -560,6 +560,36 @@ describe("commitOrdering", () => {
   });
 });
 
+describe("commitBodyRendering", () => {
+  beforeEach(() => {
+    mockGet.mockReset();
+  });
+
+  it("defaults to plain for backward compatibility", () => {
+    // Given: no configured value
+    mockGet.mockImplementation((_key: string, defaultValue: unknown) => defaultValue);
+
+    // When: the setting is read
+    const result = getConfig().commitBodyRendering();
+
+    // Then: commit bodies retain their previous renderer
+    expect(result).toBe("plain");
+  });
+
+  it("falls back to plain for an unknown renderer", () => {
+    // Given: an out-of-schema value
+    mockGet.mockImplementation((key: string, defaultValue: unknown) =>
+      key === "commitBodyRendering" ? "html" : defaultValue
+    );
+
+    // When: the setting is read
+    const result = getConfig().commitBodyRendering();
+
+    // Then: the unsafe value is not forwarded to the webview
+    expect(result).toBe("plain");
+  });
+});
+
 // S9: dialogDefaults() createWorktree/removeWorktree 設定
 describe("dialogDefaults createWorktree/removeWorktree", () => {
   beforeEach(() => {

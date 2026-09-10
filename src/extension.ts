@@ -45,6 +45,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("git-keizu.clearAvatarCache", () => {
       avatarManager.clearCache();
     }),
+    vscode.commands.registerCommand("git-keizu.resumeActiveReview", async (arg?: unknown) => {
+      await GitKeizuView.resumeActiveReview(
+        context.extensionPath,
+        dataSource,
+        extensionState,
+        avatarManager,
+        repoManager,
+        arg
+      );
+    }),
+    vscode.commands.registerCommand("git-keizu.endActiveReview", async (arg?: unknown) => {
+      await GitKeizuView.endActiveReview(extensionState, repoManager, arg);
+    }),
+    vscode.commands.registerCommand("git-keizu.endAllReviews", async () => {
+      await GitKeizuView.endAllReviews(extensionState, repoManager);
+    }),
     // Register both the provider instance and the registration disposable: unregistering alone
     // does not release the provider's internal subscription and event emitter.
     diffDocProvider,
@@ -70,6 +86,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     avatarManager,
     repoManager
   );
+
+  await GitKeizuView.refreshActiveReviewCommandEnablement(extensionState, repoManager);
 
   outputChannel.appendLine("Extension activated successfully");
 }

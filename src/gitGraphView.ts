@@ -19,6 +19,7 @@ import {
   type ShareablePullRequestConfig
 } from "./repositoryConfig";
 import {
+  type ActiveCodeReview,
   type CheckoutBranchResult,
   type GitCommandStatus,
   GitFileChangeType,
@@ -40,9 +41,190 @@ const BRANCH_ALREADY_EXISTS_MESSAGE = "A branch with this name already exists.";
 const INVALID_REMOTE_NAME_MESSAGE = "Invalid remote name.";
 const REMOTE_LOOKUP_FAILED_MESSAGE = "Unable to read the remotes of this repository.";
 const UNREGISTERED_REMOTE_MESSAGE = "The selected remote is not registered in this repository.";
+const HAS_ACTIVE_REVIEWS_CONTEXT = "git-keizu.hasActiveReviews";
+
+interface ActiveCodeReviewChoice {
+  readonly repo: string;
+  readonly review: ActiveCodeReview;
+  readonly title: string;
+}
 
 export class GitKeizuView {
   public static currentPanel: GitKeizuView | undefined;
+
+  public static getRepositoryFromCommandArgument(
+    arg: unknown,
+    repoManager: RepoManager
+  ): string | null {
+    let candidatePath: string | null = null;
+    if (arg instanceof vscode.Uri) {
+      candidatePath = getPathFromUri(arg);
+    } else if (arg !== null && arg !== undefined && typeof arg === "object") {
+      const candidate = arg as { rootUri?: unknown; resourceUri?: unknown };
+      if (candidate.rootUri instanceof vscode.Uri) {
+        candidatePath = getPathFromUri(candidate.rootUri);
+      } else if (candidate.resourceUri instanceof vscode.Uri) {
+        candidatePath = getPathFromUri(candidate.resourceUri);
+      }
+    }
+
+    return candidatePath !== null && candidatePath in repoManager.getRepos()
+      ? candidatePath
+      : null;
+  }
+
+  public static async refreshActiveReviewCommandEnablement(
+    extensionState: ExtensionState,
+    repoManager: RepoManager
+  ): Promise<void> {
+    const repos = repoManager.getRepos();
+    const hasActiveReview = Object.keys(extensionState.getActiveCodeReviews()).some(
+      (repo) => repo in repos
+    );
+    await vscode.commands.executeCommand("setContext", HAS_ACTIVE_REVIEWS_CONTEXT, hasActiveReview);
+  }
+
+  public static async resumeActiveReview(
+    extensionPath: string,
+    dataSource: DataSource,
+    extensionState: ExtensionState,
+    avatarManager: AvatarManager,
+    repoManager: RepoManager,
+    arg?: unknown
+  ): Promise<void> {
+    const choice = await GitKeizuView.chooseActiveReview(
+      extensionState,
+      repoManager,
+      arg,
+      "resume"
+    );
+    if (choice === null) return;
+
+    if (GitKeizuView.currentPanel === undefined) {
+      GitKeizuView.createOrShow(
+        extensionPath,
+        dataSource,
+        extensionState,
+        avatarManager,
+        repoManager,
+        vscode.Uri.file(choice.repo)
+      );
+    }
+    GitKeizuView.currentPanel?.focusCodeReview(choice.repo, choice.review);
+  }
+
+  public static async endActiveReview(
+    extensionState: ExtensionState,
+    repoManager: RepoManager,
+    arg?: unknown
+  ): Promise<void> {
+    const choice = await GitKeizuView.chooseActiveReview(
+      extensionState,
+      repoManager,
+      arg,
+      "end"
+    );
+    if (choice === null) return;
+
+    const ended = await extensionState.endCodeReview(choice.repo);
+    await GitKeizuView.refreshActiveReviewCommandEnablement(extensionState, repoManager);
+    if (!ended) {
+      await vscode.window.showErrorMessage(
+        `Unable to end the active code review in ${getRepositoryName(choice.repo)}.`
+      );
+      return;
+    }
+
+    GitKeizuView.currentPanel?.sendCodeReviewUpdate(choice.repo, null);
+    await vscode.window.showInformationMessage(
+      `Ended the active code review in ${getRepositoryName(choice.repo)}.`
+    );
+  }
+
+  public static async endAllReviews(
+    extensionState: ExtensionState,
+    repoManager: RepoManager
+  ): Promise<void> {
+    const activeCount = Object.keys(extensionState.getActiveCodeReviews()).length;
+    if (activeCount === 0) {
+      await vscode.window.showInformationMessage("There are no active code reviews.");
+      return;
+    }
+
+    const confirmation = await vscode.window.showWarningMessage(
+      activeCount === 1
+        ? "End the active code review?"
+        : `End all ${activeCount} active code reviews?`,
+      { modal: true },
+      "End All Reviews"
+    );
+    if (confirmation !== "End All Reviews") return;
+
+    const endedRepos = Object.keys(extensionState.getActiveCodeReviews());
+    const endedCount = await extensionState.endAllCodeReviews();
+    await GitKeizuView.refreshActiveReviewCommandEnablement(extensionState, repoManager);
+    GitKeizuView.currentPanel?.notifyCodeReviewsEnded(endedRepos);
+    await vscode.window.showInformationMessage(`Ended ${endedCount} code reviews.`);
+  }
+
+  private static async chooseActiveReview(
+    extensionState: ExtensionState,
+    repoManager: RepoManager,
+    arg: unknown,
+    operation: "end" | "resume"
+  ): Promise<ActiveCodeReviewChoice | null> {
+    const activeReviews = extensionState.getActiveCodeReviews();
+    const availableRepos = repoManager.getRepos();
+    const choices = Object.keys(availableRepos)
+      .filter((repo) => activeReviews[repo] !== undefined)
+      .map((repo) => ({
+        repo,
+        review: activeReviews[repo],
+        title: getReviewTitle(activeReviews[repo])
+      }));
+
+    const selectedRepo =
+      arg === null || arg === undefined
+        ? null
+        : GitKeizuView.getRepositoryFromCommandArgument(arg, repoManager);
+    if (choices.length === 0) {
+      const message =
+        selectedRepo === null
+          ? "There are no active code reviews."
+          : `There is no active code review in ${getRepositoryName(selectedRepo)}.`;
+      await vscode.window.showInformationMessage(message);
+      return null;
+    }
+
+    if (selectedRepo !== null) {
+      const selectedChoice = choices.find((choice) => choice.repo === selectedRepo);
+      if (selectedChoice === undefined) {
+        await vscode.window.showInformationMessage(
+          `There is no active code review in ${getRepositoryName(selectedRepo)}.`
+        );
+        return null;
+      }
+      return selectedChoice;
+    }
+
+    if (choices.length === 1) return choices[0];
+
+    const verb = operation === "resume" ? "resume" : "end";
+    const item = await vscode.window.showQuickPick(
+      choices.map((choice, index) => ({
+        description: choice.repo,
+        detail: choice.title,
+        label: getRepositoryName(choice.repo),
+        reviewIndex: index
+      })),
+      {
+        canPickMany: false,
+        placeHolder: `Select the active code review to ${verb}:`
+      }
+    );
+
+    return item === undefined ? null : choices[item.reviewIndex];
+  }
 
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionPath: string;
@@ -306,43 +488,24 @@ export class GitKeizuView {
                 msg.compareWithHash,
                 msg.files
               );
-              this.sendMessage(
-                review === null
-                  ? {
-                      command: "codeReview",
-                      repo: msg.repo,
-                      id: null,
-                      active: false,
-                      commitHash: null,
-                      compareWithHash: null,
-                      files: [],
-                      status: "Unable to start the code review."
-                    }
-                  : {
-                      command: "codeReview",
-                      repo: msg.repo,
-                      id: review.id,
-                      active: true,
-                      commitHash: review.commitHash,
-                      compareWithHash: review.compareWithHash,
-                      files: review.files,
-                      status: null
-                    }
+              this.sendCodeReview(
+                msg.repo,
+                review,
+                review === null ? "Unable to start the code review." : null
+              );
+              void GitKeizuView.refreshActiveReviewCommandEnablement(
+                this.extensionState,
+                this.repoManager
               );
               break;
             }
             case "endCodeReview": {
               const ended = await this.extensionState.endCodeReview(msg.repo);
-              this.sendMessage({
-                command: "codeReview",
-                repo: msg.repo,
-                id: null,
-                active: false,
-                commitHash: null,
-                compareWithHash: null,
-                files: [],
-                status: ended ? null : "No active code review."
-              });
+              this.sendCodeReview(msg.repo, null, ended ? null : "No active code review.");
+              void GitKeizuView.refreshActiveReviewCommandEnablement(
+                this.extensionState,
+                this.repoManager
+              );
               break;
             }
             case "compareCommits":
@@ -746,6 +909,45 @@ export class GitKeizuView {
     this.panel.webview.postMessage(msg);
   }
 
+  public focusCodeReview(repo: string, review: ActiveCodeReview) {
+    const column = vscode.window.activeTextEditor
+      ? vscode.window.activeTextEditor.viewColumn
+      : undefined;
+    this.panel.reveal(column);
+    this.extensionState.setLastActiveRepo(repo);
+    if (this.currentRepo !== repo) {
+      this.sendMessage({ command: "selectRepo", repo });
+    }
+    this.sendCodeReview(repo, review, null);
+  }
+
+  public sendCodeReviewUpdate(repo: string, review: ActiveCodeReview | null) {
+    this.sendCodeReview(repo, review, null);
+  }
+
+  public notifyCodeReviewsEnded(repos: readonly string[]) {
+    for (const repo of repos) {
+      this.sendCodeReview(repo, null, null);
+    }
+  }
+
+  private sendCodeReview(
+    repo: string,
+    review: ActiveCodeReview | null,
+    status: GitCommandStatus
+  ) {
+    this.sendMessage({
+      command: "codeReview",
+      repo,
+      id: review?.id ?? null,
+      active: review !== null,
+      commitHash: review?.commitHash ?? null,
+      compareWithHash: review?.compareWithHash ?? null,
+      files: review?.files ?? [],
+      status
+    });
+  }
+
   public notifyShowRecentActionsChanged() {
     this.sendMessage({
       command: "setShowRecentActions",
@@ -785,6 +987,7 @@ export class GitKeizuView {
     const webviewMessages = await loadWebviewMessages(this.extensionPath);
     await this.extensionState.waitForAvatarStorage();
     const viewState: GitKeizuViewState = {
+      commitBodyRendering: config.commitBodyRendering(),
       commitOrdering: config.commitOrdering(),
       contextMenuActionsVisibility: config.contextMenuActionsVisibility(),
       customBranchGlobPatterns: config.customBranchGlobPatterns(),
@@ -875,6 +1078,7 @@ export class GitKeizuView {
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("findwidget.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("repoSettings.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("codeReview.css")}">
+				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("presentation.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("tagDetails.css")}">
 				<title>Git Keizu</title>
 				<style>${colorParams}</style>
@@ -1211,6 +1415,17 @@ function buildRemoteSelectionResponse(
 
 function completedPush(repo: string, operationId: string, status: GitCommandStatus): ResponsePush {
   return { command: "push", repo, operationId, phase: "completed", status };
+}
+
+function getRepositoryName(repo: string) {
+  return repo.split("/").at(-1) || repo;
+}
+
+function getReviewTitle(review: ActiveCodeReview) {
+  const commitLabel = abbrevCommit(review.commitHash);
+  return review.compareWithHash === null
+    ? commitLabel
+    : `${abbrevCommit(review.compareWithHash)} ↔ ${commitLabel}`;
 }
 
 function getNonce() {

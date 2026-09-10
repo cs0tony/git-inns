@@ -10,6 +10,7 @@ import {
 } from "./pullRequest";
 import {
   type ActiveCodeReview,
+  type ActiveCodeReviewByRepo,
   Avatar,
   AvatarCache,
   GitRepoSet,
@@ -147,6 +148,16 @@ export class ExtensionState {
     return this.getRepos()[repo]?.codeReview ?? null;
   }
 
+  public getActiveCodeReviews(): ActiveCodeReviewByRepo {
+    const reviews: ActiveCodeReviewByRepo = {};
+    for (const [repo, state] of Object.entries(this.getRepos())) {
+      if (state.codeReview !== undefined && state.codeReview !== null) {
+        reviews[repo] = state.codeReview;
+      }
+    }
+    return reviews;
+  }
+
   public async startCodeReview(
     repo: string,
     id: string,
@@ -188,6 +199,23 @@ export class ExtensionState {
     repos[repo] = { ...state, codeReview: null };
     await this.workspaceState.update(REPO_STATES, this.normalizeRepoSet(repos));
     return true;
+  }
+
+  public async endAllCodeReviews(): Promise<number> {
+    const repos = this.getRepos();
+    let endedCount = 0;
+
+    for (const [repo, state] of Object.entries(repos)) {
+      if (state.codeReview !== undefined && state.codeReview !== null) {
+        repos[repo] = { ...state, codeReview: null };
+        endedCount += 1;
+      }
+    }
+
+    if (endedCount > 0) {
+      await this.workspaceState.update(REPO_STATES, this.normalizeRepoSet(repos));
+    }
+    return endedCount;
   }
 
   public getReviewedFiles(repo: string, commitHash: string): string[] {

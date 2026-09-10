@@ -4,6 +4,11 @@ import {
   renderCodeReviewPanel,
   updateCodeReviewPanel
 } from "./codeReviewController";
+import {
+  type ColumnMenuOption,
+  ColumnVisibilityMenu,
+  normalizeColumnVisibility
+} from "./columnVisibility";
 import { buildCommitContextMenuItems } from "./commitMenu";
 import { buildSignatureChipHtml } from "./commitSignature";
 import {
@@ -31,6 +36,7 @@ import { handleMessage, type RefreshMode } from "./messageHandler";
 import { buildRefContextMenuItems, checkoutBranchAction } from "./refMenu";
 import { type RepoSettingsAction, RepoSettingsPanel } from "./repoSettings";
 import { buildStashContextMenuItems } from "./stashMenu";
+import { formatCommitBody } from "./textFormatter";
 import { buildUncommittedContextMenuItems } from "./uncommittedMenu";
 import {
   abbrevCommit,
@@ -67,7 +73,6 @@ const CDV_SCROLL_PADDING = 8;
 
 const STASH_NAVIGATION_TIMEOUT_MS = 5000;
 const SCROLL_AUTO_LOAD_THRESHOLD = 25;
-const COMMIT_DETAILS_COLSPAN = 4;
 const SECONDS_TO_MS = 1000;
 const ALL_AUTHORS_LABEL = t("toolbar.allAuthors");
 const ALL_AUTHORS_VALUE = "";
@@ -212,6 +217,9 @@ class GitKeizuView {
     regex: "",
     urlTemplate: ""
   };
+  private readonly columnVisibilityMenu = new ColumnVisibilityMenu();
+  private readonly commitBodyRendering: GG.CommitBodyRendering =
+    viewState.commitBodyRendering === "rich" ? "rich" : "plain";
 
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
@@ -340,11 +348,14 @@ class GitKeizuView {
     }
     this.findWidget = new FindWidget({
       getCommits: () => this.commits,
-      getColumnVisibility: () => ({
-        author: true,
-        date: true,
-        commit: true
-      }),
+      getColumnVisibility: () => {
+        const visibility = this.getColumnVisibility();
+        return {
+          author: visibility.author,
+          date: visibility.date,
+          commit: visibility.commit
+        };
+      },
       scrollToCommit: (hash, alwaysCenterCommit) => this.scrollToCommit(hash, alwaysCenterCommit),
       saveState: () => this.saveState(),
       loadCommitDetails: (elem) => this.loadCommitDetails(elem),
@@ -869,7 +880,7 @@ class GitKeizuView {
   }
   private renderTable() {
     const savedScrollTop = this.scrollContainerElem.scrollTop;
-    let html = `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader">${t("table.graph")}</th><th class="tableColHeader">${t("table.description")}</th><th class="tableColHeader">${t("table.date")}</th><th class="tableColHeader">${t("table.author")}</th><th class="tableColHeader">${t("table.commit")}</th></tr>`,
+    let html = `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader" data-column="graph" tabindex="0" role="button" aria-haspopup="menu" aria-expanded="false">${t("table.graph")}</th><th class="tableColHeader" data-column="description">${t("table.description")}</th><th class="tableColHeader" data-column="date">${t("table.date")}</th><th class="tableColHeader" data-column="author">${t("table.author")}</th><th class="tableColHeader" data-column="commit">${t("table.commit")}</th></tr>`,
       i,
       currentHash =
         this.commits.length > 0 && this.commits[0].hash === UNCOMMITTED_CHANGES_HASH
@@ -935,7 +946,7 @@ class GitKeizuView {
         this.commits[i].stash,
         muted[i]
       );
-      html += `<tr ${rowClass} data-id="${i}" data-color="${this.graph.getVertexColour(i)}"><td></td><td>${this.commits[i].hash === this.commitHead ? '<span class="commitHeadDot"></span>' : ""}${refs}<span class="commitMessage">${this.commits[i].hash === currentHash ? `<b>${message}</b>` : message}</span></td><td title="${date.title}">${date.value}</td><td title="${escapeHtml(`${this.commits[i].author} <${this.commits[i].email}>`)}">${
+      html += `<tr ${rowClass} data-id="${i}" data-color="${this.graph.getVertexColour(i)}"><td data-column="graph"></td><td data-column="description">${this.commits[i].hash === this.commitHead ? '<span class="commitHeadDot"></span>' : ""}${refs}<span class="commitMessage">${this.commits[i].hash === currentHash ? `<b>${message}</b>` : message}</span></td><td data-column="date" title="${date.title}">${date.value}</td><td data-column="author" title="${escapeHtml(`${this.commits[i].author} <${this.commits[i].email}>`)}">${
         this.config.fetchAvatars
           ? `<span class="avatar" data-email="${escapeHtml(this.commits[i].email)}">${
               typeof this.avatars[this.commits[i].email] === "string"
@@ -943,12 +954,13 @@ class GitKeizuView {
                 : ""
             }</span>`
           : ""
-      }${escapeHtml(this.commits[i].author)}</td><td title="${escapeHtml(this.commits[i].hash)}">${escapeHtml(abbrevCommit(this.commits[i].hash))}</td></tr>`;
+      }${escapeHtml(this.commits[i].author)}</td><td data-column="commit" title="${escapeHtml(this.commits[i].hash)}">${escapeHtml(abbrevCommit(this.commits[i].hash))}</td></tr>`;
     }
     this.tableElem.innerHTML = `<table>${html}</table>`;
     this.footerElem.innerHTML = this.moreCommitsAvailable
       ? `<div id="loadMoreCommitsBtn" class="roundedBtn">${t("table.loadMoreCommits")}</div>`
       : "";
+    this.applyColumnVisibility();
     this.makeTableResizable();
     this.setupColumnHeaderContextMenu();
 
@@ -1197,7 +1209,8 @@ class GitKeizuView {
   private renderUncommitedChanges() {
     let date = getCommitDate(this.commits[0].date);
     document.getElementsByClassName("unsavedChanges")[0].innerHTML =
-      `<td></td><td><b>${escapeHtml(this.commits[0].message)}</b></td><td title="${date.title}">${date.value}</td><td title="* <>">*</td><td title="*">*</td>`;
+      `<td data-column="graph"></td><td data-column="description"><b>${escapeHtml(this.commits[0].message)}</b></td><td data-column="date" title="${date.title}">${date.value}</td><td data-column="author" title="* <>">*</td><td data-column="commit" title="*">*</td>`;
+    this.applyColumnVisibility();
   }
   private renderShowLoading() {
     if (isDialogActive()) hideDialog();
@@ -1310,30 +1323,118 @@ class GitKeizuView {
   }
   private setupColumnHeaderContextMenu() {
     const colHeadersElem = document.getElementById("tableColHeaders");
-    if (colHeadersElem === null) return;
+    const graphHeader = document.getElementById("tableHeaderGraphCol");
+    if (colHeadersElem === null || graphHeader === null) return;
+
+    const showMenu = (clientX: number, clientY: number) => {
+      const visibility = this.getColumnVisibility();
+      const repoOrdering: GG.RepoCommitOrdering =
+        this.gitRepos[this.currentRepo]?.commitOrdering ?? "default";
+      const orderingOptions: ColumnMenuOption[] = COMMIT_ORDERING_MENU_ITEMS.map(
+        ({ label, value }) => ({
+          id: `ordering-${value}`,
+          label,
+          kind: "radio",
+          checked: value === repoOrdering,
+          onActivate: () => {
+            const updatedRepo: GG.GitRepoState = {
+              ...this.gitRepos[this.currentRepo],
+              commitOrdering: value
+            };
+            this.gitRepos[this.currentRepo] = updatedRepo;
+            sendMessage({
+              command: "saveRepoState",
+              repo: this.currentRepo,
+              state: updatedRepo
+            });
+            this.saveState();
+            this.requestLoadCommits(true, () => {});
+          }
+        })
+      );
+      const columnOptions: ColumnMenuOption[] = (
+        ["author", "date", "commit"] as const
+      ).map((column) => ({
+        id: column,
+        label: t(`table.${column}`),
+        kind: "checkbox",
+        checked: visibility[column],
+        disabled: this.getVisibleColumnCount() === 2 && visibility[column],
+        onActivate: (checked: boolean) => {
+          this.setColumnVisibility({ ...this.getColumnVisibility(), [column]: checked });
+        }
+      }));
+
+      this.columnVisibilityMenu.show({
+        anchor: graphHeader,
+        ariaLabel: `${t("table.graph")} — ${t("table.description")}`,
+        clientX,
+        clientY,
+        options: [...orderingOptions, ...columnOptions]
+      });
+    };
+
     colHeadersElem.addEventListener("contextmenu", (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const repoOrdering: GG.RepoCommitOrdering =
-        this.gitRepos[this.currentRepo]?.commitOrdering ?? "default";
-      const items: ContextMenuElement[] = COMMIT_ORDERING_MENU_ITEMS.map(({ label, value }) => ({
-        title: value === repoOrdering ? `\u2713 ${label}` : label,
-        onClick: () => {
-          const updatedRepo: GG.GitRepoState = {
-            ...this.gitRepos[this.currentRepo],
-            commitOrdering: value
-          };
-          this.gitRepos[this.currentRepo] = updatedRepo;
-          sendMessage({
-            command: "saveRepoState",
-            repo: this.currentRepo,
-            state: updatedRepo
-          });
-          this.requestLoadCommits(true, () => {});
-        }
-      }));
-      showContextMenu(e, items, colHeadersElem, this.getCurrentRepoRecentActions());
+      showMenu(e.clientX, e.clientY);
     });
+    graphHeader.addEventListener("click", () => showMenu(
+      graphHeader.getBoundingClientRect().left,
+      graphHeader.getBoundingClientRect().bottom
+    ));
+    graphHeader.addEventListener("keydown", (e: KeyboardEvent) => {
+      const isOpenCommand =
+        e.key === "ContextMenu" ||
+        (e.shiftKey && e.key === "F10") ||
+        ((e.key === "Enter" || e.key === " ") && e.target === graphHeader);
+      if (!isOpenCommand) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      const bounds = graphHeader.getBoundingClientRect();
+      showMenu(bounds.left, bounds.bottom);
+    });
+  }
+
+  private getColumnVisibility(): GG.ColumnVisibility {
+    if (this.currentRepo === undefined || this.gitRepos[this.currentRepo] === undefined) {
+      return normalizeColumnVisibility(undefined);
+    }
+    return normalizeColumnVisibility(this.gitRepos[this.currentRepo].columnVisibility);
+  }
+
+  private getVisibleColumnCount(): number {
+    const visibility = this.getColumnVisibility();
+    return 1 + (visibility.author ? 1 : 0) + (visibility.date ? 1 : 0) + (visibility.commit ? 1 : 0);
+  }
+
+  private setColumnVisibility(visibility: GG.ColumnVisibility): void {
+    const normalized = normalizeColumnVisibility(visibility);
+    const updatedRepo: GG.GitRepoState = {
+      ...this.gitRepos[this.currentRepo],
+      columnVisibility: normalized
+    };
+    this.gitRepos[this.currentRepo] = updatedRepo;
+    sendMessage({
+      command: "saveRepoState",
+      repo: this.currentRepo,
+      state: updatedRepo
+    });
+    this.saveState();
+    this.applyColumnVisibility();
+    this.renderGraph();
+    this.findWidget.refresh();
+  }
+
+  private applyColumnVisibility(): void {
+    const visibility = this.getColumnVisibility();
+    for (const column of ["graph", "author", "date", "commit"] as const) {
+      const hidden = column !== "graph" && !visibility[column];
+      document
+        .querySelectorAll<HTMLElement>(`[data-column="${column}"]`)
+        .forEach((element) => element.classList.toggle("columnHidden", hidden));
+    }
   }
 
   /* Observers */
@@ -1544,6 +1645,10 @@ class GitKeizuView {
 
   /* Escape Chain */
   public handleEscape() {
+    if (this.columnVisibilityMenu.isActive()) {
+      this.columnVisibilityMenu.close();
+      return;
+    }
     if (isContextMenuActive()) {
       hideContextMenu();
       return;
@@ -1620,7 +1725,7 @@ class GitKeizuView {
           ? t("commitDetails.uncommittedChanges")
           : t("commitDetails.label");
       elem.innerHTML =
-        `<td></td><td colspan="${COMMIT_DETAILS_COLSPAN}">` +
+        `<td data-column="graph"></td><td colspan="${this.getVisibleColumnCount()}">` +
         `<div id="cdvLoading">${svgIcons.loading} ${t("loading.commitDetails", loadingLabel)}</div>` +
         `<div id="commitDetailsClose">${svgIcons.close}</div>` +
         "</td>";
@@ -1700,7 +1805,7 @@ class GitKeizuView {
     );
 
     const html =
-      `<td></td><td colspan="${COMMIT_DETAILS_COLSPAN}">` +
+      `<td data-column="graph"></td><td colspan="${this.getVisibleColumnCount()}">` +
       `<div id="commitDetailsSummary">${summaryHtml}</div>` +
       `<div id="codeReviewMount" class="code-review-mount"></div>` +
       filesSectionHtml +
@@ -1867,10 +1972,24 @@ class GitKeizuView {
       `<b>${t("commitDetails.date")} </b>${new Date(commitDetails.date * SECONDS_TO_MS).toString()}${signatureHtml ? `<br>${signatureHtml}` : ""}</span>` +
       avatarHtml +
       "</span></span><br><br>" +
-      renderCommitBodyIssueLinks(commitDetails.body, this.repositoryIssueLinks, (issueId) =>
-        t("commitDetails.issueLinkTitle", issueId)
-      )
+      this.buildCommitBodyHtml(commitDetails.body)
     );
+  }
+  private buildCommitBodyHtml(body: string): string {
+    if (this.commitBodyRendering === "plain") {
+      return renderCommitBodyIssueLinks(body, this.repositoryIssueLinks, (issueId) =>
+        t("commitDetails.issueLinkTitle", issueId)
+      );
+    }
+
+    return `<div class="commitBodyRich">${formatCommitBody(body, {
+      mode: "rich",
+      emoji: true,
+      textRenderer: (text: string) =>
+        renderCommitBodyIssueLinks(text, this.repositoryIssueLinks, (issueId) =>
+          t("commitDetails.issueLinkTitle", issueId)
+        ).replace(/<br>/gu, "\n")
+    })}</div>`;
   }
   private buildParentLinksHtml(parents: string[]): string {
     if (parents.length === 0) return t("commitDetails.none");

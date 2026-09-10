@@ -98,6 +98,24 @@
         "category": "%command.category%",
         "command": "git-keizu.clearAvatarCache",
         "title": "%command.clearAvatarCache.title%"
+      },
+      {
+        "category": "%command.category%",
+        "command": "git-keizu.resumeActiveReview",
+        "enablement": "git-keizu.hasActiveReviews",
+        "title": "%command.resumeActiveReview.title%"
+      },
+      {
+        "category": "%command.category%",
+        "command": "git-keizu.endActiveReview",
+        "enablement": "git-keizu.hasActiveReviews",
+        "title": "%command.endActiveReview.title%"
+      },
+      {
+        "category": "%command.category%",
+        "command": "git-keizu.endAllReviews",
+        "enablement": "git-keizu.hasActiveReviews",
+        "title": "%command.endAllReviews.title%"
       }
     ],
     "menus": {
@@ -208,6 +226,19 @@
           "default": 300,
           "minimum": 1,
           "description": "%config.initialLoadCommits.description%"
+        },
+        "git-keizu.commitBodyRendering": {
+          "type": "string",
+          "enum": [
+            "plain",
+            "rich"
+          ],
+          "enumDescriptions": [
+            "%config.commitBodyRendering.enum.plain%",
+            "%config.commitBodyRendering.enum.rich%"
+          ],
+          "default": "plain",
+          "description": "%config.commitBodyRendering.description%"
         },
         "git-keizu.loadMoreCommits": {
           "type": "number",

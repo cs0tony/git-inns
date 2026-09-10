@@ -16,6 +16,7 @@ const fullConfig: RepositoryConfigFile = {
   pullRequest: {
     provider: "custom",
     sourceRemote: "origin",
+    destinationBranch: "main",
     customName: "Gitea",
     customTemplateUrl: "https://example.com/{owner}/{repository}/pulls/{branch}"
   }
@@ -28,6 +29,7 @@ const expectedFullJson = `{
     "urlTemplate": "https://example.com/issues/$1"
   },
   "pullRequest": {
+    "destinationBranch": "main",
     "customName": "Gitea",
     "customTemplateUrl": "https://example.com/{owner}/{repository}/pulls/{branch}",
     "provider": "custom",
@@ -60,6 +62,7 @@ describe("repository configuration sharing", () => {
       const reordered = {
         version: 1,
         pullRequest: {
+          destinationBranch: fullConfig.pullRequest?.destinationBranch,
           customTemplateUrl: fullConfig.pullRequest?.customTemplateUrl,
           customName: fullConfig.pullRequest?.customName,
           sourceRemote: fullConfig.pullRequest?.sourceRemote,
@@ -161,6 +164,14 @@ describe("repository configuration sharing", () => {
           `{"version":1,"pullRequest":{"provider":"custom","sourceRemote":"origin","customName":"bad\\u0000name","customTemplateUrl":"https://x.test"}}`
         )
       ).toBe("pullRequest.customName must be a non-empty string without control characters");
+    });
+
+    it("validates destination branches", () => {
+      expect(
+        parseError(
+          `{"version":1,"pullRequest":{"provider":"github","sourceRemote":"origin","destinationBranch":"bad branch"}}`
+        )
+      ).toBe("pullRequest.destinationBranch contains an unsafe Git branch name");
     });
 
     it("enforces custom provider requirements", () => {

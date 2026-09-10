@@ -25,6 +25,8 @@ import { DataSource } from "../../src/dataSource";
 import type { ExtensionState } from "../../src/extensionState";
 import type { RepositorySettingsIssueLinks } from "../../src/types";
 
+const INVALID_DESTINATION_MESSAGE = "Invalid pull-request destination branch.";
+
 function git(cwd: string, args: string[]): string {
   return cp.execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
@@ -75,6 +77,7 @@ function createExtensionState(issueLinks?: Record<string, RepositorySettingsIssu
       (repo: string) => storedIssueLinks[repo] ?? { enabled: false, regex: "", urlTemplate: "" }
     ),
     getRepositoryPullRequest: vi.fn(() => null),
+    saveRepositoryPullRequest: vi.fn(async () => null),
     saveRepositorySettingsIssueLinks: vi.fn((repo: string, settings: unknown) => {
       storedIssueLinks[repo] = settings as RepositorySettingsIssueLinks;
       void workspaceState.update("repositorySettingsIssueLinks", storedIssueLinks);
@@ -133,6 +136,81 @@ describe("DataSource repository settings", () => {
         pullRequest: null
       }
     });
+  });
+
+  it("infers a destination from source remote HEAD before defaults", async () => {
+    git(fixture.repo, ["push", "origin", "main:main"]);
+    git(fixture.repo, ["fetch", "origin"]);
+    git(fixture.repo, ["remote", "set-url", "origin", "https://github.com/example/origin.git"]);
+    git(fixture.repo, ["branch", "trunk"]);
+    git(fixture.repo, ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
+    const { extensionState } = createExtensionState();
+    const dataSource = new DataSource(extensionState as ExtensionState);
+
+    const result = await dataSource.getRepositorySettings(fixture.repo);
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.data.pullRequestDestination).toEqual({
+      branches: expect.arrayContaining(["main", "trunk"]),
+      defaultBranch: "main",
+      selectedBranch: null
+    });
+    expect(result.data.pullRequest).toMatchObject({ destinationBranch: "main" });
+  });
+
+  it("falls back to an existing default destination branch", async () => {
+    git(fixture.repo, ["remote", "set-url", "origin", "https://github.com/example/origin.git"]);
+    git(fixture.repo, ["branch", "develop"]);
+    const { extensionState } = createExtensionState();
+    const dataSource = new DataSource(extensionState as ExtensionState);
+
+    const result = await dataSource.getRepositorySettings(fixture.repo);
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.data.pullRequestDestination).toEqual({
+      branches: expect.arrayContaining(["develop", "main"]),
+      defaultBranch: "main",
+      selectedBranch: null
+    });
+  });
+
+  it("validates the selected destination before persisting pull-request settings", async () => {
+    const { extensionState } = createExtensionState();
+    const dataSource = new DataSource(extensionState as ExtensionState);
+
+    expect(
+      await dataSource.repositorySettingsAction(fixture.repo, {
+        type: "savePullRequest",
+        settings: {
+          provider: "github",
+          remoteName: "origin",
+          destinationBranch: "missing"
+        }
+      })
+    ).toBe(INVALID_DESTINATION_MESSAGE);
+    expect(extensionState.saveRepositoryPullRequest).not.toHaveBeenCalled();
+
+    expect(
+      await dataSource.repositorySettingsAction(fixture.repo, {
+        type: "savePullRequest",
+        settings: {
+          provider: "github",
+          remoteName: "origin",
+          destinationBranch: "main"
+        }
+      })
+    ).toBeNull();
+    expect(extensionState.saveRepositoryPullRequest).toHaveBeenCalledWith(
+      fixture.repo,
+      fixture.origin,
+      {
+        provider: "github",
+        remoteName: "origin",
+        destinationBranch: "main"
+      }
+    );
   });
 
   it("persists and returns issue-link settings in workspace state", async () => {

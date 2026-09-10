@@ -191,7 +191,13 @@ describe("reopen changed file with encoding", () => {
     );
     expect(mocks.setFileEncoding).toHaveBeenCalledWith(REPO, "src/file.ts", "shift_jis");
     expect(reopenMessages()).toEqual([
-      { command: "reopenFile", repo: REPO, filePath: "src\\file.ts", encoding: "shift_jis", status: null }
+      {
+        command: "reopenFile",
+        repo: REPO,
+        filePath: "src\\file.ts",
+        encoding: "shift_jis",
+        status: null
+      }
     ]);
   });
 

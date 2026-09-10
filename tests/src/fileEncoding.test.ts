@@ -29,10 +29,7 @@ describe("file encoding selection and decoding", () => {
     expect(decodeGitBytes(Buffer.from([0x8a, 0xbf]), "shift_jis")).toBe("漢");
     expect(decodeGitBytes(Buffer.from([0xa4, 0xa2]), "euc-jp")).toBe("あ");
     expect(
-      decodeGitBytes(
-        Buffer.from([0x1b, 0x24, 0x42, 0x24, 0x22, 0x1b, 0x28, 0x42]),
-        "iso-2022-jp"
-      )
+      decodeGitBytes(Buffer.from([0x1b, 0x24, 0x42, 0x24, 0x22, 0x1b, 0x28, 0x42]), "iso-2022-jp")
     ).toBe("あ");
     expect(decodeGitBytes(Buffer.from([0x41, 0, 0x42, 0]), "utf-16le")).toBe("AB");
     expect(decodeGitBytes(Buffer.from([0x93, 0x75]), "windows-1252")).toBe("“u");

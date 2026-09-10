@@ -185,8 +185,9 @@ export class ColumnVisibilityMenu {
     const items = Array.from(
       this.menuElement.querySelectorAll<HTMLLIElement>('li[role="menuitemcheckbox"]')
     );
-    const visibleCount = items.filter((item) => item.getAttribute("aria-checked") === "true")
-      .length;
+    const visibleCount = items.filter(
+      (item) => item.getAttribute("aria-checked") === "true"
+    ).length;
     for (const item of items) {
       const isLastVisible = visibleCount === 1 && item.getAttribute("aria-checked") === "true";
       item.classList.toggle("disabled", isLastVisible);

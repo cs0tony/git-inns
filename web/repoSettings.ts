@@ -14,6 +14,11 @@ export type RepoSettingsAction = RepositorySettingsAction;
 
 export type RepoSettingsActionHandler = (action: RepoSettingsAction) => void;
 
+export interface RepoSettingsConfigHandlers {
+  onExportConfig(): void;
+  onImportConfig(): void;
+}
+
 interface SettingsFields {
   issueEnabled: HTMLInputElement;
   issueRegex: HTMLInputElement;
@@ -44,6 +49,7 @@ let panelCount = 0;
 
 export class RepoSettingsPanel {
   private readonly actionHandler: RepoSettingsActionHandler;
+  private readonly configHandlers: RepoSettingsConfigHandlers | null;
   private readonly container: HTMLElement;
   private readonly idPrefix: string;
   private readonly root: HTMLElement;
@@ -56,11 +62,13 @@ export class RepoSettingsPanel {
   constructor(
     container: HTMLElement,
     data: RepoSettingsData,
-    actionHandler: RepoSettingsActionHandler
+    actionHandler: RepoSettingsActionHandler,
+    configHandlers?: RepoSettingsConfigHandlers
   ) {
     this.container = container;
     this.data = data;
     this.actionHandler = actionHandler;
+    this.configHandlers = configHandlers ?? null;
     this.idPrefix = `repo-settings-${++panelCount}`;
     this.root = this.createRoot();
     this.renderContent();
@@ -145,11 +153,7 @@ export class RepoSettingsPanel {
       this.createRemotesSection(),
       this.createIssueLinkSection(),
       this.createPullRequestSection(),
-      this.createComingSoonSection(
-        `${this.idPrefix}-export`,
-        t("repoSettings.export"),
-        t("repoSettings.exportDescription")
-      )
+      this.createRepositoryConfigSection()
     );
 
     this.root.replaceChildren(header, main);
@@ -383,22 +387,6 @@ export class RepoSettingsPanel {
     return section;
   }
 
-  private createComingSoonSection(id: string, label: string, description: string): HTMLElement {
-    const section = document.createElement("section");
-    section.className = "repo-settings-section";
-    section.setAttribute("aria-labelledby", id);
-
-    const title = document.createElement("h3");
-    title.id = id;
-    title.textContent = label;
-    const message = document.createElement("p");
-    message.className = "repo-settings-coming-soon";
-    message.textContent = description;
-
-    section.append(title, message);
-    return section;
-  }
-
   private createPullRequestSection(): HTMLElement {
     const section = document.createElement("section");
     section.className = "repo-settings-section";
@@ -514,6 +502,37 @@ export class RepoSettingsPanel {
           : {})
       }
     });
+  }
+
+  private createRepositoryConfigSection(): HTMLElement {
+    const section = document.createElement("section");
+    section.className = "repo-settings-section";
+    section.setAttribute("aria-labelledby", `${this.idPrefix}-config-title`);
+
+    const title = document.createElement("h3");
+    title.id = `${this.idPrefix}-config-title`;
+    title.textContent = t("repoSettings.export");
+    const description = document.createElement("p");
+    description.className = "repo-settings-section-description";
+    description.textContent = t("repoSettings.exportHelp");
+
+    const actions = document.createElement("div");
+    actions.className = "repo-settings-actions";
+    const exportButton = this.createButton(
+      t("repoSettings.exportButtonAria"),
+      t("repoSettings.exportButtonShort"),
+      () => this.configHandlers?.onExportConfig(),
+      "primary"
+    );
+    const importButton = this.createButton(
+      t("repoSettings.importButtonAria"),
+      t("repoSettings.importButtonShort"),
+      () => this.configHandlers?.onImportConfig(),
+      "secondary"
+    );
+    actions.append(exportButton, importButton);
+    section.append(title, description, actions);
+    return section;
   }
 
   private createTextField(
@@ -742,9 +761,10 @@ export class RepoSettingsPanel {
 export function openRepoSettings(
   container: HTMLElement,
   data: RepoSettingsData,
-  actionHandler: RepoSettingsActionHandler
+  actionHandler: RepoSettingsActionHandler,
+  configHandlers?: RepoSettingsConfigHandlers
 ): RepoSettingsPanel {
-  const panel = new RepoSettingsPanel(container, data, actionHandler);
+  const panel = new RepoSettingsPanel(container, data, actionHandler, configHandlers);
   panel.open();
   return panel;
 }

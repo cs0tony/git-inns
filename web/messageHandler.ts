@@ -238,6 +238,21 @@ export function handleMessage(msg: ResponseMessage, gitKeizu: GitKeizuViewAPI): 
         showErrorDialog(t("error.repositorySettingsAction"), msg.status, null);
       }
       break;
+    case "repositoryConfigOperation":
+      if (msg.status !== null) {
+        showErrorDialog(
+          t(
+            msg.operation === "export"
+              ? "error.exportRepositoryConfig"
+              : "error.importRepositoryConfig"
+          ),
+          msg.status,
+          null
+        );
+      } else if (msg.operation === "import") {
+        gitKeizu.refresh("soft");
+      }
+      break;
     case "pushTag":
       hideDialog();
       refreshOrError(gitKeizu, msg.status, t("error.pushTag"));

@@ -274,6 +274,14 @@ class GitKeizuView {
             repo: this.currentRepo,
             action
           });
+        },
+        {
+          onExportConfig: () => {
+            sendMessage({ command: "exportRepositoryConfig", repo: this.currentRepo });
+          },
+          onImportConfig: () => {
+            sendMessage({ command: "importRepositoryConfig", repo: this.currentRepo });
+          }
         }
       );
     }

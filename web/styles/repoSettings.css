@@ -97,6 +97,12 @@
   background-color: var(--vscode-editor-background);
 }
 
+.repo-settings-section-description {
+  margin-top: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
 .repo-settings-section h3,
 .repo-settings-form-title {
   margin-top: 0;
@@ -152,6 +158,12 @@
   gap: 10px;
 }
 
+.repo-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .repo-settings-field {
   display: grid;
   gap: 3px;
@@ -162,6 +174,7 @@
 }
 
 .repo-settings input[type="text"],
+.repo-settings select,
 .repo-settings button {
   border: 1px solid var(--vscode-input-border);
   border-radius: 3px;
@@ -173,6 +186,13 @@
   padding: 5px 6px;
   background-color: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
+}
+
+.repo-settings select {
+  min-width: 0;
+  padding: 5px 6px;
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
 }
 
 .repo-settings input.invalid {

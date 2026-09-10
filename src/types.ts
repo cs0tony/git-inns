@@ -887,6 +887,21 @@ export interface RequestRepositorySettingsAction {
   repo: string;
   action: RepositorySettingsAction;
 }
+
+export interface RequestExportRepositoryConfig {
+  command: "exportRepositoryConfig";
+  repo: string;
+}
+export interface RequestImportRepositoryConfig {
+  command: "importRepositoryConfig";
+  repo: string;
+}
+export interface ResponseRepositoryConfigOperation {
+  command: "repositoryConfigOperation";
+  repo: string;
+  operation: "export" | "import";
+  status: GitCommandStatus;
+}
 export interface ResponseRepositorySettings {
   command: "repositorySettings";
   repo: string;
@@ -941,6 +956,8 @@ export type RequestMessage =
   | RequestPushStash
   | RequestPushTag
   | RequestRepositorySettingsAction
+  | RequestExportRepositoryConfig
+  | RequestImportRepositoryConfig
   | RequestRebaseBranch
   | RequestRemoveWorktree
   | RequestRenameBranch
@@ -977,6 +994,7 @@ export type ResponseMessage =
   | ResponseRepositorySettings
   | ResponseRepositorySettingsError
   | ResponseRepositorySettingsAction
+  | ResponseRepositoryConfigOperation
   | ResponsePull
   | ResponsePush
   | ResponseLoadBranches

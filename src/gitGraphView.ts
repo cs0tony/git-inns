@@ -14,6 +14,11 @@ import { isSafeRemoteName } from "./refValidation";
 import { RepoFileWatcher } from "./repoFileWatcher";
 import { RepoManager } from "./repoManager";
 import {
+  exportRepositoryConfig,
+  parseRepositoryConfig,
+  type ShareablePullRequestConfig
+} from "./repositoryConfig";
+import {
   type CheckoutBranchResult,
   type GitCommandStatus,
   GitFileChangeType,
@@ -217,6 +222,12 @@ export class GitKeizuView {
               }
               break;
             }
+            case "exportRepositoryConfig":
+              await this.exportRepositoryConfig(msg.repo);
+              break;
+            case "importRepositoryConfig":
+              await this.importRepositoryConfig(msg.repo);
+              break;
             case "checkoutBranch": {
               const checkoutResult = await this.dataSource.checkoutBranch(
                 msg.repo,
@@ -855,6 +866,87 @@ export class GitKeizuView {
       return;
     }
     this.sendMessage({ command: "repositorySettings", repo, data: result.data });
+  }
+
+  private async exportRepositoryConfig(repo: string): Promise<void> {
+    let status: GitCommandStatus = null;
+    try {
+      const result = await this.dataSource.getRepositorySettings(repo);
+      if (result.kind === "error") throw new Error(result.status ?? "Unable to read settings.");
+      const pullRequest = result.data.pullRequest;
+      const content = exportRepositoryConfig({
+        version: 1,
+        issueLinks: result.data.issueLinks,
+        ...(pullRequest === null
+          ? {}
+          : {
+              pullRequest: {
+                provider: pullRequest.provider,
+                sourceRemote: pullRequest.sourceRemoteName,
+                ...(pullRequest.customName === undefined
+                  ? {}
+                  : { customName: pullRequest.customName }),
+                ...(pullRequest.customTemplateUrl === undefined
+                  ? {}
+                  : { customTemplateUrl: pullRequest.customTemplateUrl })
+              } satisfies ShareablePullRequestConfig
+            })
+      });
+      const target = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(path.join(repo, "git-keizu.config.json")),
+        filters: { JSON: ["json"] },
+        title: "Export Repository Configuration"
+      });
+      if (target === undefined) return;
+      await vscode.workspace.fs.writeFile(target, Buffer.from(content, "utf8"));
+    } catch (error) {
+      status = error instanceof Error ? error.message : String(error);
+    }
+    this.sendMessage({ command: "repositoryConfigOperation", repo, operation: "export", status });
+  }
+
+  private async importRepositoryConfig(repo: string): Promise<void> {
+    let status: GitCommandStatus = null;
+    try {
+      const source = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        filters: { JSON: ["json"] },
+        title: "Import Repository Configuration"
+      });
+      if (source === undefined || source[0] === undefined) return;
+      const raw = Buffer.from(await vscode.workspace.fs.readFile(source[0])).toString("utf8");
+      const parsed = parseRepositoryConfig(raw);
+      if (parsed.kind === "error") throw new Error(parsed.error);
+      if (parsed.data.issueLinks !== undefined) {
+        await this.extensionState.saveRepositorySettingsIssueLinks(repo, parsed.data.issueLinks);
+      }
+      if (parsed.data.pullRequest !== undefined) {
+        const settings = await this.dataSource.getRepositorySettings(repo);
+        if (settings.kind !== "ok") throw new Error(settings.status ?? "Unable to read settings.");
+        const remote = settings.data.remotes.find(
+          (candidate) => candidate.name === parsed.data.pullRequest?.sourceRemote
+        );
+        if (remote === undefined || parsed.data.pullRequest === undefined) {
+          throw new Error("The configured source remote does not exist.");
+        }
+        await this.extensionState.saveRepositoryPullRequest(repo, remote.url, {
+          provider: parsed.data.pullRequest.provider,
+          remoteName: parsed.data.pullRequest.sourceRemote,
+          ...(parsed.data.pullRequest.customName === undefined
+            ? {}
+            : { customName: parsed.data.pullRequest.customName }),
+          ...(parsed.data.pullRequest.customTemplateUrl === undefined
+            ? {}
+            : { customTemplateUrl: parsed.data.pullRequest.customTemplateUrl })
+        });
+      }
+      await this.sendFreshRepositorySettings(repo);
+    } catch (error) {
+      status = error instanceof Error ? error.message : String(error);
+    }
+    this.sendMessage({ command: "repositoryConfigOperation", repo, operation: "import", status });
   }
 
   private async resolvePush(msg: RequestPush): Promise<ResponsePush> {

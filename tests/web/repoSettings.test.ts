@@ -127,8 +127,10 @@ describe("repository settings panel", () => {
       "Choose a provider and source remote. Pull Request creation opens a pre-filled comparison in your browser."
     );
     expect(document.body.textContent).toContain(
-      "Sharing repository settings is not available yet."
+      "Export shared issue-link and pull-request settings, or import a configuration shared by a teammate."
     );
+    expect(labelledButton("Export repository configuration").textContent).toBe("Export");
+    expect(labelledButton("Import repository configuration").textContent).toBe("Import");
   });
 
   it("shows a clear empty state when no remotes exist", () => {

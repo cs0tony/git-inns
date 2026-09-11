@@ -152,3 +152,28 @@ Each slice is independently testable and keeps configuration under the existing
   validation, toolbar disclosure, status handling, and localization.
 - **R4-T5 — User details:** local/global config discovery, typed save/remove
   actions, validation, confirmations, and settings panel composition.
+
+## Modernization wave 5
+
+Wave 5 closes four remaining presentation and operation gaps while preserving
+the existing `git-keizu.*` namespace. Each slice is independently testable and
+uses progressively disclosed modern controls instead of a dense toolbar.
+
+| ID | Requirement | Modern UI / behavior expectation |
+| -- | ----------- | -------------------------------- |
+| FE-28 | Commit Details placement and file presentation | Compact segmented controls choose inline or right-side placement, tree or list files, compact folders, and optional auto-centering. Preferences persist per workspace. |
+| FE-29 | Repository visibility controls | Repository settings expose accessible switches for tags, stashes, remote heads, and untracked files; loading and ref rendering respect the choices. |
+| FE-30 | Advanced Git operation forms | Destructive/history-changing dialogs remember safe defaults and expose advanced options for tags, branches, stashes, pulls, and rebases with explicit validation and confirmations. |
+| FE-31 | Custom emoji shortcode mappings | Validated global mappings render safely in rich commit bodies and integrate with the existing opt-in Markdown mode. |
+| FE-32 | Integration QA | Backend/web tests, typecheck, lint, formatting, localization parity, and manual smoke checks pass after merge. |
+
+### Task split
+
+- **R5-T1 — Commit Details presentation:** placement, file-view mode,
+  compact-folder behavior, auto-centering, persistence, and accessibility.
+- **R5-T2 — Repository visibility:** typed settings state, Git argument
+  construction, protocol updates, and modern settings controls.
+- **R5-T3 — Advanced operations:** dialog-default persistence, option-aware
+  frontend forms, and safe backend Git argument handling.
+- **R5-T4 — Emoji mappings:** configuration parsing/validation and safe
+  shortcode substitution in the rich-body formatter.

@@ -31,6 +31,11 @@ import {
 } from "./fileTree";
 import { findCommitElemWithId, FindWidget, getCommitElems } from "./findWidget";
 import { Graph } from "./graph";
+import {
+  getCommitDetailsBodyClassName,
+  normalizeCommitDetailsPresentation,
+  type CommitDetailsPresentationSettings
+} from "./commitDetailsPresentation";
 import { t } from "./i18n";
 import { renderCommitBodyIssueLinks } from "./issueLinks";
 import { handleMessage, type RefreshMode } from "./messageHandler";
@@ -225,6 +230,8 @@ class GitKeizuView {
   private readonly columnVisibilityMenu = new ColumnVisibilityMenu();
   private readonly commitBodyRendering: GG.CommitBodyRendering =
     viewState.commitBodyRendering === "rich" ? "rich" : "plain";
+  private readonly defaultCommitDetailsPresentation =
+    normalizeCommitDetailsPresentation(viewState.commitDetailsPresentation);
   private readonly customEmojiShortcodeMappings = combineWithBuiltInEmojiMappings(
     viewState.customEmojiShortcodeMappings ?? {}
   );
@@ -1810,9 +1817,9 @@ class GitKeizuView {
         ? this.buildUncommittedSummaryHtml(commitDetails)
         : this.buildCommitSummaryHtml(commitDetails);
 
-    const fileViewType = this.getRepoFileViewType();
+    const presentation = this.getCommitDetailsPresentation();
     const filesSectionHtml = this.buildFilesSectionHtml(
-      fileViewType,
+      presentation.fileViewMode,
       commitDetails.fileChanges,
       fileTree,
       this.expandedCommit.reviewedFiles
@@ -1820,6 +1827,8 @@ class GitKeizuView {
 
     const html =
       `<td data-column="graph"></td><td colspan="${this.getVisibleColumnCount()}">` +
+      `<div id="commitDetailsBody" class="${getCommitDetailsBodyClassName(presentation)}">` +
+      this.buildCommitDetailsControlsHtml(presentation) +
       `<div id="commitDetailsSummary">${summaryHtml}</div>` +
       `<div id="codeReviewMount" class="code-review-mount"></div>` +
       filesSectionHtml +
@@ -1839,6 +1848,7 @@ class GitKeizuView {
 
     const cdvHeight = this.calculateCdvHeight();
     elem.style.height = `${cdvHeight}px`;
+    elem.classList.toggle("commitDetailsRight", presentation.location === "right");
 
     this.renderGraph();
     this.scrollToExpandedCommit(elem);
@@ -1847,6 +1857,7 @@ class GitKeizuView {
       this.hideCommitDetails();
     });
     this.bindFileViewListeners();
+    this.bindCommitDetailsPresentationListeners();
     this.bindParentHashListeners();
     this.bindExternalDiffListener();
     this.renderCodeReviewPanel();
@@ -1877,6 +1888,113 @@ class GitKeizuView {
       `<button id="commitDetailsExternalDiff" class="commitDetailsControlBtn" type="button" ` +
       `title="${safeLabel}" aria-label="${safeLabel}">${svgIcons.externalLink}</button>`
     );
+  }
+
+  private getCommitDetailsPresentation(): CommitDetailsPresentationSettings {
+    const repo = this.currentRepo === null ? undefined : this.gitRepos[this.currentRepo];
+    return normalizeCommitDetailsPresentation(
+      repo?.commitDetailsPresentation,
+      {
+        ...this.defaultCommitDetailsPresentation,
+        fileViewMode: repo?.fileViewType ?? this.defaultCommitDetailsPresentation.fileViewMode
+      }
+    );
+  }
+
+  private buildCommitDetailsControlsHtml(
+    presentation: CommitDetailsPresentationSettings
+  ): string {
+    const option = (
+      field: keyof CommitDetailsPresentationSettings,
+      value: string,
+      label: string,
+      active: boolean
+    ) =>
+      `<button type="button" class="commitDetailsSegment${active ? " selected" : ""}" ` +
+      `data-presentation-field="${field}" data-presentation-value="${value}" ` +
+      `aria-pressed="${active}">${escapeHtml(label)}</button>`;
+    const group = (label: string, controls: string) =>
+      `<span class="commitDetailsControlGroup" role="group" aria-label="${escapeHtml(label)}">${controls}</span>`;
+
+    return (
+      '<div class="commitDetailsControls">' +
+      group(
+        t("commitDetails.presentation.placement"),
+        option("location", "inline", t("commitDetails.presentation.inline"), presentation.location === "inline") +
+          option("location", "right", t("commitDetails.presentation.right"), presentation.location === "right")
+      ) +
+      group(
+        t("commitDetails.presentation.files"),
+        option("fileViewMode", "tree", t("commitDetails.presentation.tree"), presentation.fileViewMode === "tree") +
+          option("fileViewMode", "list", t("commitDetails.presentation.list"), presentation.fileViewMode === "list")
+      ) +
+      group(
+        t("commitDetails.presentation.behavior"),
+        option(
+          "compactFolders",
+          String(presentation.compactFolders),
+          t("commitDetails.presentation.compactFolders"),
+          presentation.compactFolders
+        ) +
+          option(
+            "autoCenter",
+            String(presentation.autoCenter),
+            t("commitDetails.presentation.autoCenter"),
+            presentation.autoCenter
+          )
+      ) +
+      "</div>"
+    );
+  }
+
+  private bindCommitDetailsPresentationListeners(): void {
+    document.querySelectorAll<HTMLButtonElement>("[data-presentation-field]").forEach(
+      (button) => {
+        button.addEventListener("click", () => {
+          const field = button.dataset.presentationField;
+          const value = button.dataset.presentationValue;
+          if (
+            (field === "location" && (value === "inline" || value === "right")) ||
+            (field === "fileViewMode" && (value === "tree" || value === "list"))
+          ) {
+            this.updateCommitDetailsPresentation({ [field]: value });
+          } else if (field === "compactFolders" || field === "autoCenter") {
+            this.updateCommitDetailsPresentation({ [field]: value !== "true" });
+          }
+        });
+      }
+    );
+  }
+
+  private updateCommitDetailsPresentation(
+    patch: Partial<CommitDetailsPresentationSettings>
+  ): void {
+    if (this.currentRepo === null || this.expandedCommit === null) return;
+    const repo = this.gitRepos[this.currentRepo];
+    if (repo === undefined) return;
+    const updatedSettings = normalizeCommitDetailsPresentation(
+      { ...this.getCommitDetailsPresentation(), ...patch },
+      this.defaultCommitDetailsPresentation
+    );
+    this.gitRepos[this.currentRepo] = {
+      ...repo,
+      commitDetailsPresentation: updatedSettings,
+      fileViewType: updatedSettings.fileViewMode
+    };
+    sendMessage({
+      command: "saveRepoState",
+      repo: this.currentRepo,
+      state: this.gitRepos[this.currentRepo]
+    });
+    this.saveState();
+    if (this.expandedCommit.commitDetails !== null && this.expandedCommit.fileTree !== null) {
+      this.showCommitDetails(
+        this.expandedCommit.commitDetails,
+        this.expandedCommit.fileTree,
+        this.expandedCommit.reviewedFiles,
+        this.expandedCommit.diffTool
+      );
+    }
   }
 
   private bindExternalDiffListener(): void {
@@ -2180,6 +2298,12 @@ class GitKeizuView {
     const viewHeight = this.scrollContainerElem.clientHeight;
     const headerHeight = (document.getElementById("tableColHeaders")?.clientHeight ?? 0) + 1;
     const srcElemTop = this.expandedCommit.srcElem.offsetTop;
+    if (this.getCommitDetailsPresentation().autoCenter) {
+      const sourceHeight = this.expandedCommit.srcElem.offsetHeight || SCROLL_ROW_HEIGHT;
+      this.scrollContainerElem.scrollTop =
+        srcElemTop - Math.max((viewHeight - sourceHeight) / 2, headerHeight + CDV_SCROLL_PADDING);
+      return;
+    }
     if (srcElemTop < scrollTop + headerHeight + CDV_SCROLL_PADDING) {
       this.scrollContainerElem.scrollTop = srcElemTop - headerHeight - CDV_SCROLL_PADDING;
     } else if (detailsElem.offsetTop + this.config.grid.expandY - viewHeight > scrollTop) {

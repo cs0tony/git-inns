@@ -20,6 +20,7 @@ import {
   parseRepositoryConfig,
   type ShareablePullRequestConfig
 } from "./repositoryConfig";
+import { normalizeCommitDetailsPresentation } from "../web/commitDetailsPresentation";
 import {
   type ActiveCodeReview,
   type CheckoutBranchResult,
@@ -1019,6 +1020,12 @@ export class GitKeizuView {
     await this.extensionState.waitForAvatarStorage();
     const viewState: GitKeizuViewState = {
       commitBodyRendering: config.commitBodyRendering(),
+      commitDetailsPresentation: normalizeCommitDetailsPresentation({
+        location: config.commitDetailsViewLocation(),
+        fileViewMode: config.commitDetailsFileViewType(),
+        compactFolders: config.commitDetailsFileTreeCompactFolders(),
+        autoCenter: config.autoCenterCommitDetailsView()
+      }),
       commitOrdering: config.commitOrdering(),
       contextMenuActionsVisibility: config.contextMenuActionsVisibility(),
       customBranchGlobPatterns: config.customBranchGlobPatterns(),

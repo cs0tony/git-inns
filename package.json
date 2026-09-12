@@ -459,6 +459,36 @@
             }
           }
         },
+        "git-keizu.commitDetailsView.location": {
+          "type": "string",
+          "enum": ["inline", "right"],
+          "enumDescriptions": [
+            "%config.commitDetailsView.location.enum.inline%",
+            "%config.commitDetailsView.location.enum.right%"
+          ],
+          "default": "inline",
+          "description": "%config.commitDetailsView.location.description%"
+        },
+        "git-keizu.commitDetailsView.fileView.type": {
+          "type": "string",
+          "enum": ["tree", "list"],
+          "enumDescriptions": [
+            "%config.commitDetailsView.fileView.type.enum.tree%",
+            "%config.commitDetailsView.fileView.type.enum.list%"
+          ],
+          "default": "tree",
+          "description": "%config.commitDetailsView.fileView.type.description%"
+        },
+        "git-keizu.commitDetailsView.fileView.compactFolders": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.commitDetailsView.fileView.compactFolders.description%"
+        },
+        "git-keizu.autoCenterCommitDetailsView": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.autoCenterCommitDetailsView.description%"
+        },
         "git-keizu.dialog.merge.noFastForward": {
           "type": "boolean",
           "default": true,

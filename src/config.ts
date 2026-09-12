@@ -360,6 +360,22 @@ class Config {
     );
   }
 
+  public commitDetailsViewLocation(): "inline" | "right" {
+    return this.workspaceConfiguration.get("commitDetailsView.location", "inline");
+  }
+
+  public commitDetailsFileViewType(): "tree" | "list" {
+    return this.workspaceConfiguration.get("commitDetailsView.fileView.type", "tree");
+  }
+
+  public commitDetailsFileTreeCompactFolders(): boolean {
+    return this.workspaceConfiguration.get("commitDetailsView.fileView.compactFolders", true);
+  }
+
+  public autoCenterCommitDetailsView(): boolean {
+    return this.workspaceConfiguration.get("autoCenterCommitDetailsView", false);
+  }
+
   public customEmojiShortcodeMappings(): EmojiMappingRecord {
     return normalizeEmojiMappings(
       this.workspaceConfiguration.get<unknown>("customEmojiShortcodeMappings", [])

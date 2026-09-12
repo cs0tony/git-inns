@@ -1,6 +1,7 @@
 /* Git Interfaces / Types */
 
 import type { EmojiMappingRecord } from "./emojiMappings";
+import type { CommitDetailsPresentationSettings } from "../web/commitDetailsPresentation";
 
 export interface GitCommitStash {
   selector: string;
@@ -155,6 +156,7 @@ export type ActiveCodeReviewByRepo = Record<string, ActiveCodeReview>;
 export interface GitRepoState {
   columnWidths: number[] | null;
   codeReview?: ActiveCodeReview | null;
+  commitDetailsPresentation?: CommitDetailsPresentationSettings;
   encoding?: FileEncoding;
   columnVisibility?: ColumnVisibility;
   commitOrdering?: RepoCommitOrdering;
@@ -203,6 +205,7 @@ export interface DialogDefaults {
 
 export interface GitKeizuViewState {
   commitBodyRendering?: CommitBodyRendering;
+  commitDetailsPresentation?: CommitDetailsPresentationSettings;
   commitOrdering: CommitOrdering;
   contextMenuActionsVisibility: ContextMenuActionsVisibility;
   customBranchGlobPatterns: CustomBranchGlobPattern[];

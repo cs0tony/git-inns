@@ -65,5 +65,13 @@
   "config.repository.commits.order.description": "グラフ内のコミット表示順を指定します。",
   "config.repository.commits.mute.mergeCommits.description": "マージコミットメッセージを薄く表示します。",
   "config.repository.commits.mute.commitsThatAreNotAncestorsOfHead.description": "HEAD の祖先ではないコミットメッセージを薄く表示します。",
-  "config.openNewTabEditorGroup.description": "commit details で 'Open File' アイコンをクリックしたとき、ファイルを開くエディターグループを指定します。"
+  "config.openNewTabEditorGroup.description": "commit details で 'Open File' アイコンをクリックしたとき、ファイルを開くエディターグループを指定します。",
+  "config.commitDetailsView.location.enum.inline": "選択したコミットの下にコミット詳細をインライン表示します。",
+  "config.commitDetailsView.location.enum.right": "コミット詳細をコンパクトな右側パネルとして表示します。",
+  "config.commitDetailsView.location.description": "コミット詳細の既定の表示位置を指定します。",
+  "config.commitDetailsView.fileView.type.enum.tree": "変更ファイルをツリー表示します。",
+  "config.commitDetailsView.fileView.type.enum.list": "変更ファイルをフラットなリスト表示します。",
+  "config.commitDetailsView.fileView.type.description": "変更ファイルの既定の表示形式を指定します。",
+  "config.commitDetailsView.fileView.compactFolders.description": "変更ファイルツリーのフォルダーをコンパクトに折りたたみます。",
+  "config.autoCenterCommitDetailsView.description": "コミット詳細を開いたときに選択されたコミットを自動的に中央へ移動します。"
 }

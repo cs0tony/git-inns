@@ -234,10 +234,55 @@ body.unableToLoad p {
   background-color: rgba(128, 128, 128, 0.2);
 }
 /* Summary panel */
+.commitDetailsControls {
+  position: absolute;
+  left: 0;
+  right: 32px;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.2));
+  background: var(--vscode-editorWidget-background, transparent);
+  scrollbar-width: thin;
+}
+.commitDetailsControlGroup {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 6px;
+  background: var(--vscode-input-background, transparent);
+}
+.commitDetailsSegment {
+  min-width: 34px;
+  padding: 2px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font: inherit;
+  line-height: 18px;
+  cursor: pointer;
+}
+.commitDetailsSegment + .commitDetailsSegment {
+  border-left: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.25));
+}
+.commitDetailsSegment.selected {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.commitDetailsSegment:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
 #commitDetailsSummary {
   position: absolute;
   left: 0;
-  top: 0;
+  top: 38px;
   bottom: 2px;
   width: 45%;
   padding: 10px;
@@ -328,7 +373,7 @@ body.unableToLoad p {
 #commitDetailsFiles {
   position: absolute;
   right: 32px;
-  top: 0;
+  top: 38px;
   bottom: 2px;
   left: 45%;
   border-right: 1px solid rgba(128, 128, 128, 0.2);
@@ -379,7 +424,7 @@ body.unableToLoad p {
 .commitDetailsControlBtn {
   position: absolute;
   right: 36px;
-  top: 4px;
+  top: 44px;
   width: 24px;
   height: 24px;
   border: 0;
@@ -387,6 +432,24 @@ body.unableToLoad p {
   background: transparent;
   color: var(--vscode-editor-foreground);
   cursor: pointer;
+}
+.commitDetailsCompactFolders #commitDetailsFiles li {
+  margin-top: 0;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.commitDetailsCompactFolders #commitDetailsFiles ul {
+  -webkit-padding-start: 22px;
+}
+#commitDetails.commitDetailsRight #commitDetailsSummary {
+  left: auto;
+  right: 32px;
+  width: 40%;
+  border-left: 1px solid rgba(128, 128, 128, 0.2);
+}
+#commitDetails.commitDetailsRight #commitDetailsFiles {
+  left: 0;
+  right: calc(40% + 32px);
 }
 .commitDetailsControlBtn:focus-visible {
   outline: 1px solid var(--vscode-focusBorder, var(--vscode-editor-foreground));

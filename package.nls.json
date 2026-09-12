@@ -65,5 +65,13 @@
   "config.repository.commits.order.description": "Specifies the display order of commits in the graph.",
   "config.repository.commits.mute.mergeCommits.description": "Display merge commit messages with reduced opacity.",
   "config.repository.commits.mute.commitsThatAreNotAncestorsOfHead.description": "Display commit messages that are not ancestors of HEAD with reduced opacity.",
-  "config.openNewTabEditorGroup.description": "Specifies the editor group in which a file is opened when clicking the 'Open File' icon in commit details."
+  "config.openNewTabEditorGroup.description": "Specifies the editor group in which a file is opened when clicking the 'Open File' icon in commit details.",
+  "config.commitDetailsView.location.enum.inline": "Show Commit Details inline below the selected commit.",
+  "config.commitDetailsView.location.enum.right": "Show Commit Details as a compact right-side panel.",
+  "config.commitDetailsView.location.description": "Specifies the default placement of Commit Details.",
+  "config.commitDetailsView.fileView.type.enum.tree": "Show changed files as a tree.",
+  "config.commitDetailsView.fileView.type.enum.list": "Show changed files as a flat list.",
+  "config.commitDetailsView.fileView.type.description": "Specifies the default changed-file presentation.",
+  "config.commitDetailsView.fileView.compactFolders.description": "Collapse folders in the changed-file tree to use space efficiently.",
+  "config.autoCenterCommitDetailsView.description": "Automatically center the selected commit when Commit Details opens."
 }

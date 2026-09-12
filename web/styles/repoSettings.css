@@ -163,6 +163,11 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.repo-settings-visibility-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
 
 .repo-settings-field {
   display: grid;

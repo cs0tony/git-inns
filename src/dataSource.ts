@@ -11,6 +11,12 @@ import {
   resolvePullRequestConfig
 } from "./pullRequest";
 import { isSafeRemoteName, isValidRefName } from "./refValidation";
+import {
+  DEFAULT_REPOSITORY_VISIBILITY,
+  filterRemoteHeadRefs,
+  normalizeRepositoryVisibility,
+  type RepositoryVisibility
+} from "./repositoryVisibility";
 import { parseForCatFileTag, type TagDetails } from "./tagDetails";
 import {
   ArchiveFormat,
@@ -424,11 +430,22 @@ export class DataSource {
     commitOrdering: CommitOrdering
   ) {
     const worktrees = await this.getWorktrees(repo);
+    const visibility = normalizeRepositoryVisibility(
+      this.extensionState?.getRepositoryVisibility(repo) ?? DEFAULT_REPOSITORY_VISIBILITY
+    );
 
     const [commits, refData, stashes, authorList, pinnedCommits] = await Promise.all([
-      this.getGitLog(repo, branches, maxCommits + 1, showRemoteBranches, authors, commitOrdering),
-      this.getRefs(repo, showRemoteBranches),
-      this.getStashes(repo),
+      this.getGitLog(
+        repo,
+        branches,
+        maxCommits + 1,
+        showRemoteBranches,
+        authors,
+        commitOrdering,
+        visibility
+      ),
+      this.getRefs(repo, showRemoteBranches, visibility),
+      visibility.showStashes ? this.getStashes(repo) : Promise.resolve<GitStash[]>([]),
       this.getAuthors(repo),
       this.getPinnedDetachedCommits(repo, collectDetachedHeads(worktrees), authors)
     ]);
@@ -626,6 +643,9 @@ export class DataSource {
 
   public async getUncommittedDetails(repo: string): Promise<GitCommitDetails | null> {
     try {
+      const visibility = normalizeRepositoryVisibility(
+        this.extensionState?.getRepositoryVisibility(repo) ?? DEFAULT_REPOSITORY_VISIBILITY
+      );
       const [nameStatus, numStat, untrackedFiles] = await Promise.all([
         this.spawnGit<string[]>(
           [
@@ -655,12 +675,20 @@ export class DataSource {
           (stdout) => stdout.split(NULL_BYTE_SEPARATOR),
           []
         ),
-        this.spawnGit<string[]>(
-          [...NO_QUOTE_PATH_CONFIG, "ls-files", "--others", "--exclude-standard", NULL_BYTE_OPTION],
-          repo,
-          (stdout) => stdout.split(NULL_BYTE_SEPARATOR),
-          []
-        )
+        visibility.showUntrackedFiles
+          ? this.spawnGit<string[]>(
+              [
+                ...NO_QUOTE_PATH_CONFIG,
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+                NULL_BYTE_OPTION
+              ],
+              repo,
+              (stdout) => stdout.split(NULL_BYTE_SEPARATOR),
+              []
+            )
+          : Promise.resolve<string[]>([])
       ]);
 
       const details: GitCommitDetails = {
@@ -1503,6 +1531,8 @@ export class DataSource {
         repositoryName: getRepositoryName(repo),
         repositoryPath: repo,
         remotes,
+        visibility:
+          this.extensionState?.getRepositoryVisibility(repo) ?? DEFAULT_REPOSITORY_VISIBILITY,
         issueLinks: this.extensionState?.getRepositorySettingsIssueLinks(repo) ?? {
           enabled: false,
           regex: "",
@@ -1541,6 +1571,9 @@ export class DataSource {
         return this.pruneTagsRemote(repo, action.name);
       case "saveIssueLinks":
         await this.saveRepositorySettingsIssueLinks(repo, action.settings);
+        return null;
+      case "saveVisibility":
+        this.extensionState?.saveRepositoryVisibility(repo, action.settings);
         return null;
       case "savePullRequest": {
         if (
@@ -1819,10 +1852,15 @@ export class DataSource {
     return this.runGitCommandSpawn(["worktree", "remove", worktreePath], repo);
   }
 
-  private getRefs(repo: string, showRemoteBranches: boolean) {
+  private getRefs(
+    repo: string,
+    showRemoteBranches: boolean,
+    visibility: RepositoryVisibility
+  ): Promise<GitRefData> {
     let args = ["show-ref"];
     if (!showRemoteBranches) {
-      args.push("--heads", "--tags");
+      args.push("--heads");
+      if (visibility.showTags) args.push("--tags");
     }
     args.push("-d", "--head");
 
@@ -1830,14 +1868,14 @@ export class DataSource {
       args,
       repo,
       (stdout) => {
-        let refData: GitRefData = { head: null, refs: [] };
-        let lines = stdout.split(eolRegex);
+        const refData: GitRefData = { head: null, refs: [] };
+        const lines = stdout.split(eolRegex);
         for (let i = 0; i < lines.length - 1; i++) {
-          let line = lines[i].split(" ");
+          const line = lines[i].split(" ");
           if (line.length < 2) continue;
 
-          let hash = line.shift()!;
-          let ref = line.join(" ");
+          const hash = line.shift()!;
+          const ref = line.join(" ");
 
           if (ref.startsWith("refs/heads/")) {
             refData.refs.push({ hash: hash, name: ref.substring(11), type: "head" });
@@ -1849,13 +1887,15 @@ export class DataSource {
             });
           } else if (ref.startsWith("refs/remotes/")) {
             const name = ref.substring(13);
-            if (name.endsWith("/HEAD")) continue;
             refData.refs.push({ hash: hash, name: name, type: "remote" });
           } else if (ref === "HEAD") {
             refData.head = hash;
           }
         }
-        return refData;
+        return {
+          head: refData.head,
+          refs: filterRemoteHeadRefs(refData.refs, visibility)
+        };
       },
       { head: null, refs: [] }
     );
@@ -1867,7 +1907,8 @@ export class DataSource {
     num: number,
     showRemoteBranches: boolean,
     authors: string[],
-    commitOrdering: CommitOrdering
+    commitOrdering: CommitOrdering,
+    visibility: RepositoryVisibility
   ) {
     const config = getConfig();
     const configuredGlobArguments = new Set(config.customBranchGlobArguments());
@@ -1891,7 +1932,8 @@ export class DataSource {
     if (validBranches.length > 0) {
       args.push(...validBranches);
     } else if (branches.length === 0) {
-      args.push("--branches", "--tags");
+      args.push("--branches");
+      if (visibility.showTags) args.push("--tags");
       if (showRemoteBranches) args.push("--remotes");
     } else {
       return Promise.resolve<GitCommit[]>([]);

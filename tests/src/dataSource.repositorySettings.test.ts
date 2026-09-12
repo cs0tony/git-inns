@@ -25,8 +25,16 @@ import { DataSource } from "../../src/dataSource";
 import type { ExtensionState } from "../../src/extensionState";
 import type {
   RepositorySettingsIssueLinks,
+  RepositoryVisibility,
   RepositorySettingsUserScope
 } from "../../src/types";
+
+const DEFAULT_VISIBILITY: RepositoryVisibility = {
+  showTags: true,
+  showStashes: true,
+  showRemoteHeads: true,
+  showUntrackedFiles: true
+};
 
 const INVALID_DESTINATION_MESSAGE = "Invalid pull-request destination branch.";
 
@@ -79,6 +87,8 @@ function createExtensionState(issueLinks?: Record<string, RepositorySettingsIssu
     })
   } as unknown as Memento;
   const extensionState = {
+    getRepositoryVisibility: vi.fn(() => DEFAULT_VISIBILITY),
+    saveRepositoryVisibility: vi.fn(),
     getRepositorySettingsIssueLinks: vi.fn(
       (repo: string) => storedIssueLinks[repo] ?? { enabled: false, regex: "", urlTemplate: "" }
     ),
@@ -160,6 +170,7 @@ describe("DataSource repository settings", () => {
           { name: "upstream", url: "https://example.com/upstream.git" }
         ],
         issueLinks: { enabled: false, regex: "", urlTemplate: "" },
+        visibility: DEFAULT_VISIBILITY,
         pullRequest: null,
         user: expectedUser("Test User", "test@example.com")
       }

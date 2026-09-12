@@ -61,6 +61,10 @@ vi.mock("../../src/config", () => ({
     loadMoreCommits: () => 100,
     loadMoreCommitsAutomatically: () => true,
     commitBodyRendering: () => "plain",
+    commitDetailsViewLocation: () => "inline",
+    commitDetailsFileViewType: () => "tree",
+    commitDetailsFileTreeCompactFolders: () => true,
+    autoCenterCommitDetailsView: () => false,
     muteCommitsMergeCommits: () => false,
     muteCommitsNotAncestorsOfHead: () => false,
     commitOrdering: () => "date",
@@ -74,6 +78,7 @@ vi.mock("../../src/config", () => ({
       uncommitted: {}
     }),
     customBranchGlobPatterns: () => [],
+    customEmojiShortcodeMappings: () => [],
     showCurrentBranchByDefault: () => false,
     showRecentActions: () => true,
     dialogDefaults: () => ({})
@@ -109,6 +114,12 @@ const SETTINGS: RepositorySettingsData = {
   repositoryName: "repo",
   repositoryPath: REPO,
   remotes: [{ name: "origin", url: "https://example.com/repo.git" }],
+  visibility: {
+    showTags: true,
+    showStashes: true,
+    showRemoteHeads: true,
+    showUntrackedFiles: true
+  },
   issueLinks: { enabled: false, regex: "", urlTemplate: "" },
   user: {
     name: { effectiveValue: "Test User", source: "local", localValue: "Test User", globalValue: null },

@@ -23,6 +23,12 @@ function createData(overrides: Partial<RepoSettingsData> = {}): RepoSettingsData
         pushUrl: "git@example.com:example/git-keizu.git"
       }
     ],
+    visibility: {
+      showTags: true,
+      showStashes: true,
+      showRemoteHeads: true,
+      showUntrackedFiles: true
+    },
     issueLinks: {
       enabled: true,
       regex: "#(\\d+)",
@@ -156,6 +162,7 @@ describe("repository settings panel", () => {
     );
     expect(sectionTitles).toEqual([
       "User details",
+      "Visibility",
       "Remotes",
       "Issue links",
       "Pull request providers",
@@ -397,7 +404,9 @@ describe("repository settings panel", () => {
 
     findField("Issue URL template").value = "https://example.com/issues/{issue}";
     findField("Issue regex").value = "#(\\d+)";
-    document.querySelector<HTMLInputElement>("input[type='checkbox']")!.checked = true;
+    findField("Issue URL template")
+      .closest(".repo-settings-form")!
+      .querySelector<HTMLInputElement>("input[type='checkbox']")!.checked = true;
     Array.from(document.querySelectorAll("button"))
       .find((button) => button.textContent === "Save issue link settings")!
       .click();

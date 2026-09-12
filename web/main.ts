@@ -39,6 +39,7 @@ import {
 import { t } from "./i18n";
 import { renderCommitBodyIssueLinks } from "./issueLinks";
 import { handleMessage, type RefreshMode } from "./messageHandler";
+import { DEFAULT_REPOSITORY_VISIBILITY } from "../src/repositoryVisibility";
 import { buildRefContextMenuItems, checkoutBranchAction } from "./refMenu";
 import { type RepoSettingsAction, RepoSettingsPanel } from "./repoSettings";
 import { buildStashContextMenuItems } from "./stashMenu";
@@ -108,6 +109,7 @@ const EMPTY_REPO_SETTINGS_DATA = {
   repositoryName: "",
   repositoryPath: "",
   remotes: [],
+  visibility: DEFAULT_REPOSITORY_VISIBILITY,
   issueLinks: { enabled: false, regex: "", urlTemplate: "" },
   pullRequest: null,
   user: {

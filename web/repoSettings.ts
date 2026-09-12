@@ -5,7 +5,8 @@ import type {
   RepositorySettingsData,
   RepositorySettingsIssueLinks,
   RepositorySettingsRemote,
-  RepositorySettingsUserScope
+  RepositorySettingsUserScope,
+  RepositoryVisibility
 } from "../src/types";
 import { t } from "./i18n";
 
@@ -162,6 +163,7 @@ export class RepoSettingsPanel {
     main.className = "repo-settings-content";
     main.append(
       this.createUserDetailsSection(),
+      this.createVisibilitySection(),
       this.createRemotesSection(),
       this.createIssueLinkSection(),
       this.createPullRequestSection(),
@@ -278,6 +280,53 @@ export class RepoSettingsPanel {
     return userValue.source === "local"
       ? t("repoSettings.userValueLocal", userValue.effectiveValue)
       : t("repoSettings.userValueGlobal", userValue.effectiveValue);
+  }
+
+  private createVisibilitySection(): HTMLElement {
+    const section = document.createElement("section");
+    section.className = "repo-settings-section";
+    section.setAttribute("aria-labelledby", `${this.idPrefix}-visibility-title`);
+
+    const title = document.createElement("h3");
+    title.id = `${this.idPrefix}-visibility-title`;
+    title.textContent = t("repoSettings.visibility");
+
+    const description = document.createElement("p");
+    description.className = "repo-settings-section-description";
+    description.textContent = t("repoSettings.visibilityDescription");
+
+    const form = document.createElement("form");
+    form.className = "repo-settings-visibility-form";
+    const labels: Record<keyof RepositoryVisibility, string> = {
+      showTags: t("repoSettings.showTags"),
+      showStashes: t("repoSettings.showStashes"),
+      showRemoteHeads: t("repoSettings.showRemoteHeads"),
+      showUntrackedFiles: t("repoSettings.showUntrackedFiles")
+    };
+    const visibilityKeys = Object.keys(labels) as (keyof RepositoryVisibility)[];
+
+    for (const key of visibilityKeys) {
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.setAttribute("role", "switch");
+      input.id = `${this.idPrefix}-visibility-${String(key)}`;
+      input.checked = this.data.visibility[key];
+      input.addEventListener("change", () => {
+        this.actionHandler({
+          type: "saveVisibility",
+          settings: { ...this.data.visibility, [key]: input.checked }
+        });
+      });
+
+      const label = document.createElement("label");
+      label.className = "repo-settings-checkbox";
+      label.htmlFor = input.id;
+      label.append(input, document.createTextNode(labels[key]));
+      form.append(label);
+    }
+
+    section.append(title, description, form);
+    return section;
   }
 
   private createTitle(): HTMLElement {

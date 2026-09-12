@@ -17,6 +17,12 @@ function createData(): RepoSettingsData {
     repositoryName: "repo",
     repositoryPath: "/workspace/repo",
     remotes: [{ name: "origin", url: "https://github.com/example/repo.git" }],
+    visibility: {
+      showTags: true,
+      showStashes: true,
+      showRemoteHeads: true,
+      showUntrackedFiles: true
+    },
     issueLinks: { enabled: false, regex: "", urlTemplate: "" },
     pullRequest: {
       provider: "github",

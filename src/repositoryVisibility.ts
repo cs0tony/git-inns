@@ -52,7 +52,9 @@ export function appendVisibilityGitArgs(
   return result;
 }
 
-export function filterRemoteHeadRefs<T extends { name?: string; remote?: boolean }>(
+export function filterRemoteHeadRefs<
+  T extends { name?: string; remote?: boolean; type?: string }
+>(
   refs: readonly T[],
   visibility: RepositoryVisibility
 ): T[] {
@@ -60,7 +62,9 @@ export function filterRemoteHeadRefs<T extends { name?: string; remote?: boolean
     return [...refs];
   }
 
-  return refs.filter((ref) => ref.remote !== true);
+  return refs.filter(
+    (ref) => !(ref.remote === true || (ref.type === "remote" && ref.name?.endsWith("/HEAD")))
+  );
 }
 
 export function shouldIncludeUntrackedFiles(visibility: RepositoryVisibility): boolean {

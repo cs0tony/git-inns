@@ -3,6 +3,7 @@ import * as path from "node:path";
 
 import { ExtensionContext, Memento } from "vscode";
 
+import { normalizeRepositoryVisibility, type RepositoryVisibility } from "./repositoryVisibility";
 import { isSupportedFileEncoding, normalizeFileEncoding } from "./fileEncoding";
 import {
   isSafePullRequestBranch,
@@ -29,6 +30,7 @@ const AVATAR_CACHE = "avatarCache";
 const LAST_ACTIVE_REPO = "lastActiveRepo";
 const REPO_STATES = "repoStates";
 const REPOSITORY_SETTINGS_ISSUE_LINKS = "repositorySettingsIssueLinks";
+const REPOSITORY_VISIBILITY = "repositoryVisibility";
 const REPOSITORY_PULL_REQUESTS = "repositoryPullRequests";
 const MAX_RECENT_ACTIONS = 5;
 const REVIEWED_FILES = "reviewedFiles";
@@ -38,6 +40,7 @@ const EMPTY_ISSUE_LINKS: RepositorySettingsIssueLinks = {
   urlTemplate: ""
 };
 type RepositorySettingsIssueLinkMap = Record<string, RepositorySettingsIssueLinks>;
+type RepositoryVisibilityMap = Record<string, RepositoryVisibility>;
 type RepositoryPullRequestMap = Record<string, ResolvedPullRequestConfig>;
 
 export class ExtensionState {
@@ -102,6 +105,17 @@ export class ExtensionState {
     );
     settings[repo] = normalizeIssueLinks(issueLinks);
     this.workspaceState.update(REPOSITORY_SETTINGS_ISSUE_LINKS, settings);
+  }
+
+  public getRepositoryVisibility(repo: string): RepositoryVisibility {
+    const settings = this.workspaceState.get<RepositoryVisibilityMap>(REPOSITORY_VISIBILITY, {});
+    return normalizeRepositoryVisibility(settings[repo]);
+  }
+
+  public saveRepositoryVisibility(repo: string, visibility: RepositoryVisibility) {
+    const settings = this.workspaceState.get<RepositoryVisibilityMap>(REPOSITORY_VISIBILITY, {});
+    settings[repo] = normalizeRepositoryVisibility(visibility);
+    this.workspaceState.update(REPOSITORY_VISIBILITY, settings);
   }
 
   public getRepositoryPullRequest(repo: string): ResolvedPullRequestConfig | null {

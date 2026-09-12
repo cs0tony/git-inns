@@ -2,6 +2,9 @@
 
 import type { EmojiMappingRecord } from "./emojiMappings";
 import type { CommitDetailsPresentationSettings } from "../web/commitDetailsPresentation";
+import type { RepositoryVisibility } from "./repositoryVisibility";
+
+export type { RepositoryVisibility };
 
 export interface GitCommitStash {
   selector: string;
@@ -366,6 +369,7 @@ export interface RepositorySettingsData {
   repositoryName: string;
   repositoryPath: string;
   remotes: RepositorySettingsRemote[];
+  visibility: RepositoryVisibility;
   issueLinks: RepositorySettingsIssueLinks;
   pullRequest: ResolvedPullRequestConfig | null;
   pullRequestDestination?: RepositorySettingsPullRequestDestination;
@@ -390,6 +394,7 @@ export type RepositorySettingsAction =
   | { type: "fetchPruneRemote"; name: string }
   | { type: "pruneTagsRemote"; name: string }
   | { type: "saveIssueLinks"; settings: RepositorySettingsIssueLinks }
+  | { type: "saveVisibility"; settings: RepositoryVisibility }
   | { type: "savePullRequest"; settings: PullRequestSettingsInput }
   | {
       type: "saveUserDetails";

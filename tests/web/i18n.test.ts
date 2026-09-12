@@ -137,6 +137,12 @@ describe("advanced Fetch/Pull operation l10n keys (Wave 5)", () => {
       expect(messages[key], key).toBeTruthy();
     }
   });
+
+  it("keeps the English and Japanese key sets in parity", () => {
+    const english = loadBundle("web.l10n.en.json");
+    const japanese = loadBundle("web.l10n.ja.json");
+    expect(Object.keys(japanese).sort()).toEqual(Object.keys(english).sort());
+  });
 });
 
 // S1 (en) / S2 (ja): worktree 操作エラーの翻訳キー (Feature 045)

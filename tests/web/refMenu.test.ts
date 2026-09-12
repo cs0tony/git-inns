@@ -1665,13 +1665,20 @@ describe("Ref recent action metadata (S14)", () => {
     expect(pullItem).toBeDefined();
     pullItem!.onClick();
 
-    // When: the confirmation callback is accepted
-    const confirmed = vi.mocked(showConfirmationDialog).mock.calls[0][1];
-    confirmed();
+    // When: the advanced Pull form is accepted
+    const confirmed = vi.mocked(showFormDialog).mock.calls[0][3];
+    confirmed(["unchecked", "unchecked", "unchecked", "unchecked"]);
 
     // Then: recordRecentAction is called before sendMessage with ref.pull
     expect(recordRecentAction).toHaveBeenCalledWith(REPO, "ref.pull");
-    expect(sendMessage).toHaveBeenCalledWith({ command: "pull", repo: REPO });
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "pull",
+      repo: REPO,
+      noFastForward: false,
+      squash: false,
+      rebase: false,
+      ignoreDate: false
+    });
     expect(vi.mocked(recordRecentAction).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(sendMessage).mock.invocationCallOrder[0]
     );

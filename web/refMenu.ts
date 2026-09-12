@@ -1,7 +1,13 @@
+import {
+  type FetchOptions,
+  normalizeAdvancedOperationOptions,
+  type PullOptions
+} from "./advancedOperationOptions";
 import { recordRecentAction } from "./contextMenu";
 import {
   showCheckboxDialog,
   showConfirmationDialog,
+  showErrorDialog,
   showFormDialog,
   showRefInputDialog,
   showSelectDialog
@@ -15,6 +21,98 @@ import {
   sendMessage,
   svgIcons
 } from "./utils";
+
+const PULL_STRATEGY_ERROR = "Select at most one of No fast-forward, Squash, or Rebase.";
+const PULL_IGNORE_DATE_ERROR = "Ignore commit date can only be used with Rebase.";
+
+export function validatePullOptions(options: PullOptions): string | null {
+  const strategyCount = [options.noFastForward, options.squash, options.rebase].filter(
+    (enabled) => enabled
+  ).length;
+  if (strategyCount > 1) return PULL_STRATEGY_ERROR;
+  if (options.ignoreDate && !options.rebase) return PULL_IGNORE_DATE_ERROR;
+  return null;
+}
+
+export function showFetchDialog(repo: string): void {
+  const defaults = normalizeAdvancedOperationOptions("fetch", viewState.dialogDefaults.fetchRemote);
+  showFormDialog(
+    t("Are you sure you want to fetch from all remotes?"),
+    [
+      { type: "checkbox", name: t("Force"), value: defaults.force },
+      { type: "checkbox", name: t("Prune"), value: defaults.prune },
+      { type: "checkbox", name: t("Prune tags"), value: defaults.pruneTags }
+    ],
+    t("Yes, fetch"),
+    (values) => {
+      const options: FetchOptions = {
+        force: values[0] === "checked",
+        prune: values[1] === "checked",
+        pruneTags: values[2] === "checked"
+      };
+      sendMessage({ command: "fetch", repo, ...options });
+    },
+    null
+  );
+}
+
+export function showPullDialog(
+  repo: string,
+  branchName: string,
+  sourceElem: HTMLElement | null = null
+): void {
+  const defaults = normalizeAdvancedOperationOptions("pull", viewState.dialogDefaults.pullBranch);
+  showFormDialog(
+    t("Are you sure you want to pull into {0}?", `<b><i>${escapeHtml(branchName)}</i></b>`),
+    [
+      { type: "checkbox", name: t("No fast-forward"), value: defaults.noFastForward },
+      { type: "checkbox", name: t("Squash"), value: defaults.squash },
+      { type: "checkbox", name: t("Rebase"), value: defaults.rebase },
+      { type: "checkbox", name: t("Ignore commit date"), value: defaults.ignoreDate }
+    ],
+    t("Yes, pull"),
+    (values) => {
+      const options: PullOptions = {
+        noFastForward: values[0] === "checked",
+        squash: values[1] === "checked",
+        rebase: values[2] === "checked",
+        ignoreDate: values[3] === "checked"
+      };
+      const validationError = validatePullOptions(options);
+      if (validationError !== null) {
+        showErrorDialog(t("error.pull"), validationError, sourceElem);
+        return;
+      }
+      recordRecentAction(repo, "ref.pull");
+      sendMessage({ command: "pull", repo, ...options });
+    },
+    sourceElem,
+    (dialogEl) => {
+      const noFastForwardInput = dialogEl.querySelector("#dialogInput0") as HTMLInputElement;
+      const squashInput = dialogEl.querySelector("#dialogInput1") as HTMLInputElement;
+      const rebaseInput = dialogEl.querySelector("#dialogInput2") as HTMLInputElement;
+      const ignoreDateInput = dialogEl.querySelector("#dialogInput3") as HTMLInputElement;
+
+      const updateIgnoreDateState = () => {
+        ignoreDateInput.disabled = !rebaseInput.checked;
+        if (!rebaseInput.checked) ignoreDateInput.checked = false;
+      };
+      const selectStrategy = (selectedInput: HTMLInputElement) => {
+        if (!selectedInput.checked) return;
+        for (const input of [noFastForwardInput, squashInput, rebaseInput]) {
+          if (input !== selectedInput) input.checked = false;
+        }
+        updateIgnoreDateState();
+      };
+
+      updateIgnoreDateState();
+      noFastForwardInput.addEventListener("change", () => selectStrategy(noFastForwardInput));
+      squashInput.addEventListener("change", () => selectStrategy(squashInput));
+      rebaseInput.addEventListener("change", () => selectStrategy(rebaseInput));
+      ignoreDateInput.addEventListener("change", updateIgnoreDateState);
+    }
+  );
+}
 
 export interface ParsedRemoteRef {
   remoteName: string;
@@ -505,14 +603,7 @@ export function buildRefContextMenuItems(
           actionId: "ref.pull",
           recentActionId: "ref.pull",
           onClick: () => {
-            showConfirmationDialog(
-              t("Are you sure you want to pull into {0}?", `<b><i>${escapeHtml(refName)}</i></b>`),
-              () => {
-                recordRecentAction(repo, "ref.pull");
-                sendMessage({ command: "pull", repo: repo });
-              },
-              null
-            );
+            showPullDialog(repo, refName);
           }
         },
         {

@@ -187,7 +187,8 @@ vi.mock("../../web/branchLabels", () => ({
 
 vi.mock("../../web/refMenu", () => ({
   buildRefContextMenuItems: vi.fn(() => []),
-  checkoutBranchAction: vi.fn()
+  checkoutBranchAction: vi.fn(),
+  showFetchDialog: vi.fn()
 }));
 
 /* ------------------------------------------------------------------ */
@@ -229,7 +230,7 @@ import {
   showSelectDialog
 } from "../../web/dialogs";
 import { generateGitFileListHtml, generateGitFileTreeHtml } from "../../web/fileTree";
-import { buildRefContextMenuItems, checkoutBranchAction } from "../../web/refMenu";
+import { buildRefContextMenuItems, checkoutBranchAction, showFetchDialog } from "../../web/refMenu";
 import { buildStashContextMenuItems } from "../../web/stashMenu";
 import { buildUncommittedContextMenuItems } from "../../web/uncommittedMenu";
 import {
@@ -237,7 +238,6 @@ import {
   buildStashSelectorDisplay,
   escapeHtml,
   refreshGraphOrDisplayError,
-  sendMessage,
   vscode
 } from "../../web/utils";
 
@@ -842,28 +842,6 @@ describe("buildUncommittedContextMenuItems", () => {
 /* ------------------------------------------------------------------ */
 /* Tests: Fetch button and response handler (Task 6.2)                */
 /* ------------------------------------------------------------------ */
-
-describe("fetch button message", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(vscode.postMessage).mockClear();
-  });
-
-  it("sends fetch message with correct format including repo (TC-027)", () => {
-    // Given: fetch button is clicked (simulated via sendMessage)
-    const repo = "/test/repo";
-
-    // When: sendMessage is called with fetch command (as the button handler does)
-    sendMessage({ command: "fetch", repo });
-
-    // Then: postMessage is called with { command: "fetch", repo }
-    expect(vscode.postMessage).toHaveBeenCalledTimes(1);
-    expect(vscode.postMessage).toHaveBeenCalledWith({
-      command: "fetch",
-      repo
-    });
-  });
-});
 
 describe("refreshGraphOrDisplayError", () => {
   let mockRefresh: ReturnType<typeof vi.fn>;
@@ -7956,5 +7934,27 @@ describe("context-menu action visibility routing", () => {
       "context.reopenWithEncoding",
       "Reset File to Revision..."
     ]);
+  });
+});
+
+describe("fetch button advanced dialog", () => {
+  it("opens the advanced fetch dialog with the current repository", async () => {
+    const repo = "/test/repo";
+    vi.resetModules();
+    dropdownCallCount = 0;
+    setupTestDOM();
+    setupViewState();
+    const { vscode: freshVscode } = await import("../../web/utils");
+    vi.mocked(freshVscode.getState).mockReturnValueOnce(null);
+    await import("../../web/main");
+
+    // When: fetch button is clicked
+    document.getElementById("fetchBtn")!.click();
+
+    // Then: the compact advanced Fetch dialog receives the active repository
+    expect(showFetchDialog).toHaveBeenCalledWith(repo);
+    expect(freshVscode.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ command: "fetch" })
+    );
   });
 });

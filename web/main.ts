@@ -40,7 +40,7 @@ import { t } from "./i18n";
 import { renderCommitBodyIssueLinks } from "./issueLinks";
 import { handleMessage, type RefreshMode } from "./messageHandler";
 import { DEFAULT_REPOSITORY_VISIBILITY } from "../src/repositoryVisibility";
-import { buildRefContextMenuItems, checkoutBranchAction } from "./refMenu";
+import { buildRefContextMenuItems, checkoutBranchAction, showFetchDialog } from "./refMenu";
 import { type RepoSettingsAction, RepoSettingsPanel } from "./repoSettings";
 import { buildStashContextMenuItems } from "./stashMenu";
 import { formatCommitBody } from "./textFormatter";
@@ -320,7 +320,7 @@ class GitKeizuView {
     const fetchBtnElem = document.getElementById("fetchBtn")!;
     fetchBtnElem.innerHTML = svgIcons.fetch;
     fetchBtnElem.addEventListener("click", () => {
-      sendMessage({ command: "fetch", repo: this.currentRepo });
+      showFetchDialog(this.currentRepo);
     });
     const currentBtnElem = document.getElementById("currentBtn")!;
     currentBtnElem.innerHTML = svgIcons.current;

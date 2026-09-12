@@ -1022,6 +1022,7 @@ export class GitKeizuView {
       commitOrdering: config.commitOrdering(),
       contextMenuActionsVisibility: config.contextMenuActionsVisibility(),
       customBranchGlobPatterns: config.customBranchGlobPatterns(),
+      customEmojiShortcodeMappings: config.customEmojiShortcodeMappings(),
       dateFormat: config.dateFormat(),
       dialogDefaults: config.dialogDefaults(),
       fetchAvatars: config.fetchAvatars() && this.extensionState.isAvatarStorageAvailable(),

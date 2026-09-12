@@ -1,5 +1,7 @@
 /* Git Interfaces / Types */
 
+import type { EmojiMappingRecord } from "./emojiMappings";
+
 export interface GitCommitStash {
   selector: string;
   baseHash: string;
@@ -204,6 +206,7 @@ export interface GitKeizuViewState {
   commitOrdering: CommitOrdering;
   contextMenuActionsVisibility: ContextMenuActionsVisibility;
   customBranchGlobPatterns: CustomBranchGlobPattern[];
+  customEmojiShortcodeMappings?: EmojiMappingRecord;
   dateFormat: DateFormat;
   dialogDefaults: DialogDefaults;
   fetchAvatars: boolean;

@@ -25,6 +25,7 @@
   "config.commitBodyRendering.enum.plain": "Keep the compact, escaped single-line rendering used in earlier versions.",
   "config.commitBodyRendering.enum.rich": "Render safe emoji and lightweight Markdown such as links, emphasis, headings, and code.",
   "config.commitBodyRendering.description": "Specifies how commit message bodies are rendered in Commit Details.",
+  "config.customEmojiShortcodeMappings.description": "Adds safe custom emoji shortcode mappings for rich commit bodies. Invalid mappings are ignored and custom shortcodes override built-ins.",
   "config.loadMoreCommits.description": "Specifies the number of commits to load when the \"Load More Commits\" button is pressed (only shown when more commits are available).",
   "config.maxDepthOfRepoSearch.description": "Specifies the maximum depth of subfolders to search when discovering repositories in the workspace.",
   "config.showCurrentBranchByDefault.description": "Show the current branch by default when Git Keizu is opened. Default: false (show all branches)",

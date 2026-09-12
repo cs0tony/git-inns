@@ -21,6 +21,7 @@ import { filterContextMenuItems } from "./contextMenuVisibility";
 import { getCommitDate } from "./dates";
 import { hideDialog, isDialogActive, showErrorDialog, showTagDetailsDialog } from "./dialogs";
 import { Dropdown } from "./dropdown";
+import { combineWithBuiltInEmojiMappings } from "../src/emojiMappings";
 import { buildFileContextMenuItems, resolveFileRow, sendOpenFileAction } from "./fileMenu";
 import {
   alterGitFileTree,
@@ -224,6 +225,9 @@ class GitKeizuView {
   private readonly columnVisibilityMenu = new ColumnVisibilityMenu();
   private readonly commitBodyRendering: GG.CommitBodyRendering =
     viewState.commitBodyRendering === "rich" ? "rich" : "plain";
+  private readonly customEmojiShortcodeMappings = combineWithBuiltInEmojiMappings(
+    viewState.customEmojiShortcodeMappings ?? {}
+  );
 
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
@@ -2039,6 +2043,7 @@ class GitKeizuView {
     return `<div class="commitBodyRich">${formatCommitBody(body, {
       mode: "rich",
       emoji: true,
+      customEmoji: this.customEmojiShortcodeMappings,
       textRenderer: (text: string) =>
         renderCommitBodyIssueLinks(text, this.repositoryIssueLinks, (issueId) =>
           t("commitDetails.issueLinkTitle", issueId)

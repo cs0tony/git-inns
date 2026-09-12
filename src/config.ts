@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { normalizeEmojiMappings, type EmojiMappingRecord } from "./emojiMappings";
 import { normalizeFileEncoding } from "./fileEncoding";
 import {
   CommitBodyRendering,
@@ -356,6 +357,12 @@ class Config {
   public commitBodyRendering(): CommitBodyRendering {
     return normalizeCommitBodyRendering(
       this.workspaceConfiguration.get<unknown>("commitBodyRendering", "plain")
+    );
+  }
+
+  public customEmojiShortcodeMappings(): EmojiMappingRecord {
+    return normalizeEmojiMappings(
+      this.workspaceConfiguration.get<unknown>("customEmojiShortcodeMappings", [])
     );
   }
 

@@ -25,6 +25,7 @@
   "config.commitBodyRendering.enum.plain": "以前のバージョンと同じ、コンパクトでエスケープされた単一行表示を維持します。",
   "config.commitBodyRendering.enum.rich": "安全な絵文字と、リンク・強調・見出し・コードなどの軽量 Markdown を表示します。",
   "config.commitBodyRendering.description": "コミット詳細のコミットメッセージ本文の表示方法を指定します。",
+  "config.customEmojiShortcodeMappings.description": "リッチなコミット本文に安全なカスタム絵文字ショートコードを追加します。無効な設定は無視され、カスタム値が組み込み値より優先されます。",
   "config.loadMoreCommits.description": "\"Load More Commits\" ボタンを押したときに読み込むコミット数を指定します (追加コミットがある場合のみ表示されます)。",
   "config.maxDepthOfRepoSearch.description": "ワークスペース内のリポジトリを検出するときに検索するサブフォルダーの最大深度を指定します。",
   "config.showCurrentBranchByDefault.description": "Git Keizu を開いたとき、デフォルトで現在のブランチを表示します。デフォルト: false (すべてのブランチを表示)",

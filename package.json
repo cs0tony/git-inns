@@ -253,6 +253,20 @@
           "default": "plain",
           "description": "%config.commitBodyRendering.description%"
         },
+        "git-keizu.customEmojiShortcodeMappings": {
+          "type": "array",
+          "default": [],
+          "description": "%config.customEmojiShortcodeMappings.description%",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["shortcode", "emoji"],
+            "properties": {
+              "shortcode": { "type": "string", "title": "Shortcode" },
+              "emoji": { "type": "string", "title": "Emoji" }
+            }
+          }
+        },
         "git-keizu.loadMoreCommits": {
           "type": "number",
           "default": 100,

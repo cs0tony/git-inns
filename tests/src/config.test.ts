@@ -419,6 +419,17 @@ describe("dialogDefaults", () => {
         squashCommits: false,
         noCommit: false
       },
+      fetchRemote: {
+        force: false,
+        prune: false,
+        pruneTags: false
+      },
+      pullBranch: {
+        noFastForward: false,
+        squash: false,
+        rebase: false,
+        ignoreDate: false
+      },
       cherryPick: {
         recordOrigin: false,
         noCommit: false

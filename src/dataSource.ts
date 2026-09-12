@@ -3,8 +3,8 @@ import * as path from "node:path";
 
 import {
   type FetchOptions,
-  type PullOptions,
   normalizeAdvancedOperationOptions,
+  type PullOptions,
   toGitArgumentTokens
 } from "../web/advancedOperationOptions";
 import { CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX, getConfig } from "./config";

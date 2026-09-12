@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type CommitDetailsPresentationSettings,
   getCommitDetailsBodyClassName,
-  normalizeCommitDetailsPresentation,
-  type CommitDetailsPresentationSettings
+  normalizeCommitDetailsPresentation
 } from "../../web/commitDetailsPresentation";
 
 const DEFAULT_SETTINGS: CommitDetailsPresentationSettings = {

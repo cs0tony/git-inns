@@ -75,6 +75,11 @@ vi.mock("../../src/config", () => ({
       uncommitted: {}
     }),
     customBranchGlobPatterns: () => [],
+    customEmojiShortcodeMappings: () => [],
+    commitDetailsViewLocation: () => "inline",
+    commitDetailsFileViewType: () => "tree",
+    commitDetailsFileTreeCompactFolders: () => true,
+    autoCenterCommitDetailsView: () => false,
     showCurrentBranchByDefault: () => false,
     showRecentActions: () => true,
     dialogDefaults: () => ({

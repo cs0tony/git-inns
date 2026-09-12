@@ -3,13 +3,16 @@ import * as path from "node:path";
 
 import { ExtensionContext, Memento } from "vscode";
 
-import { normalizeRepositoryVisibility, type RepositoryVisibility } from "./repositoryVisibility";
 import { isSupportedFileEncoding, normalizeFileEncoding } from "./fileEncoding";
 import {
   isSafePullRequestBranch,
   type ResolvedPullRequestConfig,
   resolvePullRequestConfig
 } from "./pullRequest";
+import {
+  normalizeRepositoryVisibility,
+  type RepositoryVisibility
+} from "./repositoryVisibility";
 import {
   type ActiveCodeReview,
   type ActiveCodeReviewByRepo,

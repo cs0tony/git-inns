@@ -127,10 +127,22 @@ vi.mock("../../src/config", () => ({
       uncommitted: {}
     }),
     customBranchGlobPatterns: () => [],
+    customEmojiShortcodeMappings: () => [],
+    commitDetailsViewLocation: () => "inline",
+    commitDetailsFileViewType: () => "tree",
+    commitDetailsFileTreeCompactFolders: () => true,
+    autoCenterCommitDetailsView: () => false,
     showCurrentBranchByDefault: () => false,
     showRecentActions: () => true,
     dialogDefaults: () => ({
       merge: { noFastForward: true, squashCommits: false, noCommit: false },
+      fetchRemote: { force: false, prune: false, pruneTags: false },
+      pullBranch: {
+        noFastForward: false,
+        squash: false,
+        rebase: false,
+        ignoreDate: false
+      },
       cherryPick: { recordOrigin: false, noCommit: false },
       stashUncommittedChanges: { includeUntracked: false },
       createWorktree: { openTerminal: true },
@@ -2585,6 +2597,13 @@ describe("GitKeizuView merge/cherry-pick handler and viewState dialogDefaults (S
     const viewState = parseViewState(getPanelHtml());
     expect(viewState.dialogDefaults).toEqual({
       merge: { noFastForward: true, squashCommits: false, noCommit: false },
+      fetchRemote: { force: false, prune: false, pruneTags: false },
+      pullBranch: {
+        noFastForward: false,
+        squash: false,
+        rebase: false,
+        ignoreDate: false
+      },
       cherryPick: { recordOrigin: false, noCommit: false },
       stashUncommittedChanges: { includeUntracked: false },
       createWorktree: { openTerminal: true },

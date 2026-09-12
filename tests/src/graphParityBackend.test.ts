@@ -40,6 +40,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { DataSource, parseGitSignatureStatus } from "../../src/dataSource";
+import { DEFAULT_REPOSITORY_VISIBILITY } from "../../src/repositoryVisibility";
 import type { ArchiveFormat, CommitOrdering, GitCommit } from "../../src/types";
 
 const REPO = "/test/repo";
@@ -89,9 +90,10 @@ function getPrivateLogMethod(ds: DataSource) {
         branches: string[],
         count: number,
         showRemoteBranches: boolean,
-        authors: string[],
-        commitOrdering: CommitOrdering
-      ) => Promise<GitCommit[]>;
+      authors: string[],
+      commitOrdering: CommitOrdering,
+      visibility: typeof DEFAULT_REPOSITORY_VISIBILITY
+    ) => Promise<GitCommit[]>;
     }
   ).getGitLog.bind(ds);
 }
@@ -133,7 +135,7 @@ describe("graph parity backend foundation", () => {
     const ds = new DataSource();
     const getGitLog = getPrivateLogMethod(ds);
 
-    await getGitLog(REPO, [], 10, false, [], "date");
+    await getGitLog(REPO, [], 10, false, [], "date", DEFAULT_REPOSITORY_VISIBILITY);
     expect(spawnMock).toHaveBeenLastCalledWith(
       "git",
       ["log", "--max-count=10", `--format=${defaultLogFormat()}`, "--date-order", "--branches", "--tags"],
@@ -142,7 +144,7 @@ describe("graph parity backend foundation", () => {
 
     configValues.includeCommitsMentionedByReflogs = true;
     configValues.onlyFollowFirstParent = true;
-    await getGitLog(REPO, [], 10, false, [], "date");
+    await getGitLog(REPO, [], 10, false, [], "date", DEFAULT_REPOSITORY_VISIBILITY);
     expect(spawnMock).toHaveBeenLastCalledWith(
       "git",
       [
@@ -158,7 +160,7 @@ describe("graph parity backend foundation", () => {
       SPAWN_OPTS
     );
 
-    await getGitLog(REPO, ["main"], 10, false, [], "date");
+    await getGitLog(REPO, ["main"], 10, false, [], "date", DEFAULT_REPOSITORY_VISIBILITY);
     const args = vi.mocked(cp.spawn).mock.lastCall![1] as string[];
     expect(args).toContain("--first-parent");
     expect(args).not.toContain("--reflog");
@@ -167,12 +169,12 @@ describe("graph parity backend foundation", () => {
   it("uses mailmap-aware placeholders only when configured", async () => {
     spawnMock.mockImplementation(() => mockProcess());
     const disabled = getPrivateLogMethod(new DataSource());
-    await disabled(REPO, [], 10, false, [], "date");
+    await disabled(REPO, [], 10, false, [], "date", DEFAULT_REPOSITORY_VISIBILITY);
     expect(String(vi.mocked(cp.spawn).mock.lastCall![1])).toContain(`--format=${defaultLogFormat()}`);
 
     configValues.useMailmap = true;
     const enabled = getPrivateLogMethod(new DataSource());
-    await enabled(REPO, [], 10, false, [], "date");
+    await enabled(REPO, [], 10, false, [], "date", DEFAULT_REPOSITORY_VISIBILITY);
     expect(String(vi.mocked(cp.spawn).mock.lastCall![1])).toContain(`--format=${mailmapLogFormat()}`);
   });
 

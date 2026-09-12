@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { normalizeEmojiMappings, type EmojiMappingRecord } from "./emojiMappings";
+import { type EmojiMappingRecord, normalizeEmojiMappings } from "./emojiMappings";
 import { normalizeFileEncoding } from "./fileEncoding";
 import {
   CommitBodyRendering,

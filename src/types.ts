@@ -1,7 +1,7 @@
 /* Git Interfaces / Types */
 
-import type { EmojiMappingRecord } from "./emojiMappings";
 import type { CommitDetailsPresentationSettings } from "../web/commitDetailsPresentation";
+import type { EmojiMappingRecord } from "./emojiMappings";
 import type { RepositoryVisibility } from "./repositoryVisibility";
 
 export type { RepositoryVisibility };

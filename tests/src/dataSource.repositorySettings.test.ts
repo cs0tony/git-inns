@@ -25,8 +25,8 @@ import { DataSource } from "../../src/dataSource";
 import type { ExtensionState } from "../../src/extensionState";
 import type {
   RepositorySettingsIssueLinks,
-  RepositoryVisibility,
-  RepositorySettingsUserScope
+  RepositorySettingsUserScope,
+  RepositoryVisibility
 } from "../../src/types";
 
 const DEFAULT_VISIBILITY: RepositoryVisibility = {

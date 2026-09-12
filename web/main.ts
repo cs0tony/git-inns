@@ -1,3 +1,5 @@
+import { combineWithBuiltInEmojiMappings } from "../src/emojiMappings";
+import { DEFAULT_REPOSITORY_VISIBILITY } from "../src/repositoryVisibility";
 import { getBranchLabels } from "./branchLabels";
 import {
   type CodeReviewFileState,
@@ -9,6 +11,11 @@ import {
   ColumnVisibilityMenu,
   normalizeColumnVisibility
 } from "./columnVisibility";
+import {
+  type CommitDetailsPresentationSettings,
+  getCommitDetailsBodyClassName,
+  normalizeCommitDetailsPresentation
+} from "./commitDetailsPresentation";
 import { buildCommitContextMenuItems } from "./commitMenu";
 import { buildSignatureChipHtml } from "./commitSignature";
 import {
@@ -21,7 +28,6 @@ import { filterContextMenuItems } from "./contextMenuVisibility";
 import { getCommitDate } from "./dates";
 import { hideDialog, isDialogActive, showErrorDialog, showTagDetailsDialog } from "./dialogs";
 import { Dropdown } from "./dropdown";
-import { combineWithBuiltInEmojiMappings } from "../src/emojiMappings";
 import { buildFileContextMenuItems, resolveFileRow, sendOpenFileAction } from "./fileMenu";
 import {
   alterGitFileTree,
@@ -31,15 +37,9 @@ import {
 } from "./fileTree";
 import { findCommitElemWithId, FindWidget, getCommitElems } from "./findWidget";
 import { Graph } from "./graph";
-import {
-  getCommitDetailsBodyClassName,
-  normalizeCommitDetailsPresentation,
-  type CommitDetailsPresentationSettings
-} from "./commitDetailsPresentation";
 import { t } from "./i18n";
 import { renderCommitBodyIssueLinks } from "./issueLinks";
 import { handleMessage, type RefreshMode } from "./messageHandler";
-import { DEFAULT_REPOSITORY_VISIBILITY } from "../src/repositoryVisibility";
 import { buildRefContextMenuItems, checkoutBranchAction, showFetchDialog } from "./refMenu";
 import { type RepoSettingsAction, RepoSettingsPanel } from "./repoSettings";
 import { buildStashContextMenuItems } from "./stashMenu";

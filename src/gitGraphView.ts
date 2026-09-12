@@ -3,6 +3,7 @@ import * as path from "node:path";
 
 import * as vscode from "vscode";
 
+import { normalizeCommitDetailsPresentation } from "../web/commitDetailsPresentation";
 import { AvatarManager } from "./avatarManager";
 import { getConfig, MIN_COMMIT_LOAD_COUNT, normalizeCommitLoadCount } from "./config";
 import { DataSource } from "./dataSource";
@@ -20,7 +21,6 @@ import {
   parseRepositoryConfig,
   type ShareablePullRequestConfig
 } from "./repositoryConfig";
-import { normalizeCommitDetailsPresentation } from "../web/commitDetailsPresentation";
 import {
   type ActiveCodeReview,
   type CheckoutBranchResult,

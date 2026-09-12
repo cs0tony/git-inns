@@ -104,6 +104,41 @@ describe("web i18n helper", () => {
   });
 });
 
+describe("advanced Fetch/Pull operation l10n keys (Wave 5)", () => {
+  const ADVANCED_OPERATION_KEYS = [
+    "Force",
+    "Prune",
+    "Prune tags",
+    "Yes, fetch",
+    "No fast-forward",
+    "Squash",
+    "Rebase",
+    "Ignore commit date",
+    "Yes, pull",
+    "Unable to Pull",
+    "Select at most one of No fast-forward, Squash, or Rebase.",
+    "Ignore commit date can only be used with Rebase."
+  ];
+
+  function loadBundle(fileName: string): Record<string, string> {
+    return JSON.parse(readFileSync(resolve(process.cwd(), "l10n/web", fileName), "utf-8"));
+  }
+
+  it("provides non-empty English messages for every advanced operation control", () => {
+    const messages = loadBundle("web.l10n.en.json");
+    for (const key of ADVANCED_OPERATION_KEYS) {
+      expect(messages[key], key).toBeTruthy();
+    }
+  });
+
+  it("provides non-empty Japanese messages for every advanced operation control", () => {
+    const messages = loadBundle("web.l10n.ja.json");
+    for (const key of ADVANCED_OPERATION_KEYS) {
+      expect(messages[key], key).toBeTruthy();
+    }
+  });
+});
+
 // S1 (en) / S2 (ja): worktree 操作エラーの翻訳キー (Feature 045)
 // @see docs/testing/perspectives/l10n/web/web.l10n.en.json-test.md
 // @see docs/testing/perspectives/l10n/web/web.l10n.ja.json-test.md

@@ -532,37 +532,37 @@
         "git-keizu.dialog.fetchRemote.force": {
           "type": "boolean",
           "default": false,
-          "description": "Default state of force in the Fetch Remote dialog."
+          "description": "%config.dialog.fetchRemote.force.description%"
         },
         "git-keizu.dialog.fetchRemote.prune": {
           "type": "boolean",
           "default": false,
-          "description": "Default state of prune in the Fetch Remote dialog."
+          "description": "%config.dialog.fetchRemote.prune.description%"
         },
         "git-keizu.dialog.fetchRemote.pruneTags": {
           "type": "boolean",
           "default": false,
-          "description": "Default state of prune tags in the Fetch Remote dialog."
+          "description": "%config.dialog.fetchRemote.pruneTags.description%"
         },
         "git-keizu.dialog.pullBranch.noFastForward": {
           "type": "boolean",
           "default": false,
-          "description": "Default state of no fast-forward in the Pull Branch dialog."
+          "description": "%config.dialog.pullBranch.noFastForward.description%"
         },
         "git-keizu.dialog.pullBranch.squashCommits": {
           "type": "boolean",
           "default": false,
-          "description": "Default state of squash commits in the Pull Branch dialog."
+          "description": "%config.dialog.pullBranch.squashCommits.description%"
         },
         "git-keizu.dialog.pullBranch.rebase": {
           "type": "boolean",
           "default": false,
-          "description": "Default state of rebase in the Pull Branch dialog."
+          "description": "%config.dialog.pullBranch.rebase.description%"
         },
         "git-keizu.dialog.pullBranch.ignoreDate": {
           "type": "boolean",
           "default": false,
-          "description": "Default state of ignore date in the Pull Branch dialog."
+          "description": "%config.dialog.pullBranch.ignoreDate.description%"
         },
         "git-keizu.repository.commits.order": {
           "type": "string",

@@ -204,6 +204,17 @@ export interface DialogDefaults {
   readonly removeWorktree: {
     readonly deleteBranch: boolean;
   };
+  readonly fetchRemote: {
+    readonly force: boolean;
+    readonly prune: boolean;
+    readonly pruneTags: boolean;
+  };
+  readonly pullBranch: {
+    readonly noFastForward: boolean;
+    readonly squash: boolean;
+    readonly rebase: boolean;
+    readonly ignoreDate: boolean;
+  };
 }
 
 export interface GitKeizuViewState {
@@ -935,6 +946,9 @@ export interface ResponseRevealWorktreeInOS {
 export interface RequestFetch {
   command: "fetch";
   repo: string;
+  force?: boolean;
+  prune?: boolean;
+  pruneTags?: boolean;
 }
 export interface ResponseFetch {
   command: "fetch";
@@ -977,6 +991,10 @@ export interface ResponseCreateArchive {
 export interface RequestPull {
   command: "pull";
   repo: string;
+  noFastForward?: boolean;
+  squash?: boolean;
+  rebase?: boolean;
+  ignoreDate?: boolean;
 }
 export interface ResponsePull {
   command: "pull";

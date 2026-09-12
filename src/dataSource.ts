@@ -1,6 +1,12 @@
 import * as cp from "node:child_process";
 import * as path from "node:path";
 
+import {
+  type FetchOptions,
+  type PullOptions,
+  normalizeAdvancedOperationOptions,
+  toGitArgumentTokens
+} from "../web/advancedOperationOptions";
 import { CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX, getConfig } from "./config";
 import { ExtensionState } from "./extensionState";
 import { DEFAULT_GIT_PATH, resolveGitExecutable } from "./gitExecutable";
@@ -1375,8 +1381,25 @@ export class DataSource {
     return this.runGitCommandSpawn(args, repo);
   }
 
-  public pull(repo: string) {
-    return this.runGitCommandSpawn(["pull"], repo);
+  public pull(repo: string, options?: Partial<PullOptions>): Promise<GitCommandStatus> {
+    const normalizedOptions = normalizeAdvancedOperationOptions("pull", options);
+    const modeCount = [
+      normalizedOptions.noFastForward,
+      normalizedOptions.squash,
+      normalizedOptions.rebase
+    ].filter((enabled) => enabled).length;
+
+    if (modeCount > 1) {
+      return Promise.resolve("At most one of no-fast-forward, squash, or rebase may be selected.");
+    }
+    if (normalizedOptions.ignoreDate && !normalizedOptions.rebase) {
+      return Promise.resolve("Ignore date may only be used with rebase.");
+    }
+
+    return this.runGitCommandSpawn(
+      ["pull", ...toGitArgumentTokens("pull", normalizedOptions)],
+      repo
+    );
   }
 
   public async preparePush(repo: string): Promise<PushPreparation> {
@@ -1464,9 +1487,15 @@ export class DataSource {
     return { kind: "ok", remotes };
   }
 
-  public fetch(repo: string) {
-    const args = ["fetch", "--all", "--prune"];
-    if (getConfig().fetchAndPruneTags()) args.push("--prune-tags");
+  public fetch(repo: string, options?: Partial<FetchOptions>) {
+    if (options === undefined) {
+      const args = ["fetch", "--all", "--prune"];
+      if (getConfig().fetchAndPruneTags()) args.push("--prune-tags");
+      return this.runGitCommandSpawn(args, repo);
+    }
+
+    const normalizedOptions = normalizeAdvancedOperationOptions("fetch", options);
+    const args = ["fetch", "--all", ...toGitArgumentTokens("fetch", normalizedOptions)];
     return this.runGitCommandSpawn(args, repo);
   }
 

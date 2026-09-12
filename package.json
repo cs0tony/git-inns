@@ -529,6 +529,41 @@
           "default": true,
           "description": "%config.dialog.removeWorktree.deleteBranch.description%"
         },
+        "git-keizu.dialog.fetchRemote.force": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default state of force in the Fetch Remote dialog."
+        },
+        "git-keizu.dialog.fetchRemote.prune": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default state of prune in the Fetch Remote dialog."
+        },
+        "git-keizu.dialog.fetchRemote.pruneTags": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default state of prune tags in the Fetch Remote dialog."
+        },
+        "git-keizu.dialog.pullBranch.noFastForward": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default state of no fast-forward in the Pull Branch dialog."
+        },
+        "git-keizu.dialog.pullBranch.squashCommits": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default state of squash commits in the Pull Branch dialog."
+        },
+        "git-keizu.dialog.pullBranch.rebase": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default state of rebase in the Pull Branch dialog."
+        },
+        "git-keizu.dialog.pullBranch.ignoreDate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default state of ignore date in the Pull Branch dialog."
+        },
         "git-keizu.repository.commits.order": {
           "type": "string",
           "enum": [

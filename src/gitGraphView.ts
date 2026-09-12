@@ -668,10 +668,17 @@ export class GitKeizuView {
               });
               break;
             case "pull":
-              this.sendMessage({
-                command: "pull",
-                status: await this.dataSource.pull(msg.repo)
-              });
+              {
+                this.sendMessage({
+                  command: "pull",
+                  status: await this.dataSource.pull(msg.repo, {
+                    noFastForward: msg.noFastForward === true,
+                    squash: msg.squash === true,
+                    rebase: msg.rebase === true,
+                    ignoreDate: msg.ignoreDate === true
+                  })
+                });
+              }
               break;
             case "push":
               this.sendMessage(await this.resolvePush(msg));
@@ -836,10 +843,25 @@ export class GitKeizuView {
               }
               break;
             case "fetch":
-              this.sendMessage({
-                command: "fetch",
-                status: await this.dataSource.fetch(msg.repo)
-              });
+              {
+                const hasFetchOptions =
+                  msg.force !== undefined ||
+                  msg.prune !== undefined ||
+                  msg.pruneTags !== undefined;
+                this.sendMessage({
+                  command: "fetch",
+                  status: await this.dataSource.fetch(
+                    msg.repo,
+                    hasFetchOptions
+                      ? {
+                          force: msg.force === true,
+                          prune: msg.prune === true,
+                          pruneTags: msg.pruneTags === true
+                        }
+                      : undefined
+                  )
+                });
+              }
               break;
             case "dropCommit":
               this.sendMessage({

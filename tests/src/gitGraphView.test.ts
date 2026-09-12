@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   resetUncommitted: vi.fn(),
   cleanUntrackedFiles: vi.fn(),
   getCommitComparison: vi.fn(),
+  fetch: vi.fn(),
   createBranch: vi.fn(),
   checkoutBranch: vi.fn(),
   deleteRemoteBranch: vi.fn(),
@@ -800,6 +801,7 @@ describe("GitKeizuView pull message routing", () => {
     GitKeizuView.currentPanel = undefined;
 
     mocks.getRepos.mockReturnValue({ [TEST_REPO]: "Test Repo" });
+    mocks.fetch.mockResolvedValue(null);
     pullMock.mockResolvedValue(null);
 
     const mockDataSource = {
@@ -811,6 +813,7 @@ describe("GitKeizuView pull message routing", () => {
       resetUncommitted: mocks.resetUncommitted,
       cleanUntrackedFiles: mocks.cleanUntrackedFiles,
       getCommitComparison: mocks.getCommitComparison,
+      fetch: mocks.fetch,
       pull: pullMock
     } as unknown as DataSource;
 
@@ -859,8 +862,56 @@ describe("GitKeizuView pull message routing", () => {
 
     // Then: DataSource.pull is called with correct repo and one ResponsePull is sent
     expect(pullMock).toHaveBeenCalledTimes(1);
-    expect(pullMock).toHaveBeenCalledWith(TEST_REPO);
+    expect(pullMock).toHaveBeenCalledWith(TEST_REPO, {
+      noFastForward: false,
+      squash: false,
+      rebase: false,
+      ignoreDate: false
+    });
     expect(sentMessages("pull")).toEqual([{ command: "pull", status: null }]);
+  });
+
+  it("passes pull protocol options to DataSource", async () => {
+    await mocks.messageHandler.current!({
+      command: "pull",
+      repo: TEST_REPO,
+      noFastForward: true,
+      squash: false,
+      rebase: false,
+      ignoreDate: false
+    });
+
+    expect(pullMock).toHaveBeenCalledWith(TEST_REPO, {
+      noFastForward: true,
+      squash: false,
+      rebase: false,
+      ignoreDate: false
+    });
+    expect(sentMessages("pull")).toEqual([{ command: "pull", status: null }]);
+  });
+
+  it("preserves legacy fetch behavior when no fetch option is present", async () => {
+    await mocks.messageHandler.current!({ command: "fetch", repo: TEST_REPO });
+
+    expect(mocks.fetch).toHaveBeenCalledWith(TEST_REPO, undefined);
+    expect(sentMessages("fetch")).toEqual([{ command: "fetch", status: null }]);
+  });
+
+  it("passes fetch protocol options to DataSource", async () => {
+    await mocks.messageHandler.current!({
+      command: "fetch",
+      repo: TEST_REPO,
+      force: false,
+      prune: true,
+      pruneTags: false
+    });
+
+    expect(mocks.fetch).toHaveBeenCalledWith(TEST_REPO, {
+      force: false,
+      prune: true,
+      pruneTags: false
+    });
+    expect(sentMessages("fetch")).toEqual([{ command: "fetch", status: null }]);
   });
 });
 

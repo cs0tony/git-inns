@@ -251,6 +251,17 @@ class Config {
       },
       removeWorktree: {
         deleteBranch: this.workspaceConfiguration.get("dialog.removeWorktree.deleteBranch", true)
+      },
+      fetchRemote: {
+        force: this.workspaceConfiguration.get("dialog.fetchRemote.force", false),
+        prune: this.workspaceConfiguration.get("dialog.fetchRemote.prune", false),
+        pruneTags: this.workspaceConfiguration.get("dialog.fetchRemote.pruneTags", false)
+      },
+      pullBranch: {
+        noFastForward: this.workspaceConfiguration.get("dialog.pullBranch.noFastForward", false),
+        squash: this.workspaceConfiguration.get("dialog.pullBranch.squashCommits", false),
+        rebase: this.workspaceConfiguration.get("dialog.pullBranch.rebase", false),
+        ignoreDate: this.workspaceConfiguration.get("dialog.pullBranch.ignoreDate", false)
       }
     };
   }

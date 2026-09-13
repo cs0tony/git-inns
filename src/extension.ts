@@ -70,6 +70,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     outputChannel,
+    dataSource,
     commandManager.register("git-keizu.view", (arg?: unknown) => {
       // When invoked from SCM title bar, arg is a SourceControl object with rootUri property.
       // When invoked from command palette or programmatically, arg may be a Uri or undefined.

@@ -60,6 +60,7 @@ const mocks = vi.hoisted(() => {
   };
   const extensionStateInstance = { label: "extension-state" };
   const dataSourceInstance = {
+    dispose: vi.fn(),
     generateGitCommandFormats: vi.fn(),
     label: "data-source",
     registerGitPath: vi.fn()
@@ -434,6 +435,7 @@ function resetMockState(): void {
   mocks.outputChannel.appendLine.mockReset();
   mocks.outputChannel.dispose.mockReset();
   mocks.dataSourceInstance.generateGitCommandFormats.mockReset();
+  mocks.dataSourceInstance.dispose.mockReset();
   mocks.dataSourceInstance.registerGitPath.mockReset();
   mocks.dataSourceInstance.registerGitPath.mockResolvedValue(undefined);
   mocks.avatarManagerInstance.clearCache.mockReset();
@@ -617,6 +619,7 @@ describe("extension", () => {
         expect(context.subscriptions.push).toHaveBeenCalledTimes(ONE_CALL);
         expect(context.subscriptions.push).toHaveBeenCalledWith(
           mocks.outputChannel,
+          mocks.dataSourceInstance,
           getCommandDisposable(VIEW_COMMAND),
           getCommandDisposable(CLEAR_AVATAR_CACHE_COMMAND),
           getCommandDisposable(RESUME_ACTIVE_REVIEW_COMMAND),
@@ -817,6 +820,25 @@ describe("extension", () => {
         // Then: DiffDocProvider.dispose and AvatarManager.dispose are each called exactly once
         expect(mocks.diffDocProviderDispose).toHaveBeenCalledTimes(ONE_CALL);
         expect(mocks.avatarManagerInstance.dispose).toHaveBeenCalledTimes(ONE_CALL);
+      });
+
+      it("TC-038: registers DataSource for deactivation and disposes it once", async () => {
+        // Case: TC-038
+        // Given: activation completes and DataSource cleanup has not run
+        const context = await activateExtension();
+        const pushedSubscriptions = getPushedSubscriptions(context);
+
+        // Then: the exact DataSource instance is registered for extension disposal
+        expect(pushedSubscriptions).toContain(mocks.dataSourceInstance);
+        expect(mocks.dataSourceInstance.dispose).not.toHaveBeenCalled();
+
+        // When: every subscription is disposed during deactivation
+        for (const subscription of pushedSubscriptions) {
+          (subscription as { dispose?: () => void }).dispose?.();
+        }
+
+        // Then: DataSource disposal runs exactly once
+        expect(mocks.dataSourceInstance.dispose).toHaveBeenCalledTimes(ONE_CALL);
       });
     });
 

@@ -7,15 +7,8 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as vscode from "vscode";
 
-vi.mock("vscode", () => ({
-  window: {
-    showInputBox: vi.fn()
-  }
-}));
-
-import { AskpassManager } from "../../src/askpass/manager";
+import { AskpassManager, type AskpassPrompt } from "../../src/askpass/manager";
 
 const execFileAsync = promisify(execFile);
 
@@ -71,28 +64,21 @@ function requestEndpoint(
 }
 
 describe("AskpassManager", () => {
-  const showInputBoxMock = vi.mocked(vscode.window.showInputBox);
+  const promptMock = vi.fn<AskpassPrompt>();
   let manager: AskpassManager;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    manager = new AskpassManager();
+    manager = new AskpassManager(undefined, promptMock);
   });
 
   afterEach(async () => {
     await manager.stop();
   });
 
-  it("prompts through a masked, focus-tolerant input box and returns the secret", async () => {
+  it("prompts through the injected seam with a masked, focus-tolerant input box", async () => {
     await manager.start();
-    showInputBoxMock.mockImplementationOnce((options) => {
-      expect(options).toEqual({
-        password: true,
-        ignoreFocusOut: true,
-        prompt: "Password for 'https://example.com':"
-      });
-      return Promise.resolve("secret-value");
-    });
+    promptMock.mockResolvedValueOnce("secret-value");
 
     const runtimeDirectory = runtimeDirectoryOf(manager);
     const entrypointMode = (await stat(askpassPathOf(manager))).mode & 0o777;
@@ -103,7 +89,12 @@ describe("AskpassManager", () => {
     );
 
     expect(stdout).toBe("secret-value");
-    expect(showInputBoxMock).toHaveBeenCalledTimes(1);
+    expect(promptMock).toHaveBeenCalledTimes(1);
+    expect(promptMock).toHaveBeenCalledWith({
+      password: true,
+      ignoreFocusOut: true,
+      prompt: "Password for 'https://example.com':"
+    });
     expect(runtimeDirectory).toContain(join(tmpdir(), "git-keizu-askpass-"));
     expect(entrypointMode === 0o700 || process.platform === "win32").toBe(true);
     expect(manager.isReady()).toBe(true);
@@ -117,16 +108,18 @@ describe("AskpassManager", () => {
 
   it("does not mask username prompts", async () => {
     await manager.start();
-    showInputBoxMock.mockImplementationOnce((options) => {
-      expect(options).toMatchObject({ password: false, ignoreFocusOut: true, prompt: "Username" });
-      return Promise.resolve("person@example.com");
-    });
+    promptMock.mockResolvedValueOnce("person@example.com");
 
     const { stdout } = await execFileAsync(process.execPath, [askpassPathOf(manager), "Username"], {
       env: process.env
     });
 
     expect(stdout).toBe("person@example.com");
+    expect(promptMock).toHaveBeenCalledWith({
+      password: false,
+      ignoreFocusOut: true,
+      prompt: "Username"
+    });
   });
 
   it("rejects malformed JSON without invoking VS Code", async () => {
@@ -135,7 +128,7 @@ describe("AskpassManager", () => {
 
     expect(result.statusCode).toBe(400);
     expect(result.body).toBe("");
-    expect(showInputBoxMock).not.toHaveBeenCalled();
+    expect(promptMock).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid nonce without invoking VS Code", async () => {
@@ -150,12 +143,12 @@ describe("AskpassManager", () => {
 
     expect(result.statusCode).toBe(400);
     expect(result.body).toBe("");
-    expect(showInputBoxMock).not.toHaveBeenCalled();
+    expect(promptMock).not.toHaveBeenCalled();
   });
 
   it("returns empty when the user cancels a password prompt", async () => {
     await manager.start();
-    showInputBoxMock.mockResolvedValueOnce(undefined);
+    promptMock.mockResolvedValueOnce(undefined);
 
     const { stdout } = await execFileAsync(process.execPath, [askpassPathOf(manager), "Password"], {
       env: process.env
@@ -172,6 +165,6 @@ describe("AskpassManager", () => {
 
     expect(manager.isReady()).toBe(false);
     expect(existsSync(runtimeDirectory)).toBe(false);
-    expect(showInputBoxMock).not.toHaveBeenCalled();
+    expect(promptMock).not.toHaveBeenCalled();
   });
 });

@@ -5,8 +5,6 @@ import type * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import * as vscode from "vscode";
-
 import {
   ASKPASS_ENTRYPOINT_NAME,
   createAskpassEntrypoint,
@@ -21,6 +19,16 @@ const MAX_PROMPT_LENGTH = 4096;
 const MAX_REQUEST_LENGTH = 8192;
 const NONCE_HEADER = "x-git-keizu-askpass-nonce";
 const PASSWORD_PROMPT_PATTERN = /pass(?:word|phrase)|pin|secret|token/i;
+
+type VSCodeModule = typeof import("vscode");
+
+export interface AskpassPromptOptions {
+  password: boolean;
+  ignoreFocusOut: true;
+  prompt: string;
+}
+
+export type AskpassPrompt = (options: AskpassPromptOptions) => Promise<string | undefined>;
 
 export interface AskpassManagerLike {
   start(): Promise<void>;
@@ -50,6 +58,11 @@ function isPasswordPrompt(prompt: string): boolean {
   return PASSWORD_PROMPT_PATTERN.test(prompt);
 }
 
+async function promptWithVSCode(options: AskpassPromptOptions): Promise<string | undefined> {
+  const vscode: VSCodeModule = await import("vscode");
+  return vscode.window.showInputBox(options);
+}
+
 export class AskpassManager implements AskpassManagerLike {
   private endpoint = "";
   private nonce = "";
@@ -60,7 +73,10 @@ export class AskpassManager implements AskpassManagerLike {
   private emptyAskpassPath = "";
   private askpassPath = "";
 
-  constructor(private readonly createServer: AskpassServerFactory = http.createServer) {}
+  constructor(
+    private readonly createServer: AskpassServerFactory = http.createServer,
+    private readonly prompt: AskpassPrompt = promptWithVSCode
+  ) {}
 
   public async start(): Promise<void> {
     if (this.state === "ready") return;
@@ -236,7 +252,7 @@ export class AskpassManager implements AskpassManagerLike {
       }
 
       const prompt = parsedBody.prompt.replace(/\r\n|\r|\n/g, " ");
-      const secret = await vscode.window.showInputBox({
+      const secret = await this.prompt({
         password: isPasswordPrompt(parsedBody.prompt),
         ignoreFocusOut: true,
         prompt

@@ -177,3 +177,27 @@ uses progressively disclosed modern controls instead of a dense toolbar.
   frontend forms, and safe backend Git argument handling.
 - **R5-T4 — Emoji mappings:** configuration parsing/validation and safe
   shortcode substitution in the rich-body formatter.
+
+## Modernization wave 6
+
+Wave 6 closes the remaining extension-host parity gaps that are visible to
+users but are not already covered by the modern repository settings panel.
+The wave keeps secrets out of persisted state and logs while using native VS
+Code Quick Picks, input boxes, notifications, and theme-aware dialogs.
+
+| ID | Requirement | Modern UI / behavior expectation |
+| -- | ----------- | -------------------------------- |
+| FE-33 | Repository command surface | Palette commands can add a folder, remove a known repository, refresh from remotes, open the active Git Keizu diff document, and show executable/version diagnostics. Repository pickers are unambiguous and destructive actions are confirmed. |
+| FE-34 | Integrated Git credential prompts | Git subprocesses use an extension-owned Askpass endpoint with a nonce-scoped socket/named pipe. Password fields are masked, credentials are never persisted or logged, and startup degrades safely to an empty askpass when the endpoint is unavailable. |
+| FE-35 | Command diagnostics | Command invocations and command failures are written to the existing output channel without repository credentials; errors retain actionable user-facing messages. |
+| FE-36 | Regression gate | Backend and webview tests, typecheck, lint, formatting, localization parity, and manual smoke checks pass after integration. |
+
+### Task split
+
+- **R6-T1 — Command surface:** repository add/remove/fetch, active diff-file
+  open, version diagnostics, command logging, manifest strings, and QuickPick
+  lifecycle tests.
+- **R6-T2 — Askpass integration:** an isolated manager, platform-safe endpoint,
+  masked prompts, subprocess environment wiring, fallback behavior, and tests.
+- **R6-T3 — Integration QA:** verify ownership boundaries, no secret logging,
+  command/package localization parity, quality gates, and manual smoke checks.

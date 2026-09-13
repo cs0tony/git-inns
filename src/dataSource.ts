@@ -137,9 +137,7 @@ type GitQueryResult =
   | { kind: "ok"; stdout: string }
   | { kind: "error"; exitCode: number | null; status: string };
 
-type GitConfigValuesResult =
-  | { kind: "ok"; values: string[] }
-  | { kind: "error"; status: string };
+type GitConfigValuesResult = { kind: "ok"; values: string[] } | { kind: "error"; status: string };
 
 type RemoteNamesResult = { kind: "ok"; remotes: string[] } | { kind: "error"; status: string };
 
@@ -1660,12 +1658,7 @@ export class DataSource {
     if (globalNameStatus !== null) return globalNameStatus;
 
     if (globalNameStatus !== null) return globalNameStatus;
-    const globalEmailStatus = await this.setUserConfig(
-      "global",
-      "user.email",
-      email,
-      repo
-    );
+    const globalEmailStatus = await this.setUserConfig("global", "user.email", email, repo);
     if (globalEmailStatus !== null) return globalEmailStatus;
 
     const localValues = await this.getUserDetails(repo);
@@ -1740,9 +1733,10 @@ export class DataSource {
     return { kind: "error", status: result.status };
   }
 
-  private async getUserDetails(repo: string): Promise<
-    | { kind: "ok"; details: RepositorySettingsUserDetails }
-    | { kind: "error"; status: string }
+  private async getUserDetails(
+    repo: string
+  ): Promise<
+    { kind: "ok"; details: RepositorySettingsUserDetails } | { kind: "error"; status: string }
   > {
     const [nameLocal, nameGlobal, emailLocal, emailGlobal] = await Promise.all([
       this.getGitConfigValues(repo, "user.name", "local"),
@@ -2192,11 +2186,11 @@ export class DataSource {
         stderrChunks.push(Buffer.from(d));
       });
       cmd.on("error", (e: Error) => {
-          resolve({
-            exitCode: null,
-            kind: "error",
-            status: e.message.split(eolRegex).join("\n")
-          });
+        resolve({
+          exitCode: null,
+          kind: "error",
+          status: e.message.split(eolRegex).join("\n")
+        });
         err = true;
       });
       cmd.on("close", (code: number | null) => {
@@ -2210,11 +2204,11 @@ export class DataSource {
         const lines = (stderr !== "" ? stderr : stdout).split(eolRegex);
         if (lines[lines.length - 1] === "") lines.pop();
         const message = lines.join("\n");
-            resolve({
-              exitCode: code,
-              kind: "error",
-              status: message !== "" ? message : GIT_QUERY_FAILED_MESSAGE
-            });
+        resolve({
+          exitCode: code,
+          kind: "error",
+          status: message !== "" ? message : GIT_QUERY_FAILED_MESSAGE
+        });
       });
     });
   }

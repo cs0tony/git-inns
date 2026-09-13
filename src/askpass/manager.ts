@@ -7,10 +7,13 @@ import * as path from "node:path";
 
 import {
   ASKPASS_ENTRYPOINT_NAME,
+  ASKPASS_MAIN_SCRIPT_NAME,
   createAskpassEntrypoint,
   createEmptyAskpassEntrypoint,
+  createPosixAskpassEntrypoint,
   createWindowsAskpassEntrypoint,
   EMPTY_ASKPASS_ENTRYPOINT_NAME,
+  EMPTY_ASKPASS_MAIN_SCRIPT_NAME,
   WINDOWS_ASKPASS_ENTRYPOINT_NAME,
   WINDOWS_EMPTY_ASKPASS_ENTRYPOINT_NAME
 } from "./entrypoints";
@@ -72,6 +75,7 @@ export class AskpassManager implements AskpassManagerLike {
   private state: AskpassState = "inactive";
   private emptyAskpassPath = "";
   private askpassPath = "";
+  private askpassScriptPath = "";
 
   constructor(
     private readonly createServer: AskpassServerFactory = http.createServer,
@@ -101,6 +105,7 @@ export class AskpassManager implements AskpassManagerLike {
     this.endpoint = "";
     this.nonce = "";
     this.askpassPath = "";
+    this.askpassScriptPath = "";
     this.emptyAskpassPath = "";
     this.state = "inactive";
     if (runtimeDirectory !== "") {
@@ -113,12 +118,13 @@ export class AskpassManager implements AskpassManagerLike {
       return { ...process.env };
     }
     const askpassPath = this.state === "ready" ? this.askpassPath : this.emptyAskpassPath;
-    const platformAskpassPath = process.platform === "win32" ? `${askpassPath}.cmd` : askpassPath;
     return {
       ...process.env,
-      GIT_ASKPASS: platformAskpassPath,
+      ELECTRON_RUN_AS_NODE: "1",
+      GIT_ASKPASS: askpassPath,
+      GIT_KEIZU_NODE: process.execPath,
       GIT_TERMINAL_PROMPT: "0",
-      SSH_ASKPASS: platformAskpassPath,
+      SSH_ASKPASS: askpassPath,
       SSH_ASKPASS_REQUIRE: "force"
     };
   }
@@ -144,24 +150,40 @@ export class AskpassManager implements AskpassManagerLike {
       this.runtimeDirectory = runtimeDirectory;
       this.nonce = nonce;
       this.endpoint = endpoint;
+      const askpassScriptPath = path.join(runtimeDirectory, ASKPASS_MAIN_SCRIPT_NAME);
+      const emptyAskpassScriptPath = path.join(runtimeDirectory, EMPTY_ASKPASS_MAIN_SCRIPT_NAME);
+      this.askpassScriptPath = askpassScriptPath;
       this.askpassPath = path.join(runtimeDirectory, this.entrypointName());
       this.emptyAskpassPath = path.join(runtimeDirectory, this.emptyEntrypointName());
 
       await Promise.all([
-        fs.writeFile(this.askpassPath, createAskpassEntrypoint(endpoint, nonce), { mode: 0o700 }),
-        fs.writeFile(this.emptyAskpassPath, createEmptyAskpassEntrypoint(), { mode: 0o700 }),
+        fs.writeFile(askpassScriptPath, createAskpassEntrypoint(endpoint, nonce), {
+          mode: 0o700
+        }),
+        fs.writeFile(emptyAskpassScriptPath, createEmptyAskpassEntrypoint(), { mode: 0o700 }),
         process.platform === "win32"
           ? Promise.all([
               fs.writeFile(
                 path.join(runtimeDirectory, WINDOWS_ASKPASS_ENTRYPOINT_NAME),
-                createWindowsAskpassEntrypoint(this.entrypointName())
+                createWindowsAskpassEntrypoint(ASKPASS_MAIN_SCRIPT_NAME)
               ),
               fs.writeFile(
                 path.join(runtimeDirectory, WINDOWS_EMPTY_ASKPASS_ENTRYPOINT_NAME),
-                createWindowsAskpassEntrypoint(this.emptyEntrypointName())
+                createWindowsAskpassEntrypoint(EMPTY_ASKPASS_MAIN_SCRIPT_NAME)
               )
             ])
-          : Promise.resolve()
+          : Promise.all([
+              fs.writeFile(
+                this.askpassPath,
+                createPosixAskpassEntrypoint(ASKPASS_MAIN_SCRIPT_NAME),
+                { mode: 0o700 }
+              ),
+              fs.writeFile(
+                this.emptyAskpassPath,
+                createPosixAskpassEntrypoint(EMPTY_ASKPASS_MAIN_SCRIPT_NAME),
+                { mode: 0o700 }
+              )
+            ])
       ]);
 
       await this.listen();
@@ -173,12 +195,12 @@ export class AskpassManager implements AskpassManagerLike {
   }
 
   private entrypointName(): string {
-    return process.platform === "win32" ? `${ASKPASS_ENTRYPOINT_NAME}.js` : ASKPASS_ENTRYPOINT_NAME;
+    return process.platform === "win32" ? WINDOWS_ASKPASS_ENTRYPOINT_NAME : ASKPASS_ENTRYPOINT_NAME;
   }
 
   private emptyEntrypointName(): string {
     return process.platform === "win32"
-      ? `${EMPTY_ASKPASS_ENTRYPOINT_NAME}.js`
+      ? WINDOWS_EMPTY_ASKPASS_ENTRYPOINT_NAME
       : EMPTY_ASKPASS_ENTRYPOINT_NAME;
   }
 
@@ -216,9 +238,12 @@ export class AskpassManager implements AskpassManagerLike {
     this.endpoint = "";
     const askpassPath = this.askpassPath;
     this.askpassPath = "";
+    const askpassScriptPath = this.askpassScriptPath;
+    this.askpassScriptPath = "";
     await Promise.allSettled([
       process.platform === "win32" ? Promise.resolve() : fs.unlink(endpoint),
-      askpassPath === "" ? Promise.resolve() : fs.unlink(askpassPath)
+      askpassPath === "" ? Promise.resolve() : fs.unlink(askpassPath),
+      askpassScriptPath === "" ? Promise.resolve() : fs.unlink(askpassScriptPath)
     ]);
   }
 

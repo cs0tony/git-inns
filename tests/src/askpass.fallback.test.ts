@@ -37,7 +37,9 @@ describe("Askpass endpoint fallback", () => {
 
     expect(manager.isReady()).toBe(false);
     expect(manager.getEnvironment()).toMatchObject({
+      ELECTRON_RUN_AS_NODE: "1",
       GIT_TERMINAL_PROMPT: "0",
+      GIT_KEIZU_NODE: process.execPath,
       SSH_ASKPASS_REQUIRE: "force"
     });
     const environment = manager.getEnvironment();

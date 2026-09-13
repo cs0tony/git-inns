@@ -46,7 +46,9 @@ class StubAskpassManager implements AskpassManagerLike {
     this.startCalls += 1;
     this.environment = {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
       GIT_ASKPASS: "/runtime/askpass",
+      GIT_KEIZU_NODE: process.execPath,
       GIT_TERMINAL_PROMPT: "0",
       SSH_ASKPASS: "/runtime/askpass",
       SSH_ASKPASS_REQUIRE: "force"
@@ -103,7 +105,9 @@ describe("DataSource Askpass integration", () => {
       cwd: REPO,
       env: {
         ...process.env,
+        ELECTRON_RUN_AS_NODE: "1",
         GIT_ASKPASS: "/runtime/askpass",
+        GIT_KEIZU_NODE: process.execPath,
         GIT_TERMINAL_PROMPT: "0",
         SSH_ASKPASS: "/runtime/askpass",
         SSH_ASKPASS_REQUIRE: "force",

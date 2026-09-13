@@ -8,12 +8,13 @@
 
 export const ASKPASS_ENTRYPOINT_NAME = "askpass";
 export const EMPTY_ASKPASS_ENTRYPOINT_NAME = "empty-askpass";
+export const ASKPASS_MAIN_SCRIPT_NAME = "askpass.cjs";
+export const EMPTY_ASKPASS_MAIN_SCRIPT_NAME = "empty-askpass.cjs";
 export const WINDOWS_ASKPASS_ENTRYPOINT_NAME = "askpass.cmd";
 export const WINDOWS_EMPTY_ASKPASS_ENTRYPOINT_NAME = "empty-askpass.cmd";
 
 export function createAskpassEntrypoint(endpoint: string, nonce: string): string {
-  return `#!/usr/bin/env node
-"use strict";
+  return `"use strict";
 
 const http = require("node:http");
 
@@ -56,13 +57,19 @@ if (typeof prompt !== "string" || prompt === "") {
 }
 
 export function createEmptyAskpassEntrypoint(): string {
-  return `#!/usr/bin/env node
-"use strict";
+  return `"use strict";
+`;
+}
+
+export function createPosixAskpassEntrypoint(mainScriptName: string): string {
+  return `#!/bin/sh
+script_dir=$(dirname "$0")
+exec "$GIT_KEIZU_NODE" "$script_dir/${mainScriptName}" "$@"
 `;
 }
 
 export function createWindowsAskpassEntrypoint(entrypointName: string): string {
   return `@echo off
-"node" "%~dp0${entrypointName}" %*
+"%GIT_KEIZU_NODE%" "%~dp0${entrypointName}" %*
 `;
 }

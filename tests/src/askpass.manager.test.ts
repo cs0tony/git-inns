@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import * as http from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ASKPASS_MAIN_SCRIPT_NAME } from "../../src/askpass/entrypoints";
 import { AskpassManager, type AskpassPrompt } from "../../src/askpass/manager";
 
 const execFileAsync = promisify(execFile);
@@ -26,6 +27,27 @@ function askpassPathOf(manager: AskpassManager): string {
 
 function runtimeDirectoryOf(manager: AskpassManager): string {
   return (manager as unknown as { runtimeDirectory: string }).runtimeDirectory;
+}
+
+function mainAskpassPathOf(manager: AskpassManager): string {
+  return join(runtimeDirectoryOf(manager), ASKPASS_MAIN_SCRIPT_NAME);
+}
+
+async function runAskpassWrapper(
+  manager: AskpassManager,
+  args: readonly [prompt: string]
+): Promise<{ stdout: string }> {
+  const environment = manager.getEnvironment();
+  if (process.platform === "win32") {
+    // Avoid spawning a batch wrapper directly from Node in cross-platform tests.
+    const wrapper = await readFile(askpassPathOf(manager), "utf8");
+    expect(wrapper).toContain('"%GIT_KEIZU_NODE%"');
+    return execFileAsync(process.execPath, [mainAskpassPathOf(manager), ...args], {
+      env: environment
+    });
+  }
+
+  return execFileAsync(askpassPathOf(manager), [...args], { env: environment });
 }
 
 function requestEndpoint(
@@ -82,11 +104,8 @@ describe("AskpassManager", () => {
 
     const runtimeDirectory = runtimeDirectoryOf(manager);
     const entrypointMode = (await stat(askpassPathOf(manager))).mode & 0o777;
-    const { stdout } = await execFileAsync(
-      process.execPath,
-      [askpassPathOf(manager), "Password for 'https://example.com':"],
-      { env: process.env }
-    );
+    const wrapper = await readFile(askpassPathOf(manager), "utf8");
+    const { stdout } = await runAskpassWrapper(manager, ["Password for 'https://example.com':"]);
 
     expect(stdout).toBe("secret-value");
     expect(promptMock).toHaveBeenCalledTimes(1);
@@ -95,11 +114,15 @@ describe("AskpassManager", () => {
       ignoreFocusOut: true,
       prompt: "Password for 'https://example.com':"
     });
+    expect(wrapper).not.toContain(endpointOf(manager));
+    expect(wrapper).not.toContain(nonceOf(manager));
     expect(runtimeDirectory).toContain(join(tmpdir(), "git-keizu-askpass-"));
     expect(entrypointMode === 0o700 || process.platform === "win32").toBe(true);
     expect(manager.isReady()).toBe(true);
     expect(manager.getEnvironment()).toMatchObject({
+      ELECTRON_RUN_AS_NODE: "1",
       GIT_ASKPASS: askpassPathOf(manager),
+      GIT_KEIZU_NODE: process.execPath,
       GIT_TERMINAL_PROMPT: "0",
       SSH_ASKPASS: askpassPathOf(manager),
       SSH_ASKPASS_REQUIRE: "force"
@@ -110,9 +133,7 @@ describe("AskpassManager", () => {
     await manager.start();
     promptMock.mockResolvedValueOnce("person@example.com");
 
-    const { stdout } = await execFileAsync(process.execPath, [askpassPathOf(manager), "Username"], {
-      env: process.env
-    });
+    const { stdout } = await runAskpassWrapper(manager, ["Username"]);
 
     expect(stdout).toBe("person@example.com");
     expect(promptMock).toHaveBeenCalledWith({
@@ -150,9 +171,7 @@ describe("AskpassManager", () => {
     await manager.start();
     promptMock.mockResolvedValueOnce(undefined);
 
-    const { stdout } = await execFileAsync(process.execPath, [askpassPathOf(manager), "Password"], {
-      env: process.env
-    });
+    const { stdout } = await runAskpassWrapper(manager, ["Password"]);
 
     expect(stdout).toBe("");
   });

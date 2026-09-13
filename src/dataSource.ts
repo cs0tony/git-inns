@@ -7,6 +7,7 @@ import {
   type PullOptions,
   toGitArgumentTokens
 } from "../web/advancedOperationOptions";
+import { AskpassManager, type AskpassManagerLike } from "./askpass/manager";
 import { CUSTOM_BRANCH_GLOB_ARGUMENT_PREFIX, getConfig } from "./config";
 import { ExtensionState } from "./extensionState";
 import { DEFAULT_GIT_PATH, resolveGitExecutable } from "./gitExecutable";
@@ -362,14 +363,24 @@ export class DataSource {
   private gitStashFormat!: string;
   private gitCommitDetailsFormat!: string;
   private readonly extensionState?: ExtensionState;
+  private readonly askpassManager: AskpassManagerLike;
 
-  constructor(extensionState?: ExtensionState) {
+  constructor(
+    extensionState?: ExtensionState,
+    askpassManager: AskpassManagerLike = new AskpassManager()
+  ) {
     this.extensionState = extensionState;
+    this.askpassManager = askpassManager;
     this.generateGitCommandFormats();
   }
 
   public async registerGitPath(): Promise<void> {
     this.gitPath = await resolveGitExecutable(getConfig().gitPath());
+    await this.askpassManager.start();
+  }
+
+  public dispose(): void {
+    void this.askpassManager.stop();
   }
 
   public generateGitCommandFormats() {
@@ -2138,8 +2149,7 @@ export class DataSource {
       const stderrChunks: Buffer[] = [];
       let err = false;
       const cmd = cp.spawn(this.gitPath, args, {
-        cwd: repo,
-        env: { ...process.env, LC_ALL: "C" }
+        ...this.createSpawnOptions(repo)
       });
       cmd.stdout.on("data", (d: string | Buffer) => {
         stdoutChunks.push(Buffer.from(d));
@@ -2173,8 +2183,7 @@ export class DataSource {
       const stderrChunks: Buffer[] = [];
       let err = false;
       const cmd = cp.spawn(this.gitPath, args, {
-        cwd: repo,
-        env: { ...process.env, LC_ALL: "C" }
+        ...this.createSpawnOptions(repo)
       });
       cmd.stdout.on("data", (d: string | Buffer) => {
         stdoutChunks.push(Buffer.from(d));
@@ -2220,8 +2229,7 @@ export class DataSource {
       const stdoutChunks: Buffer[] = [];
       let err = false;
       const cmd = cp.spawn(this.gitPath, args, {
-        cwd: repo,
-        env: { ...process.env, LC_ALL: "C" }
+        ...this.createSpawnOptions(repo)
       });
       cmd.stdout.on("data", (d: string | Buffer) => {
         stdoutChunks.push(Buffer.from(d));
@@ -2243,8 +2251,7 @@ export class DataSource {
       const stdoutChunks: Buffer[] = [];
       let err = false;
       const cmd = cp.spawn(this.gitPath, args, {
-        cwd: repo,
-        env: { ...process.env, LC_ALL: "C" }
+        ...this.createSpawnOptions(repo)
       });
       cmd.stdout.on("data", (d: string | Buffer) => {
         stdoutChunks.push(Buffer.from(d));
@@ -2259,5 +2266,12 @@ export class DataSource {
         resolve(code === 0 ? Buffer.concat(stdoutChunks) : Buffer.alloc(0));
       });
     });
+  }
+
+  private createSpawnOptions(repo: string): { cwd: string; env: NodeJS.ProcessEnv } {
+    return {
+      cwd: repo,
+      env: { ...this.askpassManager.getEnvironment(), LC_ALL: "C" }
+    };
   }
 }

@@ -189,16 +189,23 @@ export class RepoManager {
     this.extensionState.saveRepos(this.repos);
   }
 
-  public async registerRepoFromUri(uri: vscode.Uri): Promise<void> {
+  public async registerRepoFromUri(uri: vscode.Uri): Promise<boolean> {
     const repoPath = getPathFromUri(uri);
     if (repoPath in this.repos) {
-      return;
+      return true;
     }
     const isRepo = await this.dataSource.isGitRepository(repoPath);
     if (isRepo) {
       this.addRepo(repoPath);
       this.sendRepos();
+      return true;
     }
+    return false;
+  }
+
+  public async removeRepoAndRefresh(repo: string): Promise<void> {
+    this.removeRepo(repo);
+    if (!(await this.checkReposExist())) this.sendRepos();
   }
 
   /* Repo Searching */

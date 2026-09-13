@@ -116,6 +116,31 @@
         "command": "git-keizu.endAllReviews",
         "enablement": "git-keizu.hasActiveReviews",
         "title": "%command.endAllReviews.title%"
+      },
+      {
+        "category": "%command.category%",
+        "command": "git-keizu.addRepository",
+        "title": "%command.addRepository.title%"
+      },
+      {
+        "category": "%command.category%",
+        "command": "git-keizu.removeRepository",
+        "title": "%command.removeRepository.title%"
+      },
+      {
+        "category": "%command.category%",
+        "command": "git-keizu.fetch",
+        "title": "%command.fetch.title%"
+      },
+      {
+        "category": "%command.category%",
+        "command": "git-keizu.openActiveDiffFile",
+        "title": "%command.openActiveDiffFile.title%"
+      },
+      {
+        "category": "%command.category%",
+        "command": "git-keizu.version",
+        "title": "%command.version.title%"
       }
     ],
     "menus": {

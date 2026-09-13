@@ -13,6 +13,11 @@ interface MockDisposable {
 
 interface MockExtensionContext {
   extensionPath: string;
+  extension: {
+    packageJSON: {
+      version: string;
+    };
+  };
   subscriptions: {
     push: ReturnType<typeof vi.fn>;
   };
@@ -249,6 +254,11 @@ const CLEAR_AVATAR_CACHE_COMMAND = "git-keizu.clearAvatarCache";
 const RESUME_ACTIVE_REVIEW_COMMAND = "git-keizu.resumeActiveReview";
 const END_ACTIVE_REVIEW_COMMAND = "git-keizu.endActiveReview";
 const END_ALL_REVIEWS_COMMAND = "git-keizu.endAllReviews";
+const ADD_REPOSITORY_COMMAND = "git-keizu.addRepository";
+const REMOVE_REPOSITORY_COMMAND = "git-keizu.removeRepository";
+const FETCH_COMMAND = "git-keizu.fetch";
+const OPEN_ACTIVE_DIFF_FILE_COMMAND = "git-keizu.openActiveDiffFile";
+const VERSION_COMMAND = "git-keizu.version";
 const SHOW_STATUS_BAR_ITEM_SETTING = "git-keizu.showStatusBarItem";
 const DATE_TYPE_SETTING = "git-keizu.dateType";
 const MAX_DEPTH_OF_REPO_SEARCH_SETTING = "git-keizu.maxDepthOfRepoSearch";
@@ -269,13 +279,18 @@ const MICROTASK_FLUSH_ROUNDS = 5;
 const ZERO_CALLS = 0;
 const ONE_CALL = 1;
 const TWO_COMMANDS = 2;
-const FIVE_COMMANDS = 5;
+const TEN_COMMANDS = 10;
 
 function createMockContext(
   pushMock = vi.fn(() => DEFAULT_SUBSCRIPTION_PUSH_RESULT)
 ): MockExtensionContext {
   return {
     extensionPath: DEFAULT_EXTENSION_PATH,
+    extension: {
+      packageJSON: {
+        version: "0.9.1"
+      }
+    },
     subscriptions: {
       push: pushMock
     }
@@ -536,7 +551,7 @@ describe("extension", () => {
           mocks.extensionStateInstance,
           mocks.statusBarItemInstance
         );
-        expect(mocks.registerCommand).toHaveBeenCalledTimes(FIVE_COMMANDS);
+        expect(mocks.registerCommand).toHaveBeenCalledTimes(TEN_COMMANDS);
         expect(mocks.registerCommand).toHaveBeenNthCalledWith(
           ONE_CALL,
           VIEW_COMMAND,
@@ -562,12 +577,34 @@ describe("extension", () => {
           END_ALL_REVIEWS_COMMAND,
           expect.any(Function)
         );
+        expect(mocks.registerCommand).toHaveBeenNthCalledWith(
+          6,
+          ADD_REPOSITORY_COMMAND,
+          expect.any(Function)
+        );
+        expect(mocks.registerCommand).toHaveBeenNthCalledWith(
+          7,
+          REMOVE_REPOSITORY_COMMAND,
+          expect.any(Function)
+        );
+        expect(mocks.registerCommand).toHaveBeenNthCalledWith(
+          8,
+          FETCH_COMMAND,
+          expect.any(Function)
+        );
+        expect(mocks.registerCommand).toHaveBeenNthCalledWith(
+          9,
+          OPEN_ACTIVE_DIFF_FILE_COMMAND,
+          expect.any(Function)
+        );
+        expect(mocks.registerCommand).toHaveBeenNthCalledWith(
+          10,
+          VERSION_COMMAND,
+          expect.any(Function)
+        );
         expect(
           mocks.gitKeizuViewModule.GitKeizuView.refreshActiveReviewCommandEnablement
-        ).toHaveBeenCalledWith(
-          mocks.extensionStateInstance,
-          mocks.repoManagerInstance
-        );
+        ).toHaveBeenCalledWith(mocks.extensionStateInstance, mocks.repoManagerInstance);
         expect(mocks.diffDocProviderConstruct).toHaveBeenCalledTimes(ONE_CALL);
         expect(mocks.diffDocProviderConstruct).toHaveBeenCalledWith(mocks.dataSourceInstance);
         expect(mocks.registerTextDocumentContentProvider).toHaveBeenCalledTimes(ONE_CALL);
@@ -585,6 +622,11 @@ describe("extension", () => {
           getCommandDisposable(RESUME_ACTIVE_REVIEW_COMMAND),
           getCommandDisposable(END_ACTIVE_REVIEW_COMMAND),
           getCommandDisposable(END_ALL_REVIEWS_COMMAND),
+          getCommandDisposable(ADD_REPOSITORY_COMMAND),
+          getCommandDisposable(REMOVE_REPOSITORY_COMMAND),
+          getCommandDisposable(FETCH_COMMAND),
+          getCommandDisposable(OPEN_ACTIVE_DIFF_FILE_COMMAND),
+          getCommandDisposable(VERSION_COMMAND),
           getDiffDocProviderInstance(),
           getTextDocumentDisposable(),
           getConfigurationDisposable(),
@@ -645,7 +687,7 @@ describe("extension", () => {
         await expectRejectedError(activate(toExtensionContext(context)), PUSH_FAILED_MESSAGE);
 
         // Then: the same Error and message are propagated and the activation log is never written
-        expect(mocks.registerCommand).toHaveBeenCalledTimes(FIVE_COMMANDS);
+        expect(mocks.registerCommand).toHaveBeenCalledTimes(TEN_COMMANDS);
         expect(mocks.registerTextDocumentContentProvider).toHaveBeenCalledTimes(ONE_CALL);
         expect(mocks.onDidChangeConfiguration).toHaveBeenCalledTimes(ONE_CALL);
         expect(pushMock).toHaveBeenCalledTimes(ONE_CALL);

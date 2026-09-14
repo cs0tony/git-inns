@@ -58,6 +58,7 @@ describe("Config fallback defaults vs package.json", () => {
     const settings: Array<[string, string, (c: ConfigInstance) => unknown]> = [
       ["TC-042", "dateFormat", (c) => c.dateFormat()],
       ["TC-042a", "customBranchGlobPatterns", (c) => c.customBranchGlobPatterns()],
+      ["TC-042b", "customPullRequestProviders", (c) => c.customPullRequestProviders()],
       ["TC-043", "dateType", (c) => c.dateType()],
       ["TC-044", "fetchAvatars", (c) => c.fetchAvatars()],
       ["TC-045", "graphStyle", (c) => c.graphStyle()],
@@ -87,6 +88,20 @@ describe("Config fallback defaults vs package.json", () => {
       ["TC-057c", "onlyFollowFirstParent", (c) => c.onlyFollowFirstParent()],
       ["TC-057d", "useMailmap", (c) => c.useMailmap()],
       ["TC-057e", "showSignatureStatus", (c) => c.showSignatureStatus()],
+      ["TC-057f", "referenceLabels", (c) => c.referenceLabels()],
+      ["TC-057g", "defaultColumnVisibility", (c) => c.presentationDefaults()],
+      ["TC-057h", "repositoryDropdownOrder", (c) => c.repositoryDropdownOrder()],
+      ["TC-057i", "retainContextWhenHidden", (c) => c.hostViewPreferences().retainContextWhenHidden],
+      [
+        "TC-057j",
+        "openToActiveEditorRepository",
+        (c) => c.hostViewPreferences().openToActiveEditorRepository
+      ],
+      [
+        "TC-057k",
+        "integratedTerminalShell",
+        (c) => c.hostViewPreferences().integratedTerminalShell
+      ],
       ["TC-058", "dialog.merge.noFastForward", (c) => c.dialogDefaults().merge.noFastForward],
       ["TC-059", "dialog.merge.squashCommits", (c) => c.dialogDefaults().merge.squashCommits],
       ["TC-060", "dialog.merge.noCommit", (c) => c.dialogDefaults().merge.noCommit],

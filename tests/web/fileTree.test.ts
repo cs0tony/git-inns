@@ -5,6 +5,10 @@ const webviewMessages =
   ((globalThis as Record<string, unknown>).webviewMessages as Record<string, string> | undefined) ??
   {};
 webviewMessages["file.reviewed"] = "Reviewed";
+webviewMessages["file.change.added"] = "Added";
+webviewMessages["file.change.deleted"] = "Deleted";
+webviewMessages["file.change.modified"] = "Modified";
+webviewMessages["file.change.renamed"] = "Renamed";
 (globalThis as Record<string, unknown>).webviewMessages = webviewMessages;
 
 import type { GitFileChange } from "../../src/types";

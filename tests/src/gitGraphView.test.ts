@@ -128,10 +128,19 @@ vi.mock("../../src/config", () => ({
     }),
     customBranchGlobPatterns: () => [],
     customEmojiShortcodeMappings: () => [],
+    customPullRequestProviders: () => [],
     commitDetailsViewLocation: () => "inline",
     commitDetailsFileViewType: () => "tree",
     commitDetailsFileTreeCompactFolders: () => true,
     autoCenterCommitDetailsView: () => false,
+    referenceLabels: () => ({ alignment: "description", combine: true }),
+    presentationDefaults: () => ({ date: true, author: true, commit: true }),
+    repositoryDropdownOrder: () => "workspace-path",
+    hostViewPreferences: () => ({
+      retainContextWhenHidden: true,
+      openToActiveEditorRepository: false,
+      integratedTerminalShell: ""
+    }),
     showCurrentBranchByDefault: () => false,
     showRecentActions: () => true,
     dialogDefaults: () => ({
@@ -1495,6 +1504,46 @@ describe("GitKeizuView createOrShow rootUri handling (S6)", () => {
     // Then: setLastActiveRepo is called with rootUri.fsPath
     expect(mockSetLastActiveRepo).toHaveBeenCalledTimes(1);
     expect(mockSetLastActiveRepo).toHaveBeenCalledWith(SCM_REPO);
+  });
+
+  it("opens to the repository containing the active editor when enabled", async () => {
+    // Given: the active editor file belongs to the registered test repository
+    const deps = createDeps();
+    const configModule = await import("../../src/config");
+    const getConfigMock = vi.mocked(configModule.getConfig);
+    const baseConfig = getConfigMock.getMockImplementation()!();
+    getConfigMock.mockImplementation(
+      () =>
+        ({
+          ...baseConfig,
+          hostViewPreferences: () => ({
+            ...baseConfig.hostViewPreferences(),
+            openToActiveEditorRepository: true
+          })
+        }) as unknown as ReturnType<typeof configModule.getConfig>
+    );
+    vscode.window.activeTextEditor = {
+      document: { uri: vscode.Uri.file(`${TEST_REPO}/src/file.ts`) }
+    } as unknown as typeof vscode.window.activeTextEditor;
+
+    try {
+      // When: a new graph is opened without an explicit root URI
+      GitKeizuView.createOrShow(
+        "/test/extension",
+        deps.mockDataSource,
+        deps.mockExtensionState,
+        deps.mockAvatarManager,
+        deps.mockRepoManager
+      );
+
+      // Then: the containing repository is selected as the last active repository
+      expect(mockSetLastActiveRepo).toHaveBeenCalledWith(TEST_REPO);
+    } finally {
+      vscode.window.activeTextEditor = undefined;
+      getConfigMock.mockImplementation(
+        () => baseConfig as unknown as ReturnType<typeof configModule.getConfig>
+      );
+    }
   });
 
   it("sends ResponseSelectRepo when panel exists and repo is registered (TC-016)", () => {
@@ -3865,10 +3914,24 @@ describe("GitKeizuView loadBranches watcher orchestration", () => {
     });
   });
 
-  it("stops RepoFileWatcher when the panel becomes hidden (TC-064)", () => {
+  it("stops RepoFileWatcher when hidden without retained context (TC-064)", async () => {
     // Case: TC-064
-    // Given: GitKeizuView is created and the panel view state handler is registered
+    // Given: hidden views are configured not to retain context
     const deps = createViewDeps();
+    const configModule = await import("../../src/config");
+    const getConfigMock = vi.mocked(configModule.getConfig);
+    const baseConfig = getConfigMock.getMockImplementation()!();
+    getConfigMock.mockImplementation(
+      () =>
+        ({
+          ...baseConfig,
+          hostViewPreferences: () => ({
+            ...baseConfig.hostViewPreferences(),
+            retainContextWhenHidden: false
+          })
+        }) as unknown as ReturnType<typeof configModule.getConfig>
+    );
+
     GitKeizuView.createOrShow(
       "/test/extension",
       deps.dataSource,
@@ -3881,12 +3944,40 @@ describe("GitKeizuView loadBranches watcher orchestration", () => {
     };
     expect(mocks.panelViewStateHandler).not.toBeNull();
 
+    try {
+      // When: The panel transitions from visible to hidden
+      panelMock.visible = false;
+      mocks.panelViewStateHandler?.();
+
+      // Then: RepoFileWatcher.stop is called once
+      expect(mocks.repoFileWatcherStop).toHaveBeenCalledTimes(1);
+    } finally {
+      getConfigMock.mockImplementation(
+        () => baseConfig as unknown as ReturnType<typeof configModule.getConfig>
+      );
+    }
+  });
+
+  it("keeps a loaded retained view and its watcher when hidden", () => {
+    // Given: GitKeizuView is loaded with retained hidden context by default
+    const deps = createViewDeps();
+    GitKeizuView.createOrShow(
+      "/test/extension",
+      deps.dataSource,
+      deps.extensionState,
+      deps.avatarManager,
+      deps.repoManager
+    );
+    const panelMock = vi.mocked(vscode.window.createWebviewPanel).mock.results[0].value as {
+      visible: boolean;
+    };
+
     // When: The panel transitions from visible to hidden
     panelMock.visible = false;
     mocks.panelViewStateHandler?.();
 
-    // Then: RepoFileWatcher.stop is called once
-    expect(mocks.repoFileWatcherStop).toHaveBeenCalledTimes(1);
+    // Then: the loaded view state and watcher are retained
+    expect(mocks.repoFileWatcherStop).not.toHaveBeenCalled();
   });
 });
 

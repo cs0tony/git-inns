@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import webMessagesEn from "../../l10n/web/web.l10n.en.json";
+import type { CustomPullRequestProvider } from "../../src/pullRequestProviders";
 import {
   openRepoSettings,
   type RepoSettingsAction,
@@ -112,12 +113,21 @@ describe("repository settings panel", () => {
     document.body.innerHTML = "";
   });
 
-  function render(overrides: Partial<RepoSettingsData> = {}): void {
+  function render(
+    overrides: Partial<RepoSettingsData> = {},
+    customPullRequestProviders: CustomPullRequestProvider[] = []
+  ): void {
     const container = document.createElement("div");
     document.body.appendChild(container);
-    openRepoSettings(container, createData(overrides), (action) => {
-      actions.push(action);
-    });
+    openRepoSettings(
+      container,
+      createData(overrides),
+      (action) => {
+        actions.push(action);
+      },
+      undefined,
+      customPullRequestProviders
+    );
   }
 
   it("renders repository details, remote controls, form fields, and future sections", () => {
@@ -418,6 +428,105 @@ describe("repository settings panel", () => {
         urlTemplate: "https://example.com/issues/{issue}"
       }
     });
+  });
+
+  it("renders sorted reusable custom providers and saves the configured provider", () => {
+    render(
+      {
+        pullRequest: {
+          provider: "custom",
+          sourceRemoteName: "origin",
+          sourceOwner: "example",
+          sourceRepo: "git-keizu",
+          hostRootUrl: "https://example.com",
+          customName: "Work Tracker",
+          customTemplateUrl: "https://work.example/{sourceBranch}"
+        },
+        pullRequestDestination: {
+          branches: ["main"],
+          defaultBranch: "main",
+          selectedBranch: "main"
+        }
+      },
+      [
+        { name: "Work Tracker", templateUrl: "https://work.example/{sourceBranch}" },
+        { name: "alpha", templateUrl: "https://alpha.example/{sourceBranch}" }
+      ]
+    );
+
+    const provider = findSelect("Provider");
+    const customProviderGroup = provider.querySelector("optgroup");
+    expect(customProviderGroup?.getAttribute("label")).toBe("Reusable custom providers");
+    expect(Array.from(provider.querySelectorAll("option")).map((option) => option.value)).toEqual([
+      "github",
+      "gitlab",
+      "bitbucket",
+      "custom",
+      `custom-provider:${encodeURIComponent("alpha")}`,
+      `custom-provider:${encodeURIComponent("Work Tracker")}`
+    ]);
+    expect(provider.value).toBe(`custom-provider:${encodeURIComponent("Work Tracker")}`);
+
+    provider.value = `custom-provider:${encodeURIComponent("Work Tracker")}`;
+    Array.from(document.querySelectorAll("button"))
+      .find((button) => button.textContent === "Save pull request provider")!
+      .click();
+
+    expect(actions).toEqual([
+      {
+        type: "savePullRequest",
+        settings: {
+          provider: "custom",
+          remoteName: "origin",
+          destinationBranch: "main",
+          customName: "Work Tracker",
+          customTemplateUrl: "https://work.example/{sourceBranch}"
+        }
+      }
+    ]);
+  });
+
+  it("selects manual custom when a saved provider is not configured and preserves its data", () => {
+    render({
+      pullRequest: {
+        provider: "custom",
+        sourceRemoteName: "origin",
+        sourceOwner: "example",
+        sourceRepo: "git-keizu",
+        hostRootUrl: "https://example.com",
+        customName: "Removed Provider",
+        customTemplateUrl: "https://removed.example/{sourceBranch}"
+      },
+      pullRequestDestination: {
+        branches: ["main"],
+        defaultBranch: "main",
+        selectedBranch: "main"
+      }
+    });
+
+    const provider = findSelect("Provider");
+    expect(provider.value).toBe("custom");
+    expect(findField("Custom provider name (optional)").value).toBe("Removed Provider");
+    expect(findField("Custom provider URL template").value).toBe(
+      "https://removed.example/{sourceBranch}"
+    );
+
+    Array.from(document.querySelectorAll("button"))
+      .find((button) => button.textContent === "Save pull request provider")!
+      .click();
+
+    expect(actions).toEqual([
+      {
+        type: "savePullRequest",
+        settings: {
+          provider: "custom",
+          remoteName: "origin",
+          destinationBranch: "main",
+          customName: "Removed Provider",
+          customTemplateUrl: "https://removed.example/{sourceBranch}"
+        }
+      }
+    ]);
   });
 
   it("closes with Escape or the close button and restores focus", () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGet = vi.fn();
 
@@ -1185,5 +1185,73 @@ describe("contextMenuActionsVisibility", () => {
       "file.reopenWithEncoding": true,
       "file.resetToRevision": true
     });
+  });
+});
+
+describe("wave seven settings", () => {
+  afterEach(() => {
+    mockGet.mockReset();
+  });
+
+  it("normalizes configured presentation and repository settings", () => {
+    // Given: WorkspaceConfiguration returns partial Wave 7 values
+    mockGet.mockImplementation((key: string, defaultValue: unknown) => {
+      if (key === "referenceLabels") {
+        return { alignment: "graph-branches", combine: false, unknown: true };
+      }
+      if (key === "defaultColumnVisibility") {
+        return { date: false, author: true, commit: false };
+      }
+      if (key === "repositoryDropdownOrder") {
+        return "name";
+      }
+      if (key === "retainContextWhenHidden") return false;
+      if (key === "openToActiveEditorRepository") return true;
+      if (key === "integratedTerminalShell") return " /bin/zsh ";
+      return defaultValue;
+    });
+
+    // When: all settings pass through Config
+    const config = getConfig();
+
+    // Then: valid values are preserved and defaults fill omitted fields
+    expect(config.referenceLabels()).toEqual({ alignment: "graph-branches", combine: false });
+    expect(config.presentationDefaults()).toEqual({ date: false, author: true, commit: false });
+    expect(config.repositoryDropdownOrder()).toBe("name");
+    expect(config.hostViewPreferences()).toEqual({
+      integratedTerminalShell: "/bin/zsh",
+      openToActiveEditorRepository: true,
+      retainContextWhenHidden: false
+    });
+  });
+
+  it("rejects malformed presentation and host settings safely", () => {
+    // Given: settings contain invalid or unsafe values
+    mockGet.mockImplementation((key: string, defaultValue: unknown) => {
+      if (key === "customPullRequestProviders") {
+        return [
+          { name: "Valid", templateUrl: "https://tracker.example/{sourceBranch}" },
+          { name: "Valid", templateUrl: "https://duplicate.example/{sourceBranch}" },
+          { name: "Credential", templateUrl: "https://user:secret@tracker.example/{sourceBranch}" }
+        ];
+      }
+      if (key === "referenceLabels") return "combined";
+      if (key === "defaultColumnVisibility") return { date: false, author: false, commit: false };
+      if (key === "repositoryDropdownOrder") return "random";
+      if (key === "integratedTerminalShell") return "/bin/sh\0";
+      return defaultValue;
+    });
+
+    // When: the settings are read through Config
+    const config = getConfig();
+
+    // Then: invalid values fall back and valid entries remain unique
+    expect(config.customPullRequestProviders()).toEqual([
+      { name: "Valid", templateUrl: "https://tracker.example/{sourceBranch}" }
+    ]);
+    expect(config.referenceLabels()).toEqual({ alignment: "description", combine: true });
+    expect(config.presentationDefaults()).toEqual({ date: true, author: true, commit: true });
+    expect(config.repositoryDropdownOrder()).toBe("workspace-path");
+    expect(config.hostViewPreferences().integratedTerminalShell).toBe("");
   });
 });

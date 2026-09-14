@@ -79,8 +79,17 @@ vi.mock("../../src/config", () => ({
     }),
     customBranchGlobPatterns: () => [],
     customEmojiShortcodeMappings: () => [],
+    customPullRequestProviders: () => [],
     showCurrentBranchByDefault: () => false,
     showRecentActions: () => true,
+    referenceLabels: () => ({ alignment: "description", combine: true }),
+    presentationDefaults: () => ({ date: true, author: true, commit: true }),
+    repositoryDropdownOrder: () => "workspace-path",
+    hostViewPreferences: () => ({
+      retainContextWhenHidden: true,
+      openToActiveEditorRepository: false,
+      integratedTerminalShell: ""
+    }),
     dialogDefaults: () => ({})
   }))
 }));

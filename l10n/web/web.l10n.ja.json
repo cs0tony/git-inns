@@ -147,6 +147,7 @@
   "repoSettings.userDetailsControlCharacters": "制御文字は使用できません。",
   "repoSettings.pullProviders": "プルリクエストプロバイダー",
   "repoSettings.pullProvidersDescription": "プロバイダー連携は今後のリリースで利用できるようになります。",
+  "repoSettings.reusableCustomProviders": "再利用可能なカスタムプロバイダー",
   "repoSettings.exportHelp": "共有する Issue リンクとプルリクエスト設定を書き出したり、チームメイトの設定を読み込んだりできます。",
   "repoSettings.exportButton": "設定を書き出す",
   "repoSettings.exportButtonShort": "書き出し",

@@ -147,6 +147,7 @@
   "repoSettings.userDetailsControlCharacters": "Control characters are not allowed.",
   "repoSettings.pullProviders": "Pull request providers",
   "repoSettings.pullProvidersDescription": "Provider integration will become available in a future release.",
+  "repoSettings.reusableCustomProviders": "Reusable custom providers",
   "repoSettings.exportHelp": "Export shared issue-link and pull-request settings, or import a configuration shared by a teammate.",
   "repoSettings.exportButton": "Export configuration",
   "repoSettings.exportButtonShort": "Export",

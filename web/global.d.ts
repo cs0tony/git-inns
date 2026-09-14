@@ -1,4 +1,9 @@
+import type {
+  PresentationColumnVisibility,
+  RepositoryOrderingMode
+} from "../src/presentationDefaults";
 import * as GG from "../src/types";
+import type { ReferenceLabelPresentation } from "./referenceLabelPresentation";
 
 declare global {
   function acquireVsCodeApi(): {
@@ -16,6 +21,7 @@ declare global {
     fileEncoding: GG.FileEncoding;
     contextMenuActionsVisibility: GG.ContextMenuActionsVisibility;
     customBranchGlobPatterns: GG.CustomBranchGlobPattern[];
+    customPullRequestProviders: GG.CustomPullRequestProvider[];
     graphColours: string[];
     graphStyle: "rounded" | "angular";
     grid: { x: number; y: number; offsetX: number; offsetY: number; expandY: number };
@@ -24,6 +30,9 @@ declare global {
     loadMoreCommits: number;
     loadMoreCommitsAutomatically: boolean;
     mute: { mergeCommits: boolean; commitsNotAncestorsOfHead: boolean };
+    presentationDefaults: PresentationColumnVisibility;
+    referenceLabels: ReferenceLabelPresentation;
+    repositoryOrderingMode: RepositoryOrderingMode;
     showCurrentBranchByDefault: boolean;
   }
 

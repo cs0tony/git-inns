@@ -54,14 +54,15 @@ function buildFileItemHtml(
   const isReviewed = reviewedFiles.includes(gitFile.newFilePath);
   const diffPossible = gitFile.additions !== null && gitFile.deletions !== null;
   const binaryTitle = diffPossible ? "" : BINARY_FILE_TITLE;
-  const typeLabel =
+  const typeLabel = t(
     gitFile.type === "A"
-      ? "Added"
+      ? "file.change.added"
       : gitFile.type === "D"
-        ? "Deleted"
+        ? "file.change.deleted"
         : gitFile.type === "R"
-          ? "Renamed"
-          : "Modified";
+          ? "file.change.renamed"
+          : "file.change.modified"
+  );
   const accessibilityLabel = [
     displayName,
     typeLabel,
@@ -75,6 +76,7 @@ function buildFileItemHtml(
     gitFile.type === "R"
       ? ` <span class="gitFileRename" title="${escapeHtml(t("file.renamed", gitFile.oldFilePath, gitFile.newFilePath))}">R</span>`
       : "";
+  const changeTypeHtml = `<span class="gitFileChangeBadge" title="${escapeHtml(typeLabel)}" aria-hidden="true">${gitFile.type}</span>`;
   const addDelHtml =
     gitFile.type !== "A" && gitFile.type !== "D" && diffPossible
       ? `<span class="gitFileAddDel">(<span class="gitFileAdditions" title="${t(gitFile.additions === 1 ? "file.addition.one" : "file.addition.other", gitFile.additions ?? 0)}">+${gitFile.additions}</span>|<span class="gitFileDeletions" title="${t(gitFile.deletions === 1 ? "file.deletion.one" : "file.deletion.other", gitFile.deletions ?? 0)}">-${gitFile.deletions}</span>)</span>`
@@ -91,7 +93,7 @@ function buildFileItemHtml(
   const reviewedHtml = isReviewed
     ? `<span class="gitFileReviewedCheck" title="${t("file.reviewed")}">${svgIcons.check}</span>`
     : "";
-  return `<li class="gitFile ${gitFile.type}${diffPossible ? " gitDiffPossible" : ""}${isReviewed ? " gitFileReviewed" : ""}" role="treeitem" tabindex="0"${accessibilityAttributes} data-oldfilepath="${oldPath}" data-newfilepath="${newPath}" data-type="${gitFile.type}"${binaryTitle}><span class="gitFileIcon">${svgIcons.file}</span>${displayName}${renameHtml}${addDelHtml}${reviewedHtml}${fileActionsHtml}</li>`;
+  return `<li class="gitFile ${gitFile.type}${diffPossible ? " gitDiffPossible" : ""}${isReviewed ? " gitFileReviewed" : ""}" role="treeitem" tabindex="0"${accessibilityAttributes} data-oldfilepath="${oldPath}" data-newfilepath="${newPath}" data-type="${gitFile.type}"${binaryTitle}><span class="gitFileIcon">${svgIcons.file}</span>${changeTypeHtml}${displayName}${renameHtml}${addDelHtml}${reviewedHtml}${fileActionsHtml}</li>`;
 }
 
 export function generateGitFileTreeHtml(

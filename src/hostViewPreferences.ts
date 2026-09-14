@@ -19,8 +19,18 @@ interface NormalizedPath {
   readonly caseInsensitive: boolean;
 }
 
-const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/;
 const WINDOWS_ABSOLUTE_PATTERN = /^[a-z]:[\\/]/i;
+
+function containsControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 function booleanOrDefault(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
@@ -34,7 +44,7 @@ export function normalizeHostViewPreferences(value: unknown): HostViewPreference
       ? candidate.integratedTerminalShell.trim()
       : "";
   return {
-    integratedTerminalShell: shell === "" || CONTROL_CHARACTER_PATTERN.test(shell) ? "" : shell,
+    integratedTerminalShell: shell === "" || containsControlCharacter(shell) ? "" : shell,
     openToActiveEditorRepository: booleanOrDefault(
       candidate.openToActiveEditorRepository,
       DEFAULT_HOST_VIEW_PREFERENCES.openToActiveEditorRepository
@@ -47,7 +57,7 @@ export function normalizeHostViewPreferences(value: unknown): HostViewPreference
 }
 
 function isSafePath(value: unknown): value is string {
-  return typeof value === "string" && value !== "" && !CONTROL_CHARACTER_PATTERN.test(value);
+  return typeof value === "string" && value !== "" && !containsControlCharacter(value);
 }
 
 function normalizePath(value: string): NormalizedPath | null {

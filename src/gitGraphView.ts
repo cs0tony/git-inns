@@ -11,7 +11,12 @@ import { encodeDiffDocUri } from "./diffDocProvider";
 import { ExtensionState } from "./extensionState";
 import { buildExternalDirDiffArgs, buildQuotedExternalDiffCommand } from "./externalDiff";
 import { isSupportedFileEncoding, normalizeFileEncoding } from "./fileEncoding";
+import { findRepositoryForFilePath } from "./hostViewPreferences";
 import { getLocale, loadWebviewMessages, t as hostT } from "./i18n";
+import {
+  normalizePresentationColumnVisibility,
+  normalizeRepositoryOrderingMode
+} from "./presentationDefaults";
 import { buildPullRequestUrl } from "./pullRequest";
 import { isSafeRemoteName } from "./refValidation";
 import { RepoFileWatcher } from "./repoFileWatcher";
@@ -261,20 +266,29 @@ export class GitKeizuView {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
+    const preferences = getConfig().hostViewPreferences();
+    const activeEditorPath = vscode.window.activeTextEditor?.document.uri.fsPath;
+    const activeEditorRepository =
+      preferences.openToActiveEditorRepository && activeEditorPath !== undefined
+        ? findRepositoryForFilePath(repoManager.getRepos(), activeEditorPath)
+        : null;
+    const selectedRootUri =
+      rootUri ??
+      (activeEditorRepository === null ? undefined : vscode.Uri.file(activeEditorRepository));
 
     if (GitKeizuView.currentPanel) {
-      if (rootUri !== undefined) {
-        extensionState.setLastActiveRepo(getPathFromUri(rootUri));
+      if (selectedRootUri !== undefined) {
+        extensionState.setLastActiveRepo(getPathFromUri(selectedRootUri));
       }
       GitKeizuView.currentPanel.panel.reveal(column);
-      if (rootUri !== undefined) {
-        GitKeizuView.currentPanel.selectRepoFromUri(rootUri, repoManager);
+      if (selectedRootUri !== undefined) {
+        void GitKeizuView.currentPanel.selectRepoFromUri(selectedRootUri, repoManager);
       }
       return;
     }
 
-    if (rootUri !== undefined) {
-      extensionState.setLastActiveRepo(getPathFromUri(rootUri));
+    if (selectedRootUri !== undefined) {
+      extensionState.setLastActiveRepo(getPathFromUri(selectedRootUri));
     }
 
     const panel = vscode.window.createWebviewPanel(
@@ -287,7 +301,8 @@ export class GitKeizuView {
           vscode.Uri.file(path.join(extensionPath, "media")),
           vscode.Uri.file(path.join(extensionPath, "web", "styles")),
           vscode.Uri.file(path.join(extensionPath, "out"))
-        ]
+        ],
+        retainContextWhenHidden: preferences.retainContextWhenHidden
       }
     );
 
@@ -330,9 +345,12 @@ export class GitKeizuView {
     this.panel.onDidChangeViewState(
       () => {
         if (this.panel.visible !== this.isPanelVisible) {
+          const preferences = getConfig().hostViewPreferences();
           if (this.panel.visible) {
-            this.update();
-          } else {
+            if (!preferences.retainContextWhenHidden || !this.isGraphViewLoaded) {
+              void this.update();
+            }
+          } else if (!preferences.retainContextWhenHidden) {
             this.currentRepo = null;
             this.repoFileWatcher.stop();
           }
@@ -779,9 +797,12 @@ export class GitKeizuView {
                 msg.commitHash
               );
               if (wtStatus === null && msg.openTerminal) {
+                const shellPath =
+                  getConfig().hostViewPreferences().integratedTerminalShell || undefined;
                 const terminal = vscode.window.createTerminal({
                   name: `Worktree: ${msg.branchName}`,
-                  cwd: path.resolve(msg.repo, msg.path)
+                  cwd: path.resolve(msg.repo, msg.path),
+                  shellPath
                 });
                 terminal.show();
               }
@@ -805,9 +826,12 @@ export class GitKeizuView {
               break;
             }
             case "openTerminal": {
+              const shellPath =
+                getConfig().hostViewPreferences().integratedTerminalShell || undefined;
               const terminal = vscode.window.createTerminal({
                 name: msg.name,
-                cwd: path.resolve(msg.repo, msg.path)
+                cwd: path.resolve(msg.repo, msg.path),
+                shellPath
               });
               terminal.show();
               this.sendMessage({ command: "openTerminal" });
@@ -1052,6 +1076,7 @@ export class GitKeizuView {
       contextMenuActionsVisibility: config.contextMenuActionsVisibility(),
       customBranchGlobPatterns: config.customBranchGlobPatterns(),
       customEmojiShortcodeMappings: config.customEmojiShortcodeMappings(),
+      customPullRequestProviders: config.customPullRequestProviders(),
       dateFormat: config.dateFormat(),
       dialogDefaults: config.dialogDefaults(),
       fetchAvatars: config.fetchAvatars() && this.extensionState.isAvatarStorageAvailable(),
@@ -1072,7 +1097,14 @@ export class GitKeizuView {
         mergeCommits: config.muteCommitsMergeCommits(),
         commitsNotAncestorsOfHead: config.muteCommitsNotAncestorsOfHead()
       },
+      presentationDefaults: normalizePresentationColumnVisibility(
+        config.presentationDefaults()
+      ),
+      referenceLabels: config.referenceLabels(),
       repos: this.repoManager.getRepos(),
+      repositoryOrderingMode: normalizeRepositoryOrderingMode(
+        config.repositoryDropdownOrder()
+      ),
       showCurrentBranchByDefault: config.showCurrentBranchByDefault(),
       showRecentActions: config.showRecentActions()
     };
@@ -1502,9 +1534,12 @@ export class GitKeizuView {
       return;
     }
 
+    const shellPath =
+      getConfig().hostViewPreferences().integratedTerminalShell || undefined;
     const terminal = vscode.window.createTerminal({
       name: hostT("External Directory Diff"),
-      cwd: request.repo
+      cwd: request.repo,
+      shellPath
     });
     terminal.sendText(`${buildQuotedExternalDiffCommand(args)}\n`);
     terminal.show(false);

@@ -1,5 +1,10 @@
 import { isSafePullRequestBranch } from "../src/pullRequest";
+import {
+  findCustomPullRequestProvider,
+  sortCustomPullRequestProviders
+} from "../src/pullRequestProviders";
 import type {
+  CustomPullRequestProvider,
   PullRequestProviderKind,
   RepositorySettingsAction,
   RepositorySettingsData,
@@ -58,9 +63,11 @@ const REMOTE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.-]*$/u;
 const REMOTE_URL_PROTOCOL_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:\/\//u;
 const REMOTE_URL_SCP_PATTERN = /^[^@/\s]+@[^:\s]+:[^\s]+$/u;
 const CAPTURE_PLACEHOLDERS = new Set(["{0}", "{issue}"]);
+const CUSTOM_PROVIDER_OPTION_PREFIX = "custom-provider:";
 
 export class RepoSettingsPanel {
   private readonly actionHandler: RepoSettingsActionHandler;
+  private readonly customPullRequestProviders: readonly CustomPullRequestProvider[];
   private readonly configHandlers: RepoSettingsConfigHandlers | null;
   private readonly container: HTMLElement;
   private readonly idPrefix: string;
@@ -75,11 +82,13 @@ export class RepoSettingsPanel {
     container: HTMLElement,
     data: RepoSettingsData,
     actionHandler: RepoSettingsActionHandler,
-    configHandlers?: RepoSettingsConfigHandlers
+    configHandlers?: RepoSettingsConfigHandlers,
+    customPullRequestProviders: readonly CustomPullRequestProvider[] = []
   ) {
     this.container = container;
     this.data = data;
     this.actionHandler = actionHandler;
+    this.customPullRequestProviders = sortCustomPullRequestProviders(customPullRequestProviders);
     this.configHandlers = configHandlers ?? null;
     this.idPrefix = `repo-settings-${document.querySelectorAll(".repo-settings").length + 1}`;
     this.root = this.createRoot();
@@ -587,7 +596,18 @@ export class RepoSettingsPanel {
       option.textContent = t(`repoSettings.provider.${providerKind}`);
       provider.append(option);
     }
-    provider.value = this.data.pullRequest?.provider ?? "github";
+    if (this.customPullRequestProviders.length > 0) {
+      const customProviderGroup = document.createElement("optgroup");
+      customProviderGroup.label = t("repoSettings.reusableCustomProviders");
+      for (const customProvider of this.customPullRequestProviders) {
+        const option = document.createElement("option");
+        option.value = `${CUSTOM_PROVIDER_OPTION_PREFIX}${encodeURIComponent(customProvider.name)}`;
+        option.textContent = customProvider.name;
+        customProviderGroup.append(option);
+      }
+      provider.append(customProviderGroup);
+    }
+    provider.value = this.getSelectedPullRequestProviderValue();
     const providerLabel = document.createElement("label");
     providerLabel.htmlFor = providerId;
     providerLabel.textContent = t("repoSettings.pullProvider");
@@ -679,14 +699,41 @@ export class RepoSettingsPanel {
     return section;
   }
 
+  private getSelectedPullRequestProviderValue(): string {
+    const pullRequest = this.data.pullRequest;
+    if (pullRequest?.provider !== "custom") {
+      return pullRequest?.provider ?? "github";
+    }
+
+    const configuredProvider = findCustomPullRequestProvider(
+      this.customPullRequestProviders,
+      pullRequest.customName ?? ""
+    );
+    return configuredProvider === null
+      ? "custom"
+      : `${CUSTOM_PROVIDER_OPTION_PREFIX}${encodeURIComponent(configuredProvider.name)}`;
+  }
+
   private submitPullRequest(): void {
-    const provider = this.fields.pullProvider.value as PullRequestProviderKind;
+    const selectedProvider = this.fields.pullProvider.value;
+    const namedCustomProvider = selectedProvider.startsWith(CUSTOM_PROVIDER_OPTION_PREFIX)
+      ? findCustomPullRequestProvider(
+          this.customPullRequestProviders,
+          decodeURIComponent(selectedProvider.slice(CUSTOM_PROVIDER_OPTION_PREFIX.length))
+        )
+      : null;
+    const provider: PullRequestProviderKind =
+      selectedProvider === "github" ||
+      selectedProvider === "gitlab" ||
+      selectedProvider === "bitbucket"
+        ? selectedProvider
+        : "custom";
     const remoteName = this.fields.pullRemote.value;
     const destinationBranch = this.fields.pullDestination.value;
     const customName = this.fields.pullCustomName.value.trim();
     const customTemplateUrl = this.fields.pullCustomTemplate.value.trim();
     const customErrors =
-      provider === "custom" && customTemplateUrl === ""
+      selectedProvider === "custom" && customTemplateUrl === ""
         ? [t("repoSettings.pullCustomTemplateRequired")]
         : [];
     const remoteErrors = remoteName === "" ? [t("repoSettings.pullRemoteRequired")] : [];
@@ -716,12 +763,17 @@ export class RepoSettingsPanel {
         provider,
         remoteName,
         destinationBranch,
-        ...(provider === "custom"
+        ...(namedCustomProvider !== null
           ? {
-              customName: customName === "" ? undefined : customName,
-              customTemplateUrl
+              customName: namedCustomProvider.name,
+              customTemplateUrl: namedCustomProvider.templateUrl
             }
-          : {})
+          : provider === "custom"
+            ? {
+                customName: customName === "" ? undefined : customName,
+                customTemplateUrl
+              }
+            : {})
       }
     });
   }
@@ -1026,9 +1078,16 @@ export function openRepoSettings(
   container: HTMLElement,
   data: RepoSettingsData,
   actionHandler: RepoSettingsActionHandler,
-  configHandlers?: RepoSettingsConfigHandlers
+  configHandlers?: RepoSettingsConfigHandlers,
+  customPullRequestProviders: readonly CustomPullRequestProvider[] = []
 ): RepoSettingsPanel {
-  const panel = new RepoSettingsPanel(container, data, actionHandler, configHandlers);
+  const panel = new RepoSettingsPanel(
+    container,
+    data,
+    actionHandler,
+    configHandlers,
+    customPullRequestProviders
+  );
   panel.open();
   return panel;
 }

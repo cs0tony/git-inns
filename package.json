@@ -292,6 +292,72 @@
             }
           }
         },
+        "git-keizu.customPullRequestProviders": {
+          "type": "array",
+          "default": [],
+          "description": "%config.customPullRequestProviders.description%",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "templateUrl"],
+            "properties": {
+              "name": { "type": "string", "title": "Name", "minLength": 1, "maxLength": 80 },
+              "templateUrl": { "type": "string", "title": "Template URL", "minLength": 1 }
+            }
+          }
+        },
+        "git-keizu.referenceLabels": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {
+            "alignment": "description",
+            "combine": true
+          },
+          "description": "%config.referenceLabels.description%",
+          "properties": {
+            "alignment": {
+              "type": "string",
+              "enum": ["description", "graph-branches"],
+              "enumDescriptions": [
+                "%config.referenceLabels.alignment.enum.description%",
+                "%config.referenceLabels.alignment.enum.graph%"
+              ],
+              "default": "description",
+              "description": "%config.referenceLabels.alignment.description%"
+            },
+            "combine": {
+              "type": "boolean",
+              "default": true,
+              "description": "%config.referenceLabels.combine.description%"
+            }
+          }
+        },
+        "git-keizu.defaultColumnVisibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {
+            "author": true,
+            "commit": true,
+            "date": true
+          },
+          "description": "%config.defaultColumnVisibility.description%",
+          "properties": {
+            "author": { "type": "boolean", "default": true },
+            "commit": { "type": "boolean", "default": true },
+            "date": { "type": "boolean", "default": true }
+          }
+        },
+        "git-keizu.repositoryDropdownOrder": {
+          "type": "string",
+          "enum": ["workspace-path", "name", "full-path"],
+          "enumDescriptions": [
+            "%config.repositoryDropdownOrder.enum.workspacePath%",
+            "%config.repositoryDropdownOrder.enum.name%",
+            "%config.repositoryDropdownOrder.enum.fullPath%"
+          ],
+          "default": "workspace-path",
+          "description": "%config.repositoryDropdownOrder.description%"
+        },
         "git-keizu.loadMoreCommits": {
           "type": "number",
           "default": 100,
@@ -656,6 +722,21 @@
           ],
           "default": "Active",
           "description": "%config.openNewTabEditorGroup.description%"
+        },
+        "git-keizu.retainContextWhenHidden": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.retainContextWhenHidden.description%"
+        },
+        "git-keizu.openToActiveEditorRepository": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.openToActiveEditorRepository.description%"
+        },
+        "git-keizu.integratedTerminalShell": {
+          "type": "string",
+          "default": "",
+          "description": "%config.integratedTerminalShell.description%"
         }
       }
     }

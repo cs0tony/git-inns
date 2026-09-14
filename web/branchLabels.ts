@@ -11,7 +11,7 @@ export interface BranchLabels {
   tags: GG.GitRef[];
 }
 
-export function getBranchLabels(refs: GG.GitRef[]): BranchLabels {
+export function getBranchLabels(refs: GG.GitRef[], combine = true): BranchLabels {
   const heads: BranchLabel[] = [];
   const headLookup: { [name: string]: number } = {};
   const remotes: GG.GitRef[] = [];
@@ -34,7 +34,7 @@ export function getBranchLabels(refs: GG.GitRef[]): BranchLabels {
     if (slashIndex > 0) {
       const remoteName = remotes[i].name.substring(0, slashIndex);
       const branchName = remotes[i].name.substring(slashIndex + 1);
-      if (typeof headLookup[branchName] === "number") {
+      if (combine && typeof headLookup[branchName] === "number") {
         heads[headLookup[branchName]].remotes.push(remoteName);
         continue;
       }

@@ -1,4 +1,9 @@
 import { combineWithBuiltInEmojiMappings } from "../src/emojiMappings";
+import {
+  normalizePresentationColumnVisibility,
+  normalizeRepositoryOrderingMode,
+  orderRepositories
+} from "../src/presentationDefaults";
 import { DEFAULT_REPOSITORY_VISIBILITY } from "../src/repositoryVisibility";
 import { getBranchLabels } from "./branchLabels";
 import {
@@ -40,6 +45,10 @@ import { Graph } from "./graph";
 import { t } from "./i18n";
 import { renderCommitBodyIssueLinks } from "./issueLinks";
 import { handleMessage, type RefreshMode } from "./messageHandler";
+import {
+  getReferenceLabelPresentationClasses,
+  normalizeReferenceLabelPresentation
+} from "./referenceLabelPresentation";
 import { buildRefContextMenuItems, checkoutBranchAction, showFetchDialog } from "./refMenu";
 import { type RepoSettingsAction, RepoSettingsPanel } from "./repoSettings";
 import { buildStashContextMenuItems } from "./stashMenu";
@@ -230,6 +239,9 @@ class GitKeizuView {
     urlTemplate: ""
   };
   private readonly columnVisibilityMenu = new ColumnVisibilityMenu();
+  private readonly referenceLabelPresentation = normalizeReferenceLabelPresentation(
+    viewState.referenceLabels
+  );
   private readonly commitBodyRendering: GG.CommitBodyRendering =
     viewState.commitBodyRendering === "rich" ? "rich" : "plain";
   private readonly defaultCommitDetailsPresentation =
@@ -353,7 +365,8 @@ class GitKeizuView {
           onImportConfig: () => {
             sendMessage({ command: "importRepositoryConfig", repo: this.currentRepo });
           }
-        }
+        },
+        this.config.customPullRequestProviders
       );
     }
     const repoSettingsBtnElem = document.getElementById("repoSettingsBtn");
@@ -460,13 +473,10 @@ class GitKeizuView {
       changedRepo = true;
     }
 
-    let options = [],
-      repoComps,
-      i;
-    for (i = 0; i < repoPaths.length; i++) {
-      repoComps = repoPaths[i].split("/");
-      options.push({ name: repoComps[repoComps.length - 1], value: repoPaths[i] });
-    }
+    const options = orderRepositories(
+      repoPaths.map((path) => ({ path })),
+      viewState.repositoryOrderingMode
+    ).map(({ path }) => ({ name: getRepoName(path), value: path }));
     document.body.classList.toggle("singleRepo", repoPaths.length <= 1);
     this.repoDropdown.setOptions(options, this.currentRepo);
 
@@ -487,10 +497,10 @@ class GitKeizuView {
     this.currentRepo = repo;
     this.clearRepositoryIssueLinks();
     const repoPaths = Object.keys(this.gitRepos);
-    const options = repoPaths.map((path) => {
-      const comps = path.split("/");
-      return { name: comps[comps.length - 1], value: path };
-    });
+    const options = orderRepositories(
+      repoPaths.map((path) => ({ path })),
+      viewState.repositoryOrderingMode
+    ).map(({ path }) => ({ name: getRepoName(path), value: path }));
     this.repoDropdown.setOptions(options, this.currentRepo);
     this.refresh("hard");
   }
@@ -900,6 +910,9 @@ class GitKeizuView {
   }
   private renderTable() {
     const savedScrollTop = this.scrollContainerElem.scrollTop;
+    this.tableElem.className = getReferenceLabelPresentationClasses(
+      this.referenceLabelPresentation
+    ).join(" ");
     let html = `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader" data-column="graph" tabindex="0" role="button" aria-haspopup="menu" aria-expanded="false">${t("table.graph")}</th><th class="tableColHeader" data-column="description">${t("table.description")}</th><th class="tableColHeader" data-column="date">${t("table.date")}</th><th class="tableColHeader" data-column="author">${t("table.author")}</th><th class="tableColHeader" data-column="commit">${t("table.commit")}</th></tr>`,
       i,
       currentHash =
@@ -909,13 +922,17 @@ class GitKeizuView {
     const muted = this.graph.getMutedCommits(this.commitHead);
     for (i = 0; i < this.commits.length; i++) {
       let refs = "",
+        graphRefs = "",
         message = escapeHtml(this.commits[i].message),
         date = getCommitDate(this.commits[i].date),
         j,
         refName,
         refActive,
         refHtml;
-      let branchLabels = getBranchLabels(this.commits[i].refs);
+      let branchLabels = getBranchLabels(
+        this.commits[i].refs,
+        this.referenceLabelPresentation.combine
+      );
       for (j = 0; j < branchLabels.heads.length; j++) {
         refName = escapeHtml(branchLabels.heads[j].name);
         refActive = branchLabels.heads[j].name === this.gitBranchHead;
@@ -934,7 +951,11 @@ class GitKeizuView {
           refHtml += `<span class="gitRefHeadRemote" data-remote="${remoteName}" data-name="${escapeHtml(`${branchLabels.heads[j].remotes[k]}/${branchLabels.heads[j].name}`)}">${remoteName}</span>`;
         }
         refHtml += "</span>";
-        refs = refActive ? refHtml + refs : refs + refHtml;
+        if (this.referenceLabelPresentation.alignment === "graph-branches") {
+          graphRefs = refActive ? refHtml + graphRefs : graphRefs + refHtml;
+        } else {
+          refs = refActive ? refHtml + refs : refs + refHtml;
+        }
       }
       for (j = 0; j < branchLabels.remotes.length; j++) {
         refName = escapeHtml(branchLabels.remotes[j].name);
@@ -966,7 +987,7 @@ class GitKeizuView {
         this.commits[i].stash,
         muted[i]
       );
-      html += `<tr ${rowClass} data-id="${i}" data-color="${this.graph.getVertexColour(i)}"><td data-column="graph"></td><td data-column="description">${this.commits[i].hash === this.commitHead ? '<span class="commitHeadDot"></span>' : ""}${refs}<span class="commitMessage">${this.commits[i].hash === currentHash ? `<b>${message}</b>` : message}</span></td><td data-column="date" title="${date.title}">${date.value}</td><td data-column="author" title="${escapeHtml(`${this.commits[i].author} <${this.commits[i].email}>`)}">${
+      html += `<tr ${rowClass} data-id="${i}" data-color="${this.graph.getVertexColour(i)}"><td data-column="graph"${this.referenceLabelPresentation.alignment === "graph-branches" ? ' class="graphBranchLabels"' : ""}>${graphRefs}</td><td data-column="description">${this.commits[i].hash === this.commitHead ? '<span class="commitHeadDot"></span>' : ""}${refs}<span class="commitMessage">${this.commits[i].hash === currentHash ? `<b>${message}</b>` : message}</span></td><td data-column="date" title="${date.title}">${date.value}</td><td data-column="author" title="${escapeHtml(`${this.commits[i].author} <${this.commits[i].email}>`)}">${
         this.config.fetchAvatars
           ? `<span class="avatar" data-email="${escapeHtml(this.commits[i].email)}">${
               typeof this.avatars[this.commits[i].email] === "string"
@@ -1419,9 +1440,11 @@ class GitKeizuView {
 
   private getColumnVisibility(): GG.ColumnVisibility {
     if (this.currentRepo === undefined || this.gitRepos[this.currentRepo] === undefined) {
-      return normalizeColumnVisibility(undefined);
+      return normalizeColumnVisibility(this.config.presentationDefaults);
     }
-    return normalizeColumnVisibility(this.gitRepos[this.currentRepo].columnVisibility);
+    return normalizeColumnVisibility(
+      this.gitRepos[this.currentRepo].columnVisibility ?? this.config.presentationDefaults
+    );
   }
 
   private getVisibleColumnCount(): number {
@@ -2525,6 +2548,7 @@ let gitKeizu = new GitKeizuView(
     fileEncoding: viewState.fileEncoding,
     contextMenuActionsVisibility: viewState.contextMenuActionsVisibility,
     customBranchGlobPatterns: viewState.customBranchGlobPatterns,
+    customPullRequestProviders: viewState.customPullRequestProviders ?? [],
     graphColours: viewState.graphColours,
     graphStyle: viewState.graphStyle,
     grid: { x: 16, y: 24, offsetX: 8, offsetY: 12, expandY: CDV_DEFAULT_HEIGHT },
@@ -2533,6 +2557,9 @@ let gitKeizu = new GitKeizuView(
     loadMoreCommits: viewState.loadMoreCommits,
     loadMoreCommitsAutomatically: viewState.loadMoreCommitsAutomatically,
     mute: viewState.mute,
+    presentationDefaults: normalizePresentationColumnVisibility(viewState.presentationDefaults),
+    referenceLabels: viewState.referenceLabels ?? { alignment: "description", combine: true },
+    repositoryOrderingMode: normalizeRepositoryOrderingMode(viewState.repositoryOrderingMode),
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault
   },
   vscode.getState()

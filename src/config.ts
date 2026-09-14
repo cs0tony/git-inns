@@ -1,7 +1,14 @@
 import * as vscode from "vscode";
 
+import { normalizeReferenceLabelPresentation } from "../web/referenceLabelPresentation";
 import { type EmojiMappingRecord, normalizeEmojiMappings } from "./emojiMappings";
 import { normalizeFileEncoding } from "./fileEncoding";
+import { normalizeHostViewPreferences } from "./hostViewPreferences";
+import {
+  normalizePresentationColumnVisibility,
+  normalizeRepositoryOrderingMode
+} from "./presentationDefaults";
+import { normalizeCustomPullRequestProviders } from "./pullRequestProviders";
 import {
   CommitBodyRendering,
   CommitOrdering,
@@ -391,6 +398,41 @@ class Config {
     return normalizeEmojiMappings(
       this.workspaceConfiguration.get<unknown>("customEmojiShortcodeMappings", [])
     );
+  }
+
+  public customPullRequestProviders() {
+    return normalizeCustomPullRequestProviders(
+      this.workspaceConfiguration.get<unknown>("customPullRequestProviders", [])
+    );
+  }
+
+  public referenceLabels() {
+    return normalizeReferenceLabelPresentation(
+      this.workspaceConfiguration.get<unknown>("referenceLabels", {})
+    );
+  }
+
+  public presentationDefaults() {
+    return normalizePresentationColumnVisibility(
+      this.workspaceConfiguration.get<unknown>("defaultColumnVisibility", {})
+    );
+  }
+
+  public repositoryDropdownOrder() {
+    return normalizeRepositoryOrderingMode(
+      this.workspaceConfiguration.get<unknown>("repositoryDropdownOrder", "workspace-path")
+    );
+  }
+
+  public hostViewPreferences() {
+    return normalizeHostViewPreferences({
+      integratedTerminalShell: this.workspaceConfiguration.get("integratedTerminalShell", ""),
+      openToActiveEditorRepository: this.workspaceConfiguration.get(
+        "openToActiveEditorRepository",
+        false
+      ),
+      retainContextWhenHidden: this.workspaceConfiguration.get("retainContextWhenHidden", true)
+    });
   }
 
   public customBranchGlobPatterns(): CustomBranchGlobPattern[] {

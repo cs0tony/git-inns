@@ -1,10 +1,14 @@
 /* Git Interfaces / Types */
 
 import type { CommitDetailsPresentationSettings } from "../web/commitDetailsPresentation";
+import type { ReferenceLabelPresentation } from "../web/referenceLabelPresentation";
 import type { EmojiMappingRecord } from "./emojiMappings";
+import type { PresentationColumnVisibility, RepositoryOrderingMode } from "./presentationDefaults";
+import type { CustomPullRequestProvider } from "./pullRequestProviders";
 import type { RepositoryVisibility } from "./repositoryVisibility";
 
 export type { RepositoryVisibility };
+export type { CustomPullRequestProvider, PresentationColumnVisibility, RepositoryOrderingMode };
 
 export interface GitCommitStash {
   selector: string;
@@ -224,6 +228,7 @@ export interface GitKeizuViewState {
   contextMenuActionsVisibility: ContextMenuActionsVisibility;
   customBranchGlobPatterns: CustomBranchGlobPattern[];
   customEmojiShortcodeMappings?: EmojiMappingRecord;
+  customPullRequestProviders?: CustomPullRequestProvider[];
   dateFormat: DateFormat;
   dialogDefaults: DialogDefaults;
   fetchAvatars: boolean;
@@ -236,7 +241,10 @@ export interface GitKeizuViewState {
   loadMoreCommits: number;
   loadMoreCommitsAutomatically: boolean;
   mute: MuteCommitsConfig;
+  presentationDefaults?: PresentationColumnVisibility;
+  referenceLabels?: ReferenceLabelPresentation;
   repos: GitRepoSet;
+  repositoryOrderingMode?: RepositoryOrderingMode;
   showCurrentBranchByDefault: boolean;
   showRecentActions: boolean;
 }

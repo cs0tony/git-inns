@@ -201,3 +201,18 @@ Code Quick Picks, input boxes, notifications, and theme-aware dialogs.
   masked prompts, subprocess environment wiring, fallback behavior, and tests.
 - **R6-T3 — Integration QA:** verify ownership boundaries, no secret logging,
   command/package localization parity, quality gates, and manual smoke checks.
+
+## Modernization wave 7 delivered
+
+Wave 7 targets the remaining parity gaps listed in
+`docs/vscode-git-graph-parity-wave-7.md`. It keeps the `git-keizu` namespace and
+existing persisted values compatible; the table describes the delivered
+implementation intent and feature behavior rather than a test-status claim.
+
+| Area | Delivered behavior | Settings and compatibility |
+| ---- | ------------------ | -------------------------- |
+| Custom Pull Request providers | A validated global library of named custom providers supplies reusable provider options. Existing repository-specific `custom` selection and manual template URL remain supported as the fallback. | `git-keizu.customPullRequestProviders`; named providers are stored as reusable custom-provider templates while existing repository Pull Request settings retain their data shape. |
+| Reference labels | Local and same-commit remote labels can be combined into one accessible label with a compact remote list, or kept separate. Labels can retain description alignment or align to graph branches; existing description/table alignment remains available. | `git-keizu.referenceLabels`, including `git-keizu.referenceLabels.combine` and `git-keizu.referenceLabels.alignment`. |
+| File change indicators | Added, Modified, Deleted, and Renamed changes have text badges, accessible labels/titles, and type-specific structure in addition to color. | No new setting; indicators use the existing file-change data shape. |
+| Host and view preferences | The webview can retain its context while hidden, opening can select the repository containing the active editor file, and graph-launched integrated terminals can use a configured shell. | `git-keizu.retainContextWhenHidden`, `git-keizu.openToActiveEditorRepository`, `git-keizu.integratedTerminalShell`. |
+| Presentation defaults | Workspace defaults control Date, Author, and Commit column visibility with a visible-column fallback. Repository choices sort by workspace path, display name, or full path using stable, locale-aware ordering. | `git-keizu.defaultColumnVisibility`, `git-keizu.repositoryDropdownOrder`. |

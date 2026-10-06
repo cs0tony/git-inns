@@ -30,10 +30,23 @@
   pointer-events: auto;
 }
 
+#repoSettingsContainer {
+  /* Definite height so the panel's percentage max-height resolves; a
+     content-sized parent leaves it indefinite and the cap never applies. */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
 .repo-settings {
   display: block;
+  /* Include padding and border in max-width/max-height so the panel fits
+     the overlay exactly instead of overflowing it by its own padding. */
+  box-sizing: border-box;
   max-width: min(760px, calc(100% - 32px));
-  max-height: min(720px, calc(100% - 32px));
+  max-height: min(720px, 100%);
   overflow: auto;
   padding: 16px;
   border: 1px solid var(--vscode-panel-border);
@@ -46,6 +59,12 @@
 
 .repo-settings:focus {
   outline: none;
+}
+
+/* The display rule above would defeat the UA stylesheet's [hidden]
+   { display: none }, leaving the panel permanently visible; re-assert it. */
+.repo-settings[hidden] {
+  display: none;
 }
 
 .repo-settings:focus-visible,

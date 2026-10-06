@@ -232,7 +232,9 @@ function isSafeRepositoryRelativePath(filePath: string): boolean {
     return false;
   }
 
-  const normalizedPath = path.normalize(filePath);
+  // Windows path.normalize emits backslashes, which would hide "../" and
+  // ".git" segments from the checks below; compare with forward slashes.
+  const normalizedPath = path.normalize(filePath).replace(/\\/g, "/");
   if (normalizedPath === ".." || normalizedPath.startsWith("../")) return false;
   return normalizedPath.split("/").every((segment) => segment !== ".git");
 }

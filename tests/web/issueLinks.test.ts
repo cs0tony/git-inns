@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { RepositorySettingsIssueLinks } from "../../src/types";
-import {
-  compileIssueLinkRegex,
-  renderCommitBodyIssueLinks
-} from "../../web/issueLinks";
+import { compileIssueLinkRegex, renderCommitBodyIssueLinks } from "../../web/issueLinks";
 
 function issueLinkTitle(issueId: string): string {
   return `Open issue ${issueId}`;
@@ -37,15 +34,13 @@ describe("renderCommitBodyIssueLinks", () => {
   it("renders escaped plain text when issue links are disabled", () => {
     const body = 'Fix #42 <img src=x onerror="alert(1)">';
 
-    expect(
-      renderCommitBodyIssueLinks(body, settings({ enabled: false }), issueLinkTitle)
-    ).toBe("Fix #42 &lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+    expect(renderCommitBodyIssueLinks(body, settings({ enabled: false }), issueLinkTitle)).toBe(
+      "Fix #42 &lt;img src=x onerror=&quot;alert(1)&quot;&gt;"
+    );
   });
 
   it("uses capture group 1 when the regex captures an issue id", () => {
-    expect(
-      renderCommitBodyIssueLinks("Fix #42 and #7", settings(), issueLinkTitle)
-    ).toBe(
+    expect(renderCommitBodyIssueLinks("Fix #42 and #7", settings(), issueLinkTitle)).toBe(
       'Fix <a href="https://example.test/issues/42" target="_blank" rel="noopener noreferrer" ' +
         'title="Open issue 42">#42</a> and ' +
         '<a href="https://example.test/issues/7" target="_blank" rel="noopener noreferrer" ' +
@@ -74,9 +69,7 @@ describe("renderCommitBodyIssueLinks", () => {
       issueLinkTitle
     );
 
-    expect(result).toContain(
-      'href="https://example.test/1%262?from=1%262"'
-    );
+    expect(result).toContain('href="https://example.test/1%262?from=1%262"');
   });
 
   it("escapes body text, issue ids, and safe template values", () => {
@@ -114,9 +107,9 @@ describe("renderCommitBodyIssueLinks", () => {
   it("renders escaped plain text when the regex is invalid", () => {
     const body = "Fix #42 <script>alert(1)</script>";
 
-    expect(
-      renderCommitBodyIssueLinks(body, settings({ regex: "[" }), issueLinkTitle)
-    ).toBe("Fix #42 &lt;script&gt;alert(1)&lt;&#x2F;script&gt;");
+    expect(renderCommitBodyIssueLinks(body, settings({ regex: "[" }), issueLinkTitle)).toBe(
+      "Fix #42 &lt;script&gt;alert(1)&lt;&#x2F;script&gt;"
+    );
   });
 
   it("preserves newlines as line breaks around links", () => {

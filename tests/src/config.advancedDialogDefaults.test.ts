@@ -28,9 +28,7 @@ vi.mock("vscode", () => ({
 
 import { getConfig } from "../../src/config";
 
-const packageJson = JSON.parse(
-  readFileSync(resolve(process.cwd(), "package.json"), "utf8")
-) as {
+const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
   contributes: {
     configuration: {
       properties: Record<string, { default: unknown }>;

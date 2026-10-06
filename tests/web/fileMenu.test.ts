@@ -387,12 +387,13 @@ describe("reviewed file context action", () => {
     const row = makeFileRow({ newfilepath: encodeURIComponent("src/file.ts") });
     const commit = { ...makeExpandedCommit(), reviewedFiles: ["src/file.ts"] };
 
-    const item = findMenuItem(buildFileContextMenuItems(row, commit, TEST_REPO), "Mark as Not Reviewed");
+    const item = findMenuItem(
+      buildFileContextMenuItems(row, commit, TEST_REPO),
+      "Mark as Not Reviewed"
+    );
     item.onClick();
 
-    expect(vscode.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ reviewed: false })
-    );
+    expect(vscode.postMessage).toHaveBeenCalledWith(expect.objectContaining({ reviewed: false }));
   });
 
   it("does not offer review actions for comparison mode or uncommitted changes", () => {

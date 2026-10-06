@@ -28,16 +28,12 @@ function expectedClassName(settings: CommitDetailsPresentationSettings) {
 
 describe("normalizeCommitDetailsPresentation", () => {
   it("returns stable defaults when no input is provided", () => {
-    expect(normalizeCommitDetailsPresentation(undefined)).toEqual(
-      DEFAULT_SETTINGS
-    );
+    expect(normalizeCommitDetailsPresentation(undefined)).toEqual(DEFAULT_SETTINGS);
   });
 
   it("returns stable defaults for non-object inputs", () => {
     expect(normalizeCommitDetailsPresentation(null)).toEqual(DEFAULT_SETTINGS);
-    expect(normalizeCommitDetailsPresentation("settings")).toEqual(
-      DEFAULT_SETTINGS
-    );
+    expect(normalizeCommitDetailsPresentation("settings")).toEqual(DEFAULT_SETTINGS);
     expect(normalizeCommitDetailsPresentation([])).toEqual(DEFAULT_SETTINGS);
   });
 
@@ -146,9 +142,7 @@ describe("getCommitDetailsBodyClassName", () => {
       autoCenter: false
     };
 
-    expect(getCommitDetailsBodyClassName(settings)).toBe(
-      "commitDetailsBody commitDetailsFileTree"
-    );
+    expect(getCommitDetailsBodyClassName(settings)).toBe("commitDetailsBody commitDetailsFileTree");
   });
 
   it("uses the list class for the list file view mode", () => {
@@ -157,9 +151,7 @@ describe("getCommitDetailsBodyClassName", () => {
         ...DEFAULT_SETTINGS,
         fileViewMode: "list"
       })
-    ).toBe(
-      "commitDetailsBody commitDetailsFileList commitDetailsCompactFolders"
-    );
+    ).toBe("commitDetailsBody commitDetailsFileList commitDetailsCompactFolders");
   });
 
   it("matches its expected class for each normalized setting combination", () => {
@@ -174,9 +166,7 @@ describe("getCommitDetailsBodyClassName", () => {
               autoCenter
             });
 
-            expect(getCommitDetailsBodyClassName(settings)).toBe(
-              expectedClassName(settings)
-            );
+            expect(getCommitDetailsBodyClassName(settings)).toBe(expectedClassName(settings));
           }
         }
       }

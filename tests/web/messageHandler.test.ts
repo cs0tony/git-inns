@@ -13,11 +13,7 @@ vi.mock("../../web/refMenu", () => ({
   showPushRemoteDialog: vi.fn()
 }));
 
-import type {
-  GitCommitDetails,
-  RepositorySettingsData,
-  ResponseMessage
-} from "../../src/types";
+import type { GitCommitDetails, RepositorySettingsData, ResponseMessage } from "../../src/types";
 import { showErrorDialog } from "../../web/dialogs";
 import { generateGitFileTree } from "../../web/fileTree";
 import { type GitKeizuViewAPI, handleMessage } from "../../web/messageHandler";
@@ -50,7 +46,12 @@ const SETTINGS: RepositorySettingsData = {
   remotes: [],
   issueLinks: { enabled: false, regex: "", urlTemplate: "" },
   user: {
-    name: { effectiveValue: "Test User", source: "local", localValue: "Test User", globalValue: null },
+    name: {
+      effectiveValue: "Test User",
+      source: "local",
+      localValue: "Test User",
+      globalValue: null
+    },
     email: {
       effectiveValue: "test@example.com",
       source: "local",
@@ -371,10 +372,7 @@ describe("handleMessage repository settings response", () => {
   });
 
   it("loads successful repository settings", () => {
-    handleMessage(
-      { command: "repositorySettings", repo: "/test/repo", data: SETTINGS },
-      gitKeizu
-    );
+    handleMessage({ command: "repositorySettings", repo: "/test/repo", data: SETTINGS }, gitKeizu);
 
     expect(gitKeizu.loadRepositorySettings).toHaveBeenCalledWith(SETTINGS);
   });
@@ -1032,7 +1030,11 @@ describe("drop, reset file, and archive response handling", () => {
   it("shows an error when createArchive reports a failure", () => {
     handleMessage({ command: "createArchive", status: "invalid archive path" }, gitKeizu);
 
-    expect(showErrorDialog).toHaveBeenCalledWith("error.createArchive", "invalid archive path", null);
+    expect(showErrorDialog).toHaveBeenCalledWith(
+      "error.createArchive",
+      "invalid archive path",
+      null
+    );
     expect(gitKeizu.refresh).not.toHaveBeenCalled();
   });
 });

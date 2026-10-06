@@ -85,9 +85,7 @@ export class GitKeizuView {
       }
     }
 
-    return candidatePath !== null && candidatePath in repoManager.getRepos()
-      ? candidatePath
-      : null;
+    return candidatePath !== null && candidatePath in repoManager.getRepos() ? candidatePath : null;
   }
 
   public static async refreshActiveReviewCommandEnablement(
@@ -135,12 +133,7 @@ export class GitKeizuView {
     repoManager: RepoManager,
     arg?: unknown
   ): Promise<void> {
-    const choice = await GitKeizuView.chooseActiveReview(
-      extensionState,
-      repoManager,
-      arg,
-      "end"
-    );
+    const choice = await GitKeizuView.chooseActiveReview(extensionState, repoManager, arg, "end");
     if (choice === null) return;
 
     const ended = await extensionState.endCodeReview(choice.repo);
@@ -869,9 +862,7 @@ export class GitKeizuView {
             case "fetch":
               {
                 const hasFetchOptions =
-                  msg.force !== undefined ||
-                  msg.prune !== undefined ||
-                  msg.pruneTags !== undefined;
+                  msg.force !== undefined || msg.prune !== undefined || msg.pruneTags !== undefined;
                 this.sendMessage({
                   command: "fetch",
                   status: await this.dataSource.fetch(
@@ -1009,11 +1000,7 @@ export class GitKeizuView {
     }
   }
 
-  private sendCodeReview(
-    repo: string,
-    review: ActiveCodeReview | null,
-    status: GitCommandStatus
-  ) {
+  private sendCodeReview(repo: string, review: ActiveCodeReview | null, status: GitCommandStatus) {
     this.sendMessage({
       command: "codeReview",
       repo,
@@ -1097,14 +1084,10 @@ export class GitKeizuView {
         mergeCommits: config.muteCommitsMergeCommits(),
         commitsNotAncestorsOfHead: config.muteCommitsNotAncestorsOfHead()
       },
-      presentationDefaults: normalizePresentationColumnVisibility(
-        config.presentationDefaults()
-      ),
+      presentationDefaults: normalizePresentationColumnVisibility(config.presentationDefaults()),
       referenceLabels: config.referenceLabels(),
       repos: this.repoManager.getRepos(),
-      repositoryOrderingMode: normalizeRepositoryOrderingMode(
-        config.repositoryDropdownOrder()
-      ),
+      repositoryOrderingMode: normalizeRepositoryOrderingMode(config.repositoryDropdownOrder()),
       showCurrentBranchByDefault: config.showCurrentBranchByDefault(),
       showRecentActions: config.showRecentActions()
     };
@@ -1440,13 +1423,7 @@ export class GitKeizuView {
         const resolvedHead = (await this.dataSource.resolveRefToHash(repo, "HEAD")) ?? "HEAD";
         const leftUri =
           type === "A"
-            ? encodeDiffDocUri(
-                repo,
-                newFilePath,
-                resolvedHead,
-                undefined,
-                encodingFor(newFilePath)
-              )
+            ? encodeDiffDocUri(repo, newFilePath, resolvedHead, undefined, encodingFor(newFilePath))
             : encodeDiffDocUri(
                 repo,
                 oldFilePath,
@@ -1485,13 +1462,7 @@ export class GitKeizuView {
     try {
       await vscode.commands.executeCommand(
         "vscode.diff",
-        encodeDiffDocUri(
-          repo,
-          oldFilePath,
-          `${commitHash}^`,
-          undefined,
-          encodingFor(oldFilePath)
-        ),
+        encodeDiffDocUri(repo, oldFilePath, `${commitHash}^`, undefined, encodingFor(oldFilePath)),
         encodeDiffDocUri(repo, newFilePath, commitHash, undefined, encodingFor(newFilePath)),
         title,
         { preview: true }
@@ -1534,8 +1505,7 @@ export class GitKeizuView {
       return;
     }
 
-    const shellPath =
-      getConfig().hostViewPreferences().integratedTerminalShell || undefined;
+    const shellPath = getConfig().hostViewPreferences().integratedTerminalShell || undefined;
     const terminal = vscode.window.createTerminal({
       name: hostT("External Directory Diff"),
       cwd: request.repo,

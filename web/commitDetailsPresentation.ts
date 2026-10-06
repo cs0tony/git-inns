@@ -8,10 +8,7 @@ export interface CommitDetailsPresentationSettings {
   autoCenter: boolean;
 }
 
-const COMMIT_DETAILS_LOCATIONS: readonly CommitDetailsLocation[] = [
-  "inline",
-  "right"
-];
+const COMMIT_DETAILS_LOCATIONS: readonly CommitDetailsLocation[] = ["inline", "right"];
 const COMMIT_FILE_VIEW_MODES: readonly CommitFileViewMode[] = ["tree", "list"];
 
 const DEFAULT_SETTINGS: CommitDetailsPresentationSettings = {
@@ -44,10 +41,7 @@ function normalizeLocation(value: unknown, fallback: unknown) {
 }
 
 function normalizeFileViewMode(value: unknown, fallback: unknown) {
-  if (
-    typeof value === "string" &&
-    COMMIT_FILE_VIEW_MODES.includes(value as CommitFileViewMode)
-  ) {
+  if (typeof value === "string" && COMMIT_FILE_VIEW_MODES.includes(value as CommitFileViewMode)) {
     return value as CommitFileViewMode;
   }
 
@@ -82,10 +76,7 @@ export function normalizeCommitDetailsPresentation(
 
   return {
     location: normalizeLocation(input.location, fallbackInput.location),
-    fileViewMode: normalizeFileViewMode(
-      input.fileViewMode,
-      fallbackInput.fileViewMode
-    ),
+    fileViewMode: normalizeFileViewMode(input.fileViewMode, fallbackInput.fileViewMode),
     compactFolders: normalizeFlag(
       input.compactFolders,
       fallbackInput.compactFolders,
@@ -99,15 +90,11 @@ export function normalizeCommitDetailsPresentation(
   };
 }
 
-export function getCommitDetailsBodyClassName(
-  settings: CommitDetailsPresentationSettings
-): string {
+export function getCommitDetailsBodyClassName(settings: CommitDetailsPresentationSettings): string {
   return [
     "commitDetailsBody",
     settings.location === "right" ? "commitDetailsRight" : "",
-    settings.fileViewMode === "tree"
-      ? "commitDetailsFileTree"
-      : "commitDetailsFileList",
+    settings.fileViewMode === "tree" ? "commitDetailsFileTree" : "commitDetailsFileList",
     settings.compactFolders ? "commitDetailsCompactFolders" : "",
     settings.autoCenter ? "commitDetailsAutoCenter" : ""
   ]

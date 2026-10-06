@@ -1112,12 +1112,12 @@ describe("customBranchGlobPatterns", () => {
     ]);
   });
 
-  it.each([
-    "refs/heads/feature/*",
-    "refs/heads/release/[0-9].*"
-  ])("accepts safe glob %s", (glob) => {
-    expect(isValidBranchGlobPattern(glob)).toBe(true);
-  });
+  it.each(["refs/heads/feature/*", "refs/heads/release/[0-9].*"])(
+    "accepts safe glob %s",
+    (glob) => {
+      expect(isValidBranchGlobPattern(glob)).toBe(true);
+    }
+  );
 
   it.each([
     "",

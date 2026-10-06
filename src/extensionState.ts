@@ -9,10 +9,7 @@ import {
   type ResolvedPullRequestConfig,
   resolvePullRequestConfig
 } from "./pullRequest";
-import {
-  normalizeRepositoryVisibility,
-  type RepositoryVisibility
-} from "./repositoryVisibility";
+import { normalizeRepositoryVisibility, type RepositoryVisibility } from "./repositoryVisibility";
 import {
   type ActiveCodeReview,
   type ActiveCodeReviewByRepo,

@@ -38,9 +38,7 @@ function buildIssueHref(urlTemplate: string, issueId: string): string | null {
   if (!urlTemplate.includes(ISSUE_PLACEHOLDER)) return null;
 
   const issueIdSegment = encodeURIComponent(issueId);
-  const candidate = urlTemplate
-    .split(ISSUE_PLACEHOLDER)
-    .join(issueIdSegment);
+  const candidate = urlTemplate.split(ISSUE_PLACEHOLDER).join(issueIdSegment);
   try {
     const url = new URL(candidate);
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
@@ -98,12 +96,7 @@ export function renderCommitBodyIssueLinks(
     }
 
     const issueId = match[1] ?? match[0];
-    const anchor = buildIssueAnchor(
-      match[0],
-      issueId,
-      settings.urlTemplate,
-      getLinkTitle
-    );
+    const anchor = buildIssueAnchor(match[0], issueId, settings.urlTemplate, getLinkTitle);
     html += anchor ?? escapeHtml(match[0]);
     lastIndex = match.index + match[0].length;
     if (regex.lastIndex === match.index) {

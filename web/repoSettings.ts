@@ -216,9 +216,7 @@ export class RepoSettingsPanel {
       const option = document.createElement("option");
       option.value = item;
       option.textContent = t(
-        item === "local"
-          ? "repoSettings.userScopeLocal"
-          : "repoSettings.userScopeGlobal"
+        item === "local" ? "repoSettings.userScopeLocal" : "repoSettings.userScopeGlobal"
       );
       scope.append(option);
     }
@@ -268,12 +266,8 @@ export class RepoSettingsPanel {
     this.fields.userEmailSource = emailSource;
     this.fields.userScope = scope;
     this.fields.userScopeError = scopeError;
-    name.input.addEventListener("input", () =>
-      this.clearFieldError(name.input, name.error)
-    );
-    email.input.addEventListener("input", () =>
-      this.clearFieldError(email.input, email.error)
-    );
+    name.input.addEventListener("input", () => this.clearFieldError(name.input, name.error));
+    email.input.addEventListener("input", () => this.clearFieldError(email.input, email.error));
 
     section.append(title, description, form);
     return section;

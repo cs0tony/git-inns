@@ -131,7 +131,12 @@ const SETTINGS: RepositorySettingsData = {
   },
   issueLinks: { enabled: false, regex: "", urlTemplate: "" },
   user: {
-    name: { effectiveValue: "Test User", source: "local", localValue: "Test User", globalValue: null },
+    name: {
+      effectiveValue: "Test User",
+      source: "local",
+      localValue: "Test User",
+      globalValue: null
+    },
     email: {
       effectiveValue: "test@example.com",
       source: "local",

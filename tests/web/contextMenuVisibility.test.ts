@@ -2,10 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { filterContextMenuItems } from "../../web/contextMenuVisibility";
 
-function menuItem(
-  title: string,
-  actionId?: ContextMenuActionId
-): ContextMenuItem {
+function menuItem(title: string, actionId?: ContextMenuActionId): ContextMenuItem {
   return {
     title,
     ...(actionId === undefined ? {} : { actionId }),
@@ -30,11 +27,7 @@ const visibility = {
 describe("filterContextMenuItems", () => {
   it("hides the configured action and removes the separator it makes dangling", () => {
     // Given: a menu whose first section consists only of one hidden action
-    const items = [
-      menuItem("Hidden", "stash.apply"),
-      null,
-      menuItem("Pop Stash", "stash.pop")
-    ];
+    const items = [menuItem("Hidden", "stash.apply"), null, menuItem("Pop Stash", "stash.pop")];
 
     // When: the menu is filtered for the stash group
     const result = filterContextMenuItems(items, "stash", visibility);

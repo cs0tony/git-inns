@@ -91,7 +91,11 @@ describe("Config fallback defaults vs package.json", () => {
       ["TC-057f", "referenceLabels", (c) => c.referenceLabels()],
       ["TC-057g", "defaultColumnVisibility", (c) => c.presentationDefaults()],
       ["TC-057h", "repositoryDropdownOrder", (c) => c.repositoryDropdownOrder()],
-      ["TC-057i", "retainContextWhenHidden", (c) => c.hostViewPreferences().retainContextWhenHidden],
+      [
+        "TC-057i",
+        "retainContextWhenHidden",
+        (c) => c.hostViewPreferences().retainContextWhenHidden
+      ],
       [
         "TC-057j",
         "openToActiveEditorRepository",
@@ -232,7 +236,9 @@ describe("contextMenuActionsVisibility fallback comparison", () => {
   it("normalizes the empty package default to all actions visible", () => {
     // When: the normalized setting is read
     const actual = getConfig().contextMenuActionsVisibility();
-    const expected = normalizeContextMenuActionsVisibility(getPackageDefault("contextMenuActionsVisibility"));
+    const expected = normalizeContextMenuActionsVisibility(
+      getPackageDefault("contextMenuActionsVisibility")
+    );
 
     // Then: missing entries retain their visible default
     expect(actual).toEqual(expected);

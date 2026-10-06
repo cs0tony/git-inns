@@ -244,8 +244,9 @@ class GitKeizuView {
   );
   private readonly commitBodyRendering: GG.CommitBodyRendering =
     viewState.commitBodyRendering === "rich" ? "rich" : "plain";
-  private readonly defaultCommitDetailsPresentation =
-    normalizeCommitDetailsPresentation(viewState.commitDetailsPresentation);
+  private readonly defaultCommitDetailsPresentation = normalizeCommitDetailsPresentation(
+    viewState.commitDetailsPresentation
+  );
   private readonly customEmojiShortcodeMappings = combineWithBuiltInEmojiMappings(
     viewState.customEmojiShortcodeMappings ?? {}
   );
@@ -1393,18 +1394,18 @@ class GitKeizuView {
           }
         })
       );
-      const columnOptions: ColumnMenuOption[] = (
-        ["author", "date", "commit"] as const
-      ).map((column) => ({
-        id: column,
-        label: t(`table.${column}`),
-        kind: "checkbox",
-        checked: visibility[column],
-        disabled: this.getVisibleColumnCount() === 2 && visibility[column],
-        onActivate: (checked: boolean) => {
-          this.setColumnVisibility({ ...this.getColumnVisibility(), [column]: checked });
-        }
-      }));
+      const columnOptions: ColumnMenuOption[] = (["author", "date", "commit"] as const).map(
+        (column) => ({
+          id: column,
+          label: t(`table.${column}`),
+          kind: "checkbox",
+          checked: visibility[column],
+          disabled: this.getVisibleColumnCount() === 2 && visibility[column],
+          onActivate: (checked: boolean) => {
+            this.setColumnVisibility({ ...this.getColumnVisibility(), [column]: checked });
+          }
+        })
+      );
 
       this.columnVisibilityMenu.show({
         anchor: graphHeader,
@@ -1420,10 +1421,9 @@ class GitKeizuView {
       e.stopPropagation();
       showMenu(e.clientX, e.clientY);
     });
-    graphHeader.addEventListener("click", () => showMenu(
-      graphHeader.getBoundingClientRect().left,
-      graphHeader.getBoundingClientRect().bottom
-    ));
+    graphHeader.addEventListener("click", () =>
+      showMenu(graphHeader.getBoundingClientRect().left, graphHeader.getBoundingClientRect().bottom)
+    );
     graphHeader.addEventListener("keydown", (e: KeyboardEvent) => {
       const isOpenCommand =
         e.key === "ContextMenu" ||
@@ -1449,7 +1449,9 @@ class GitKeizuView {
 
   private getVisibleColumnCount(): number {
     const visibility = this.getColumnVisibility();
-    return 1 + (visibility.author ? 1 : 0) + (visibility.date ? 1 : 0) + (visibility.commit ? 1 : 0);
+    return (
+      1 + (visibility.author ? 1 : 0) + (visibility.date ? 1 : 0) + (visibility.commit ? 1 : 0)
+    );
   }
 
   private setColumnVisibility(visibility: GG.ColumnVisibility): void {
@@ -1917,18 +1919,13 @@ class GitKeizuView {
 
   private getCommitDetailsPresentation(): CommitDetailsPresentationSettings {
     const repo = this.currentRepo === null ? undefined : this.gitRepos[this.currentRepo];
-    return normalizeCommitDetailsPresentation(
-      repo?.commitDetailsPresentation,
-      {
-        ...this.defaultCommitDetailsPresentation,
-        fileViewMode: repo?.fileViewType ?? this.defaultCommitDetailsPresentation.fileViewMode
-      }
-    );
+    return normalizeCommitDetailsPresentation(repo?.commitDetailsPresentation, {
+      ...this.defaultCommitDetailsPresentation,
+      fileViewMode: repo?.fileViewType ?? this.defaultCommitDetailsPresentation.fileViewMode
+    });
   }
 
-  private buildCommitDetailsControlsHtml(
-    presentation: CommitDetailsPresentationSettings
-  ): string {
+  private buildCommitDetailsControlsHtml(presentation: CommitDetailsPresentationSettings): string {
     const option = (
       field: keyof CommitDetailsPresentationSettings,
       value: string,
@@ -1945,13 +1942,33 @@ class GitKeizuView {
       '<div class="commitDetailsControls">' +
       group(
         t("commitDetails.presentation.placement"),
-        option("location", "inline", t("commitDetails.presentation.inline"), presentation.location === "inline") +
-          option("location", "right", t("commitDetails.presentation.right"), presentation.location === "right")
+        option(
+          "location",
+          "inline",
+          t("commitDetails.presentation.inline"),
+          presentation.location === "inline"
+        ) +
+          option(
+            "location",
+            "right",
+            t("commitDetails.presentation.right"),
+            presentation.location === "right"
+          )
       ) +
       group(
         t("commitDetails.presentation.files"),
-        option("fileViewMode", "tree", t("commitDetails.presentation.tree"), presentation.fileViewMode === "tree") +
-          option("fileViewMode", "list", t("commitDetails.presentation.list"), presentation.fileViewMode === "list")
+        option(
+          "fileViewMode",
+          "tree",
+          t("commitDetails.presentation.tree"),
+          presentation.fileViewMode === "tree"
+        ) +
+          option(
+            "fileViewMode",
+            "list",
+            t("commitDetails.presentation.list"),
+            presentation.fileViewMode === "list"
+          )
       ) +
       group(
         t("commitDetails.presentation.behavior"),
@@ -1973,27 +1990,23 @@ class GitKeizuView {
   }
 
   private bindCommitDetailsPresentationListeners(): void {
-    document.querySelectorAll<HTMLButtonElement>("[data-presentation-field]").forEach(
-      (button) => {
-        button.addEventListener("click", () => {
-          const field = button.dataset.presentationField;
-          const value = button.dataset.presentationValue;
-          if (
-            (field === "location" && (value === "inline" || value === "right")) ||
-            (field === "fileViewMode" && (value === "tree" || value === "list"))
-          ) {
-            this.updateCommitDetailsPresentation({ [field]: value });
-          } else if (field === "compactFolders" || field === "autoCenter") {
-            this.updateCommitDetailsPresentation({ [field]: value !== "true" });
-          }
-        });
-      }
-    );
+    document.querySelectorAll<HTMLButtonElement>("[data-presentation-field]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const field = button.dataset.presentationField;
+        const value = button.dataset.presentationValue;
+        if (
+          (field === "location" && (value === "inline" || value === "right")) ||
+          (field === "fileViewMode" && (value === "tree" || value === "list"))
+        ) {
+          this.updateCommitDetailsPresentation({ [field]: value });
+        } else if (field === "compactFolders" || field === "autoCenter") {
+          this.updateCommitDetailsPresentation({ [field]: value !== "true" });
+        }
+      });
+    });
   }
 
-  private updateCommitDetailsPresentation(
-    patch: Partial<CommitDetailsPresentationSettings>
-  ): void {
+  private updateCommitDetailsPresentation(patch: Partial<CommitDetailsPresentationSettings>): void {
     if (this.currentRepo === null || this.expandedCommit === null) return;
     const repo = this.gitRepos[this.currentRepo];
     if (repo === undefined) return;

@@ -67,8 +67,7 @@ export function buildFileContextMenuItems(
   if (encodedPath === undefined) return [];
   const filePath = decodeURIComponent(encodedPath);
   const canSetReviewed =
-    expandedCommit.hash !== UNCOMMITTED_CHANGES_HASH &&
-    expandedCommit.compareWithHash === null;
+    expandedCommit.hash !== UNCOMMITTED_CHANGES_HASH && expandedCommit.compareWithHash === null;
   const isReviewed = expandedCommit.reviewedFiles?.includes(filePath) === true;
 
   const reviewedMenuItem: ContextMenuItem | null = canSetReviewed

@@ -39,8 +39,9 @@ function parseHtml(html: string): DocumentFragment {
   return template.content;
 }
 
-((globalThis as Record<string, unknown>).webviewMessages as Record<string, string>)["file.reviewed"] =
-  "Reviewed";
+((globalThis as Record<string, unknown>).webviewMessages as Record<string, string>)[
+  "file.reviewed"
+] = "Reviewed";
 
 /* ------------------------------------------------------------------ */
 /* S1: generateGitFileListHtml (fileTree-test.md)                     */

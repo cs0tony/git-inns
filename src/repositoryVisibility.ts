@@ -52,9 +52,7 @@ export function appendVisibilityGitArgs(
   return result;
 }
 
-export function filterRemoteHeadRefs<
-  T extends { name?: string; remote?: boolean; type?: string }
->(
+export function filterRemoteHeadRefs<T extends { name?: string; remote?: boolean; type?: string }>(
   refs: readonly T[],
   visibility: RepositoryVisibility
 ): T[] {

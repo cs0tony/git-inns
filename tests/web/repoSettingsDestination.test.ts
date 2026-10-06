@@ -38,7 +38,12 @@ function createData(): RepoSettingsData {
       selectedBranch: "release"
     },
     user: {
-      name: { effectiveValue: "Test User", source: "local", localValue: "Test User", globalValue: null },
+      name: {
+        effectiveValue: "Test User",
+        source: "local",
+        localValue: "Test User",
+        globalValue: null
+      },
       email: {
         effectiveValue: "test@example.com",
         source: "local",
@@ -76,9 +81,7 @@ describe("repository settings pull-request destinations", () => {
     expect(document.getElementById(`${select!.id}-hint`)!.textContent).toBe(
       "Inferred default: main"
     );
-    expect(select!.getAttribute("aria-describedby")).toBe(
-      `${select!.id}-hint ${select!.id}-error`
-    );
+    expect(select!.getAttribute("aria-describedby")).toBe(`${select!.id}-hint ${select!.id}-error`);
     expect(select!.value).toBe("release");
     expect([...select!.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
       "feature/one",

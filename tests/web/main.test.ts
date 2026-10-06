@@ -1221,12 +1221,8 @@ describe("GitKeizuView frontend integration", () => {
       expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
       expect(link?.getAttribute("title")).toBe("Open issue 42 in your browser");
       expect(link?.textContent).toBe("#42");
-      expect(document.querySelector("#commitDetailsSummary")?.innerHTML).toContain(
-        "<br>Related: "
-      );
-      expect(document.querySelector("#commitDetailsSummary")?.innerHTML).not.toContain(
-        "<script>"
-      );
+      expect(document.querySelector("#commitDetailsSummary")?.innerHTML).toContain("<br>Related: ");
+      expect(document.querySelector("#commitDetailsSummary")?.innerHTML).not.toContain("<script>");
     });
 
     it("ignores issue settings from a stale repository", () => {
@@ -5413,9 +5409,7 @@ describe("Commit ordering context menu (S34)", () => {
   function openHeaderMenu(): void {
     document
       .getElementById("tableColHeaders")!
-      .dispatchEvent(
-        new MouseEvent("contextmenu", { bubbles: true, clientX: 100, clientY: 50 })
-      );
+      .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 100, clientY: 50 }));
   }
 
   function menuItems(): NodeListOf<HTMLLIElement> {
@@ -5442,10 +5436,20 @@ describe("Commit ordering context menu (S34)", () => {
     openHeaderMenu();
 
     // Then: ordering state is exposed through ARIA radio state
-    expect(document.querySelector('[data-option-id="ordering-default"]')!.getAttribute("aria-checked")).toBe("false");
-    expect(document.querySelector('[data-option-id="ordering-date"]')!.getAttribute("aria-checked")).toBe("false");
-    expect(document.querySelector('[data-option-id="ordering-author-date"]')!.getAttribute("aria-checked")).toBe("false");
-    expect(document.querySelector('[data-option-id="ordering-topo"]')!.getAttribute("aria-checked")).toBe("true");
+    expect(
+      document.querySelector('[data-option-id="ordering-default"]')!.getAttribute("aria-checked")
+    ).toBe("false");
+    expect(
+      document.querySelector('[data-option-id="ordering-date"]')!.getAttribute("aria-checked")
+    ).toBe("false");
+    expect(
+      document
+        .querySelector('[data-option-id="ordering-author-date"]')!
+        .getAttribute("aria-checked")
+    ).toBe("false");
+    expect(
+      document.querySelector('[data-option-id="ordering-topo"]')!.getAttribute("aria-checked")
+    ).toBe("true");
   });
 
   it('updates repoState and sends saveRepoState when "Author Date" is selected (TC-192)', () => {
@@ -5545,9 +5549,7 @@ describe("Commit body rendering mode", () => {
 
     const richBody = document.querySelector("#commitDetailsSummary .commitBodyRich");
     expect(richBody).not.toBeNull();
-    expect(
-      richBody?.querySelector("a[href='https://example.test/issues/42']")
-    ).not.toBeNull();
+    expect(richBody?.querySelector("a[href='https://example.test/issues/42']")).not.toBeNull();
     expect(richBody?.querySelector("strong.commit-body-bold")?.textContent).toBe("Fix");
     expect(richBody?.innerHTML).toContain("<br>Related: ");
     expect(richBody?.innerHTML).not.toContain("<script>");
@@ -7596,8 +7598,9 @@ describe("custom branch glob filters (S46)", () => {
     dropdownCallCount = 0;
     capturedBranchCallback = null;
     setupViewState();
-    ((globalThis as Record<string, unknown>).viewState as Record<string, unknown>)
-      .customBranchGlobPatterns = [GLOB_PATTERN];
+    (
+      (globalThis as Record<string, unknown>).viewState as Record<string, unknown>
+    ).customBranchGlobPatterns = [GLOB_PATTERN];
     vi.mocked(vscode.getState).mockClear();
     vi.mocked(vscode.getState).mockReturnValue(null);
     const utils = await import("../../web/utils");
@@ -7824,9 +7827,7 @@ describe("context-menu action visibility routing", () => {
   }
 
   it("keeps every commit action visible by default and hides a configured action", () => {
-    const commitRow = document.querySelector(
-      `.commit[data-hash="${VISIBILITY_HASH_COMMIT}"]`
-    );
+    const commitRow = document.querySelector(`.commit[data-hash="${VISIBILITY_HASH_COMMIT}"]`);
     expect(commitRow).not.toBeNull();
 
     commitRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
@@ -7874,9 +7875,7 @@ describe("context-menu action visibility routing", () => {
     expect(vi.mocked(liveShowContextMenu).mock.calls[0][1]).toHaveLength(1);
 
     setVisibility("stash", "stash.apply");
-    const stashRow = document.querySelector(
-      `.commit[data-hash="${VISIBILITY_HASH_STASH}"]`
-    );
+    const stashRow = document.querySelector(`.commit[data-hash="${VISIBILITY_HASH_STASH}"]`);
     expect(stashRow).not.toBeNull();
     stashRow!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     const stashItems = vi.mocked(liveShowContextMenu).mock.calls[1][1];
@@ -7897,9 +7896,7 @@ describe("context-menu action visibility routing", () => {
     liveFileTreeHtml.mockReturnValueOnce(
       '<table><tr class="gitFile M gitDiffPossible" data-oldfilepath="src%2Ffile.ts" data-newfilepath="src%2Ffile.ts" data-type="M"><td></td></tr></table>'
     );
-    const commitRow = document.querySelector(
-      `.commit[data-hash="${VISIBILITY_HASH_COMMIT}"]`
-    );
+    const commitRow = document.querySelector(`.commit[data-hash="${VISIBILITY_HASH_COMMIT}"]`);
     commitRow!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     dispatchMessage({
       command: "commitDetails",

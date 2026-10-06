@@ -90,10 +90,10 @@ function getPrivateLogMethod(ds: DataSource) {
         branches: string[],
         count: number,
         showRemoteBranches: boolean,
-      authors: string[],
-      commitOrdering: CommitOrdering,
-      visibility: typeof DEFAULT_REPOSITORY_VISIBILITY
-    ) => Promise<GitCommit[]>;
+        authors: string[],
+        commitOrdering: CommitOrdering,
+        visibility: typeof DEFAULT_REPOSITORY_VISIBILITY
+      ) => Promise<GitCommit[]>;
     }
   ).getGitLog.bind(ds);
 }
@@ -115,11 +115,7 @@ describe("graph parity backend foundation", () => {
     const ds = new DataSource();
 
     await expect(ds.fetch(REPO)).resolves.toBeNull();
-    expect(spawnMock).toHaveBeenLastCalledWith(
-      "git",
-      ["fetch", "--all", "--prune"],
-      SPAWN_OPTS
-    );
+    expect(spawnMock).toHaveBeenLastCalledWith("git", ["fetch", "--all", "--prune"], SPAWN_OPTS);
 
     configValues.fetchAndPruneTags = true;
     await expect(ds.fetch(REPO)).resolves.toBeNull();
@@ -138,7 +134,14 @@ describe("graph parity backend foundation", () => {
     await getGitLog(REPO, [], 10, false, [], "date", DEFAULT_REPOSITORY_VISIBILITY);
     expect(spawnMock).toHaveBeenLastCalledWith(
       "git",
-      ["log", "--max-count=10", `--format=${defaultLogFormat()}`, "--date-order", "--branches", "--tags"],
+      [
+        "log",
+        "--max-count=10",
+        `--format=${defaultLogFormat()}`,
+        "--date-order",
+        "--branches",
+        "--tags"
+      ],
       SPAWN_OPTS
     );
 
@@ -170,12 +173,16 @@ describe("graph parity backend foundation", () => {
     spawnMock.mockImplementation(() => mockProcess());
     const disabled = getPrivateLogMethod(new DataSource());
     await disabled(REPO, [], 10, false, [], "date", DEFAULT_REPOSITORY_VISIBILITY);
-    expect(String(vi.mocked(cp.spawn).mock.lastCall![1])).toContain(`--format=${defaultLogFormat()}`);
+    expect(String(vi.mocked(cp.spawn).mock.lastCall![1])).toContain(
+      `--format=${defaultLogFormat()}`
+    );
 
     configValues.useMailmap = true;
     const enabled = getPrivateLogMethod(new DataSource());
     await enabled(REPO, [], 10, false, [], "date", DEFAULT_REPOSITORY_VISIBILITY);
-    expect(String(vi.mocked(cp.spawn).mock.lastCall![1])).toContain(`--format=${mailmapLogFormat()}`);
+    expect(String(vi.mocked(cp.spawn).mock.lastCall![1])).toContain(
+      `--format=${mailmapLogFormat()}`
+    );
   });
 
   it("parses signature fields returned by Git", () => {
@@ -214,20 +221,22 @@ describe("graph parity backend foundation", () => {
     spawnMock.mockImplementation(() => mockProcess(`${baseFields.join(SEP)}\nBody\n`));
     const disabledDetails = await new DataSource().commitDetails(REPO, HASH, false, false);
     expect(disabledDetails?.signature).toBeNull();
-    showFormat = vi.mocked(cp.spawn).mock.calls
-      .find((call) => (call[1] as string[])[0] === "show")![1]
+    showFormat = vi
+      .mocked(cp.spawn)
+      .mock.calls.find((call) => (call[1] as string[])[0] === "show")![1]
       .find((arg) => String(arg).startsWith("--format="));
     expect(showFormat).toBe(commitDetailsFormat(false));
 
-    spawnMock.mockImplementation(
-      () => mockProcess(`${[...baseFields, ...signatureFields].join(SEP)}\nBody\n`)
+    spawnMock.mockImplementation(() =>
+      mockProcess(`${[...baseFields, ...signatureFields].join(SEP)}\nBody\n`)
     );
     configValues.showSignatureStatus = true;
     spawnMock.mockClear();
     const details = await new DataSource().commitDetails(REPO, HASH, false, false);
     expect(details).not.toBeNull();
-    showFormat = vi.mocked(cp.spawn).mock.calls
-      .find((call) => (call[1] as string[])[0] === "show")![1]
+    showFormat = vi
+      .mocked(cp.spawn)
+      .mock.calls.find((call) => (call[1] as string[])[0] === "show")![1]
       .find((arg) => String(arg).startsWith("--format="));
     expect(showFormat).toBe(commitDetailsFormat(true));
     expect(details?.signature).toEqual(parseGitSignatureStatus(signatureFields));

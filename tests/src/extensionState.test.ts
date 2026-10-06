@@ -14,6 +14,7 @@ vi.mock("../../src/utils", () => ({
 }));
 
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 import type { ExtensionContext, Memento } from "vscode";
 
@@ -22,7 +23,7 @@ import type { Avatar, GitRepoSet } from "../../src/types";
 import { getPathFromStr } from "../../src/utils";
 
 const GLOBAL_STORAGE_PATH = "/storage/path";
-const AVATAR_DIR = "/storage/path/avatars";
+const AVATAR_DIR = path.join(GLOBAL_STORAGE_PATH, "avatars");
 
 type FsStatResult = Awaited<ReturnType<typeof fs.stat>>;
 type MockExtensionContext = Pick<
@@ -91,7 +92,7 @@ describe("ExtensionState", () => {
 
       // Then: getPathFromStr is called to normalize, and public methods use the stored values
       expect(getPathFromStr).toHaveBeenCalledWith("C:\\Users\\test\\.storage");
-      expect(state.getAvatarStoragePath()).toBe("C:/Users/test/.storage/avatars");
+      expect(state.getAvatarStoragePath()).toBe(path.join("C:/Users/test/.storage", "avatars"));
       expect(state.getRepos()).toEqual({});
       expect(state.getAvatarCache()).toEqual({});
     });
@@ -419,7 +420,7 @@ describe("ExtensionState", () => {
       const result = state.getAvatarStoragePath();
 
       // Then: returns path joined with "avatars"
-      expect(result).toBe("/storage/path/avatars");
+      expect(result).toBe(path.join(GLOBAL_STORAGE_PATH, "avatars"));
     });
 
     it("TC-020: returns 'avatars' when globalStoragePath is empty string", async () => {
@@ -628,8 +629,12 @@ describe("ExtensionState", () => {
       expect(mockContext.globalState.update).toHaveBeenCalledWith("avatarCache", {});
       expect(fs.readdir).toHaveBeenCalledWith(AVATAR_DIR);
       expect(fs.unlink).toHaveBeenCalledTimes(2);
-      expect(fs.unlink).toHaveBeenCalledWith("/storage/path/avatars/avatar1.png");
-      expect(fs.unlink).toHaveBeenCalledWith("/storage/path/avatars/avatar2.png");
+      expect(fs.unlink).toHaveBeenCalledWith(
+        path.join(GLOBAL_STORAGE_PATH, "avatars", "avatar1.png")
+      );
+      expect(fs.unlink).toHaveBeenCalledWith(
+        path.join(GLOBAL_STORAGE_PATH, "avatars", "avatar2.png")
+      );
     });
 
     it("TC-031: clears cache before attempting file deletion", async () => {
@@ -706,8 +711,8 @@ describe("ExtensionState", () => {
       // Then: both unlink calls are attempted, cache is still cleared
       expect(mockContext.globalState.update).toHaveBeenCalledWith("avatarCache", {});
       expect(fs.unlink).toHaveBeenCalledTimes(2);
-      expect(fs.unlink).toHaveBeenCalledWith("/storage/path/avatars/fail.png");
-      expect(fs.unlink).toHaveBeenCalledWith("/storage/path/avatars/ok.png");
+      expect(fs.unlink).toHaveBeenCalledWith(path.join(GLOBAL_STORAGE_PATH, "avatars", "fail.png"));
+      expect(fs.unlink).toHaveBeenCalledWith(path.join(GLOBAL_STORAGE_PATH, "avatars", "ok.png"));
     });
   });
 

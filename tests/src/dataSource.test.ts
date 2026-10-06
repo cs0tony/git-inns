@@ -1,5 +1,6 @@
 import * as cp from "node:child_process";
 import { EventEmitter } from "node:events";
+import * as path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -4360,7 +4361,7 @@ describe("getRepositoryStateWatchPaths", () => {
     const result = await ds.getRepositoryStateWatchPaths(REPO);
 
     // Then: One deduplicated absolute watch path is returned and both rev-parse commands are executed once
-    expect(result).toEqual([`${REPO}/.git`]);
+    expect(result).toEqual([path.resolve(REPO, ".git")]);
     expect(spawnMock).toHaveBeenCalledTimes(2);
     expect(spawnMock).toHaveBeenNthCalledWith(1, "git", ["rev-parse", "--git-dir"], SPAWN_OPTS);
     expect(spawnMock).toHaveBeenNthCalledWith(
@@ -4383,7 +4384,10 @@ describe("getRepositoryStateWatchPaths", () => {
     const result = await ds.getRepositoryStateWatchPaths(REPO);
 
     // Then: Both absolute paths are returned with the worktree-specific git-dir first
-    expect(result).toEqual(["/main/.git/worktrees/feature-x", "/main/.git"]);
+    expect(result).toEqual([
+      path.normalize("/main/.git/worktrees/feature-x"),
+      path.normalize("/main/.git")
+    ]);
   });
 
   it("normalises mixed relative and absolute rev-parse outputs to absolute paths (TC-152)", async () => {
@@ -4398,7 +4402,10 @@ describe("getRepositoryStateWatchPaths", () => {
     const result = await ds.getRepositoryStateWatchPaths(REPO);
 
     // Then: The relative value is resolved from repo and the absolute value is preserved
-    expect(result).toEqual([`${REPO}/.git/worktrees/feature-x`, "/shared/repo/.git"]);
+    expect(result).toEqual([
+      path.resolve(REPO, "./.git/worktrees/feature-x"),
+      path.normalize("/shared/repo/.git")
+    ]);
   });
 
   it("falls back to the git-dir path when git-common-dir resolution fails (TC-153)", async () => {
@@ -4413,7 +4420,7 @@ describe("getRepositoryStateWatchPaths", () => {
     const result = await ds.getRepositoryStateWatchPaths(REPO);
 
     // Then: Only the resolved git-dir path is returned
-    expect(result).toEqual([`${REPO}/.git`]);
+    expect(result).toEqual([path.resolve(REPO, ".git")]);
   });
 
   it("falls back to the git-common-dir path when git-dir resolution fails (TC-154)", async () => {
@@ -4428,7 +4435,7 @@ describe("getRepositoryStateWatchPaths", () => {
     const result = await ds.getRepositoryStateWatchPaths(REPO);
 
     // Then: Only the git-common-dir path is returned
-    expect(result).toEqual(["/main/.git"]);
+    expect(result).toEqual([path.normalize("/main/.git")]);
   });
 
   it("returns an empty array when both rev-parse commands fail (TC-155)", async () => {
@@ -5792,14 +5799,7 @@ describe("getGitLog custom branch glob selection", () => {
     setupSpawnForCommits({ logOutput: "\n", stashOutput: "" });
 
     // When: commits are loaded
-    await ds.getCommits(
-      REPO,
-      ["feature/x", "--glob=refs/heads/release/*"],
-      10,
-      false,
-      [],
-      "date"
-    );
+    await ds.getCommits(REPO, ["feature/x", "--glob=refs/heads/release/*"], 10, false, [], "date");
 
     // Then: both exact values are sent in selection order
     const args = getLogArgs();

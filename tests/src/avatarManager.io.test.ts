@@ -1,3 +1,5 @@
+import * as path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -142,7 +144,7 @@ describe("AvatarManager image storage and webview flows", () => {
       // Then: The image bytes are written to the avatar storage path and the PNG filename is returned.
       expect(fsMocks.writeFile).toHaveBeenCalledTimes(1);
       expect(fsMocks.writeFile).toHaveBeenCalledWith(
-        `${AVATAR_STORAGE_PATH}/${expectedFileName}`,
+        path.join(AVATAR_STORAGE_PATH, expectedFileName),
         Buffer.from(DEFAULT_IMAGE_BYTES)
       );
       expect(result).toBe(expectedFileName);
@@ -171,7 +173,7 @@ describe("AvatarManager image storage and webview flows", () => {
       // Then: The image bytes are written with the svg+xml extension and that filename is returned.
       expect(fsMocks.writeFile).toHaveBeenCalledTimes(1);
       expect(fsMocks.writeFile).toHaveBeenCalledWith(
-        `${AVATAR_STORAGE_PATH}/${expectedFileName}`,
+        path.join(AVATAR_STORAGE_PATH, expectedFileName),
         Buffer.from(DEFAULT_IMAGE_BYTES)
       );
       expect(result).toBe(expectedFileName);
@@ -390,7 +392,7 @@ describe("AvatarManager image storage and webview flows", () => {
 
       // Then: The webview receives a fetchAvatar message containing the base64 data URI.
       expect(fsMocks.readFile).toHaveBeenCalledTimes(1);
-      expect(fsMocks.readFile).toHaveBeenCalledWith(`${AVATAR_STORAGE_PATH}/${PNG_IMAGE_NAME}`);
+      expect(fsMocks.readFile).toHaveBeenCalledWith(path.join(AVATAR_STORAGE_PATH, PNG_IMAGE_NAME));
       expect(harness.sendMessage).toHaveBeenCalledTimes(1);
       expect(harness.sendMessage).toHaveBeenCalledWith({
         command: FETCH_AVATAR_COMMAND,

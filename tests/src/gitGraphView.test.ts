@@ -1,3 +1,5 @@
+import * as path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -3400,7 +3402,7 @@ describe("GitKeizuView worktree message handlers", () => {
     expect(mocks.addWorktree).toHaveBeenCalledWith(TEST_REPO, "/tmp/wt", "new-branch", "abc1234");
     expect(mocks.createTerminal).toHaveBeenCalledWith({
       name: "Worktree: new-branch",
-      cwd: "/tmp/wt"
+      cwd: path.resolve(TEST_REPO, "/tmp/wt")
     });
     expect(mocks.terminalShow).toHaveBeenCalled();
     expect(mocks.postMessage).toHaveBeenCalledWith({
@@ -3466,7 +3468,7 @@ describe("GitKeizuView worktree message handlers", () => {
     // Then: createTerminal called with name and cwd, show() called, response sent
     expect(mocks.createTerminal).toHaveBeenCalledWith({
       name: "Worktree: feature/x",
-      cwd: "/home/user/worktree"
+      cwd: path.resolve(TEST_REPO, "/home/user/worktree")
     });
     expect(mocks.terminalShow).toHaveBeenCalled();
     expect(mocks.postMessage).toHaveBeenCalledWith({
@@ -4704,10 +4706,7 @@ describe("GitKeizuView reviewed-file message routing", () => {
   }
 
   it("includes persisted reviewed files with normal commit details", async () => {
-    const extensionState = createReviewedStateMock([
-      "src/already-reviewed.ts",
-      "src/reviewed.ts"
-    ]);
+    const extensionState = createReviewedStateMock(["src/already-reviewed.ts", "src/reviewed.ts"]);
     GitKeizuView.currentPanel?.dispose();
     GitKeizuView.currentPanel = undefined;
     mocks.messageHandler.current = null;
@@ -4741,12 +4740,7 @@ describe("GitKeizuView reviewed-file message routing", () => {
       isStash: false
     });
 
-    expect(mocks.commitDetails).toHaveBeenCalledWith(
-      TEST_REPO,
-      COMMIT_HASH,
-      true,
-      false
-    );
+    expect(mocks.commitDetails).toHaveBeenCalledWith(TEST_REPO, COMMIT_HASH, true, false);
     expect(sentMessages("commitDetails")).toEqual([
       {
         command: "commitDetails",
@@ -4936,10 +4930,7 @@ describe("GitKeizuView workspace review lifecycle", () => {
   it("refreshes enablement from reviews that still exist in the repository set", async () => {
     const deps = createDeps({ activeReviews: { [TEST_REPO]: REVIEW, "/gone": REVIEW } });
 
-    await GitKeizuView.refreshActiveReviewCommandEnablement(
-      deps.extensionState,
-      deps.repoManager
-    );
+    await GitKeizuView.refreshActiveReviewCommandEnablement(deps.extensionState, deps.repoManager);
 
     expect(mocks.executeCommand).toHaveBeenCalledWith(
       "setContext",

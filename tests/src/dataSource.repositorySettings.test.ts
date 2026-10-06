@@ -4,6 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Real Git subprocesses need more than the 5s default under parallel load.
+vi.setConfig({ testTimeout: 30_000 });
 import type { Memento } from "vscode";
 
 vi.mock("vscode", () => ({}));
@@ -37,6 +40,26 @@ const DEFAULT_VISIBILITY: RepositoryVisibility = {
 };
 
 const INVALID_DESTINATION_MESSAGE = "Invalid pull-request destination branch.";
+
+/**
+ * Git subprocesses on Windows can keep file handles alive briefly after the
+ * awaited command settles, which makes an immediate recursive delete fail
+ * with EBUSY/EPERM; retry for a short window before giving up.
+ */
+async function removeTempDir(dir: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.rm(dir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException | undefined)?.code;
+      if (attempt >= 5 || (code !== "EBUSY" && code !== "EPERM" && code !== "ENOTEMPTY")) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
+}
 
 function git(cwd: string, args: string[]): string {
   return cp.execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -124,7 +147,7 @@ describe("DataSource repository settings", () => {
   });
 
   afterEach(async () => {
-    await fs.rm(fixture.root, { recursive: true, force: true });
+    await removeTempDir(fixture.root);
     vi.restoreAllMocks();
   });
 

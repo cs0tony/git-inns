@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -308,7 +309,7 @@ describe("openFile", () => {
     expect(result).toBeNull();
     expect(mockExecuteCommand).toHaveBeenCalledWith(
       "vscode.open",
-      { scheme: "file", fsPath: "/repo/src/a.ts" },
+      { scheme: "file", fsPath: path.resolve(REPO, "src/a.ts") },
       { preview: true, viewColumn: -1 }
     );
   });
@@ -368,7 +369,7 @@ describe("openFile", () => {
     expect(result).toBeNull();
     expect(mockExecuteCommand).toHaveBeenCalledWith(
       "vscode.open",
-      { scheme: "file", fsPath: "/repo" },
+      { scheme: "file", fsPath: path.resolve(REPO, "") },
       { preview: true, viewColumn: -1 }
     );
   });
@@ -401,7 +402,7 @@ describe("openFile", () => {
     expect(result).toBeNull();
     expect(mockExecuteCommand).toHaveBeenCalledWith(
       "vscode.open",
-      { scheme: "file", fsPath: "/repo/src/file.ts" },
+      { scheme: "file", fsPath: path.resolve(REPO, "src/file.ts") },
       { preview: true, viewColumn: -2 }
     );
   });
@@ -419,7 +420,7 @@ describe("openFile", () => {
     expect(result).toBeNull();
     expect(mockExecuteCommand).toHaveBeenCalledWith(
       "vscode.open",
-      expect.objectContaining({ fsPath: "/repo/src/file.ts" }),
+      expect.objectContaining({ fsPath: path.resolve(REPO, "src/file.ts") }),
       { preview: true, viewColumn: 1 }
     );
   });
@@ -442,7 +443,7 @@ describe("openFile", () => {
     expect(result).toBeNull();
     expect(mockExecuteCommand).toHaveBeenCalledWith(
       "vscode.open",
-      { scheme: "file", fsPath: "/repo/renamed.ts" },
+      { scheme: "file", fsPath: path.resolve(REPO, "renamed.ts") },
       { preview: true, viewColumn: -1 }
     );
   });

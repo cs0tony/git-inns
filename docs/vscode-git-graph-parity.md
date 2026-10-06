@@ -102,14 +102,14 @@ Wave 3 continues the highest-value follow-ups with independently testable
 slices. It intentionally avoids copying the reference setting namespace and
 keeps the modern UI progressively disclosed rather than adding dense toolbars.
 
-| ID   | Requirement                                                                 | Modern UI / behavior expectation                                                                                    |
-| ---- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| FE-15 | Infer and validate a Pull Request destination branch                         | The Pull Request card shows the inferred default/base branch, lets the user choose an existing branch, and validates it before opening. |
-| FE-16 | Mark opened files as reviewed during an active review                        | Opening a changed file records it as reviewed, updates progress immediately, and never marks unrelated files.           |
-| FE-17 | Rich but safe commit-body rendering                                          | Commit bodies support controlled emoji and lightweight markdown rendering, with settings and escaping preserved.         |
-| FE-18 | Workspace review lifecycle                                                   | Resume, end-active, and end-all workspace review commands are discoverable and reuse the existing review state model.    |
-| FE-19 | Presentation parity groundwork                                               | Add a modern, accessible column-visibility control and preserve per-webview state without a dense settings surface.      |
-| FE-20 | Regression and manual QA gate                                                | Backend/frontend tests, typecheck, lint, and a documented smoke checklist pass before the wave ships.                    |
+| ID    | Requirement                                           | Modern UI / behavior expectation                                                                                                        |
+| ----- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| FE-15 | Infer and validate a Pull Request destination branch  | The Pull Request card shows the inferred default/base branch, lets the user choose an existing branch, and validates it before opening. |
+| FE-16 | Mark opened files as reviewed during an active review | Opening a changed file records it as reviewed, updates progress immediately, and never marks unrelated files.                           |
+| FE-17 | Rich but safe commit-body rendering                   | Commit bodies support controlled emoji and lightweight markdown rendering, with settings and escaping preserved.                        |
+| FE-18 | Workspace review lifecycle                            | Resume, end-active, and end-all workspace review commands are discoverable and reuse the existing review state model.                   |
+| FE-19 | Presentation parity groundwork                        | Add a modern, accessible column-visibility control and preserve per-webview state without a dense settings surface.                     |
+| FE-20 | Regression and manual QA gate                         | Backend/frontend tests, typecheck, lint, and a documented smoke checklist pass before the wave ships.                                   |
 
 ### Task split
 
@@ -130,15 +130,15 @@ Wave 4 closes the remaining high-value follow-ups from the earlier parity audit.
 Each slice is independently testable and keeps configuration under the existing
 `git-keizu.*` namespace.
 
-| ID | Requirement | Delivered experience |
-| -- | ----------- | -------------------- |
+| ID    | Requirement                         | Delivered experience                                                                                                                                                         |
+| ----- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FE-21 | Rich but safe commit-body rendering | `git-keizu.commitBodyRendering` selects the legacy compact output or opt-in controlled emoji, headings, links, emphasis, and code while preserving escaping and issue links. |
-| FE-22 | Workspace review lifecycle | Resume, end-active, and end-all commands reuse persisted review state, offer unambiguous selection, and refresh command enablement. |
-| FE-23 | Column visibility | A compact accessible header menu hides or restores Author, Date, and Commit columns per repository; the Graph column and at least one data column remain visible. |
-| FE-24 | Changed-file encoding | Default and per-file encoding overrides preserve raw Git bytes, decode with platform-supported encodings, and reopen diffs without stale document caches. |
-| FE-25 | External directory diff | Commit Details can launch a configured GUI or terminal `git difftool --dir-diff` for self, working-tree, and commit-range comparisons. |
-| FE-26 | User details | Repository settings read local/global `user.name` and `user.email`, save validated values at an explicit scope, and remove values only after confirmation. |
-| FE-27 | Regression gate | Backend and webview tests, typecheck, lint, and diff hygiene pass before integration. |
+| FE-22 | Workspace review lifecycle          | Resume, end-active, and end-all commands reuse persisted review state, offer unambiguous selection, and refresh command enablement.                                          |
+| FE-23 | Column visibility                   | A compact accessible header menu hides or restores Author, Date, and Commit columns per repository; the Graph column and at least one data column remain visible.            |
+| FE-24 | Changed-file encoding               | Default and per-file encoding overrides preserve raw Git bytes, decode with platform-supported encodings, and reopen diffs without stale document caches.                    |
+| FE-25 | External directory diff             | Commit Details can launch a configured GUI or terminal `git difftool --dir-diff` for self, working-tree, and commit-range comparisons.                                       |
+| FE-26 | User details                        | Repository settings read local/global `user.name` and `user.email`, save validated values at an explicit scope, and remove values only after confirmation.                   |
+| FE-27 | Regression gate                     | Backend and webview tests, typecheck, lint, and diff hygiene pass before integration.                                                                                        |
 
 ### Task split
 
@@ -159,13 +159,13 @@ Wave 5 closes four remaining presentation and operation gaps while preserving
 the existing `git-keizu.*` namespace. Each slice is independently testable and
 uses progressively disclosed modern controls instead of a dense toolbar.
 
-| ID | Requirement | Modern UI / behavior expectation |
-| -- | ----------- | -------------------------------- |
-| FE-28 | Commit Details placement and file presentation | Compact segmented controls choose inline or right-side placement, tree or list files, compact folders, and optional auto-centering. Preferences persist per workspace. |
-| FE-29 | Repository visibility controls | Repository settings expose accessible switches for tags, stashes, remote heads, and untracked files; loading and ref rendering respect the choices. |
-| FE-30 | Advanced Git operation forms | Destructive/history-changing dialogs remember safe defaults and expose advanced options for tags, branches, stashes, pulls, and rebases with explicit validation and confirmations. |
-| FE-31 | Custom emoji shortcode mappings | Validated global mappings render safely in rich commit bodies and integrate with the existing opt-in Markdown mode. |
-| FE-32 | Integration QA | Backend/web tests, typecheck, lint, formatting, localization parity, and manual smoke checks pass after merge. |
+| ID    | Requirement                                    | Modern UI / behavior expectation                                                                                                                                                    |
+| ----- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FE-28 | Commit Details placement and file presentation | Compact segmented controls choose inline or right-side placement, tree or list files, compact folders, and optional auto-centering. Preferences persist per workspace.              |
+| FE-29 | Repository visibility controls                 | Repository settings expose accessible switches for tags, stashes, remote heads, and untracked files; loading and ref rendering respect the choices.                                 |
+| FE-30 | Advanced Git operation forms                   | Destructive/history-changing dialogs remember safe defaults and expose advanced options for tags, branches, stashes, pulls, and rebases with explicit validation and confirmations. |
+| FE-31 | Custom emoji shortcode mappings                | Validated global mappings render safely in rich commit bodies and integrate with the existing opt-in Markdown mode.                                                                 |
+| FE-32 | Integration QA                                 | Backend/web tests, typecheck, lint, formatting, localization parity, and manual smoke checks pass after merge.                                                                      |
 
 ### Task split
 
@@ -185,12 +185,12 @@ users but are not already covered by the modern repository settings panel.
 The wave keeps secrets out of persisted state and logs while using native VS
 Code Quick Picks, input boxes, notifications, and theme-aware dialogs.
 
-| ID | Requirement | Modern UI / behavior expectation |
-| -- | ----------- | -------------------------------- |
-| FE-33 | Repository command surface | Palette commands can add a folder, remove a known repository, refresh from remotes, open the active Git Keizu diff document, and show executable/version diagnostics. Repository pickers are unambiguous and destructive actions are confirmed. |
+| ID    | Requirement                       | Modern UI / behavior expectation                                                                                                                                                                                                                         |
+| ----- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FE-33 | Repository command surface        | Palette commands can add a folder, remove a known repository, refresh from remotes, open the active Git Keizu diff document, and show executable/version diagnostics. Repository pickers are unambiguous and destructive actions are confirmed.          |
 | FE-34 | Integrated Git credential prompts | Git subprocesses use an extension-owned Askpass endpoint with a nonce-scoped socket/named pipe. Password fields are masked, credentials are never persisted or logged, and startup degrades safely to an empty askpass when the endpoint is unavailable. |
-| FE-35 | Command diagnostics | Command invocations and command failures are written to the existing output channel without repository credentials; errors retain actionable user-facing messages. |
-| FE-36 | Regression gate | Backend and webview tests, typecheck, lint, formatting, localization parity, and manual smoke checks pass after integration. |
+| FE-35 | Command diagnostics               | Command invocations and command failures are written to the existing output channel without repository credentials; errors retain actionable user-facing messages.                                                                                       |
+| FE-36 | Regression gate                   | Backend and webview tests, typecheck, lint, formatting, localization parity, and manual smoke checks pass after integration.                                                                                                                             |
 
 ### Task split
 
@@ -209,10 +209,21 @@ Wave 7 targets the remaining parity gaps listed in
 existing persisted values compatible; the table describes the delivered
 implementation intent and feature behavior rather than a test-status claim.
 
-| Area | Delivered behavior | Settings and compatibility |
-| ---- | ------------------ | -------------------------- |
-| Custom Pull Request providers | A validated global library of named custom providers supplies reusable provider options. Existing repository-specific `custom` selection and manual template URL remain supported as the fallback. | `git-keizu.customPullRequestProviders`; named providers are stored as reusable custom-provider templates while existing repository Pull Request settings retain their data shape. |
-| Reference labels | Local and same-commit remote labels can be combined into one accessible label with a compact remote list, or kept separate. Labels can retain description alignment or align to graph branches; existing description/table alignment remains available. | `git-keizu.referenceLabels`, including `git-keizu.referenceLabels.combine` and `git-keizu.referenceLabels.alignment`. |
-| File change indicators | Added, Modified, Deleted, and Renamed changes have text badges, accessible labels/titles, and type-specific structure in addition to color. | No new setting; indicators use the existing file-change data shape. |
-| Host and view preferences | The webview can retain its context while hidden, opening can select the repository containing the active editor file, and graph-launched integrated terminals can use a configured shell. | `git-keizu.retainContextWhenHidden`, `git-keizu.openToActiveEditorRepository`, `git-keizu.integratedTerminalShell`. |
-| Presentation defaults | Workspace defaults control Date, Author, and Commit column visibility with a visible-column fallback. Repository choices sort by workspace path, display name, or full path using stable, locale-aware ordering. | `git-keizu.defaultColumnVisibility`, `git-keizu.repositoryDropdownOrder`. |
+| Area                          | Delivered behavior                                                                                                                                                                                                                                      | Settings and compatibility                                                                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Custom Pull Request providers | A validated global library of named custom providers supplies reusable provider options. Existing repository-specific `custom` selection and manual template URL remain supported as the fallback.                                                      | `git-keizu.customPullRequestProviders`; named providers are stored as reusable custom-provider templates while existing repository Pull Request settings retain their data shape. |
+| Reference labels              | Local and same-commit remote labels can be combined into one accessible label with a compact remote list, or kept separate. Labels can retain description alignment or align to graph branches; existing description/table alignment remains available. | `git-keizu.referenceLabels`, including `git-keizu.referenceLabels.combine` and `git-keizu.referenceLabels.alignment`.                                                             |
+| File change indicators        | Added, Modified, Deleted, and Renamed changes have text badges, accessible labels/titles, and type-specific structure in addition to color.                                                                                                             | No new setting; indicators use the existing file-change data shape.                                                                                                               |
+| Host and view preferences     | The webview can retain its context while hidden, opening can select the repository containing the active editor file, and graph-launched integrated terminals can use a configured shell.                                                               | `git-keizu.retainContextWhenHidden`, `git-keizu.openToActiveEditorRepository`, `git-keizu.integratedTerminalShell`.                                                               |
+| Presentation defaults         | Workspace defaults control Date, Author, and Commit column visibility with a visible-column fallback. Repository choices sort by workspace path, display name, or full path using stable, locale-aware ordering.                                        | `git-keizu.defaultColumnVisibility`, `git-keizu.repositoryDropdownOrder`.                                                                                                         |
+
+## Modernization wave 8 (planned)
+
+A post-wave-7 audit against vscode-git-graph 1.30.0 identified the remaining gaps:
+global defaults for per-repository visibility choices, persisted dialog defaults for the
+remaining destructive operations, push/tag force semantics and remote pickers, several
+missing context-menu entries (archive for refs, View Issue, dropdown selection actions,
+copy subject, file-menu diffs), Commit Details ergonomics (resizable height, last-viewed
+marker, review expiry, diff-title open command), and repository-settings polish (display
+names, per-repo reflog/first-parent overrides, per-remote hiding, issue-link detection,
+config auto-import). See `docs/vscode-git-graph-parity-wave-8.md` for the full table.

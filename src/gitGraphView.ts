@@ -1154,7 +1154,6 @@ export class GitKeizuView {
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("codicon-overrides.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getMediaUri("findwidget.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("repoSettings.css")}">
-				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("codeReview.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("presentation.css")}">
 				<link rel="stylesheet" type="text/css" href="${this.getWebStyleUri("tagDetails.css")}">
 				<title>Git Keizu</title>

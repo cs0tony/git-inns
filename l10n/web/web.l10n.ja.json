@@ -347,7 +347,6 @@
   "Are you sure you want to reset the {0} to commit {1}?": "{0} をコミット {1} へリセットしますか?",
   "Soft - Keep all changes, but reset head": "Soft - すべての変更を保持し、HEAD のみリセット",
   "Mixed - Keep working tree, but reset index": "Mixed - 作業ツリーを保持し、インデックスをリセット",
-  "Hard - Discard all changes": "Hard - すべての変更を破棄",
   "Yes, reset": "はい、リセット",
   "Delete Tag": "タグを削除",
   "Are you sure you want to delete the tag {0}?": "タグ {0} を削除しますか?",
@@ -393,5 +392,9 @@
   "Output Path: ": "出力パス: ",
   "Absolute path, for example /tmp/archive.zip": "絶対パス (例: /tmp/archive.zip)",
   "Reset File to Revision...": "リビジョンへファイルをリセット...",
-  "Reset {0} to its state at commit {1}? The working-tree and index copies will be overwritten.": "{0} をコミット {1} 時点の状態へリセットしますか? 作業ツリーとインデックスのコピーは上書きされます。"
+  "Reset {0} to its state at commit {1}? The working-tree and index copies will be overwritten.": "{0} をコミット {1} 時点の状態へリセットしますか? 作業ツリーとインデックスのコピーは上書きされます。",
+  "codeReview.start": "コードレビューを開始",
+  "codeReview.resume": "コードレビューを再開",
+  "codeReview.end": "コードレビューを終了",
+  "codeReview.progress": "{0}/{1} ファイル確認済み"
 }

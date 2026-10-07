@@ -1923,44 +1923,34 @@ describe("GitKeizuView frontend integration", () => {
   });
 
   /* ---------------------------------------------------------------- */
-  /* calculateCdvHeight() — CDV height calculation (S7)               */
+  /* CDV height calculation (S7) — persisted, clamped to viewport     */
   /* ---------------------------------------------------------------- */
 
-  describe("calculateCdvHeight()", () => {
+  describe("CDV height calculation", () => {
     const originalInnerHeight = window.innerHeight;
 
-    function setupControlsElement(height: number): void {
-      let controls = document.getElementById("controls");
-      if (!controls) {
-        controls = document.createElement("div");
-        controls.id = "controls";
-        document.body.appendChild(controls);
-      }
-      Object.defineProperty(controls, "clientHeight", {
-        value: height,
-        configurable: true
-      });
-    }
-
-    function removeControlsElement(): void {
-      document.getElementById("controls")?.remove();
-    }
-
     afterEach(() => {
-      removeControlsElement();
+      // Close expanded details so the next test's resize-triggered height
+      // recalculation cannot persist into the repository state under test.
+      document.getElementById("commitDetailsClose")?.click();
       vi.stubGlobal("innerHeight", originalInnerHeight);
     });
 
     beforeEach(() => {
       setupTableLayoutMocks();
+      dispatchMessage({
+        command: "loadRepos",
+        repos: { [TEST_REPO]: { columnWidths: null } },
+        lastActiveRepo: TEST_REPO
+      });
+      vi.clearAllMocks();
     });
 
-    it("returns CDV_DEFAULT_HEIGHT when viewport is large (TC-050)", () => {
-      // Given: innerHeight=800, controlsHeight=50 → available=800-50-55=695
+    it("returns CDV_DEFAULT_HEIGHT when the viewport allows it (TC-050)", () => {
+      // Given: innerHeight=800 → max = min(600, 760) = 600
       vi.stubGlobal("innerHeight", 800);
-      setupControlsElement(50);
 
-      // When: a commit is expanded (triggers calculateCdvHeight via showCommitDetails)
+      // When: a commit is expanded (applies getCdvHeight via showCommitDetails)
       expandCommit(COMMIT_HASH_1);
 
       // Then: CDV element height is 250px (CDV_DEFAULT_HEIGHT)
@@ -1969,87 +1959,68 @@ describe("GitKeizuView frontend integration", () => {
       expect(cdvElem!.style.height).toBe("250px");
     });
 
-    it("returns CDV_DEFAULT_HEIGHT when available equals default (TC-051)", () => {
-      // Given: innerHeight=355, controlsHeight=50 → available=355-50-55=250 (boundary: == CDV_DEFAULT_HEIGHT)
-      vi.stubGlobal("innerHeight", 355);
-      setupControlsElement(50);
+    it("returns the persisted repository height when set (TC-051)", () => {
+      // Given: the repository state persists cdvHeight=400
+      vi.stubGlobal("innerHeight", 800);
+      dispatchMessage({
+        command: "loadRepos",
+        repos: { [TEST_REPO]: { columnWidths: null, cdvHeight: 400 } },
+        lastActiveRepo: TEST_REPO
+      });
+      vi.clearAllMocks();
 
       // When: a commit is expanded
       expandCommit(COMMIT_HASH_1);
 
-      // Then: CDV element height is 250px (available exactly equals CDV_DEFAULT_HEIGHT)
+      // Then: CDV element height matches the persisted value
       const cdvElem = document.getElementById("commitDetails");
       expect(cdvElem).not.toBeNull();
-      expect(cdvElem!.style.height).toBe("250px");
+      expect(cdvElem!.style.height).toBe("400px");
     });
 
-    it("returns available height when one below default (TC-052)", () => {
-      // Given: innerHeight=354, controlsHeight=50 → available=354-50-55=249 (boundary: CDV_DEFAULT_HEIGHT - 1)
-      vi.stubGlobal("innerHeight", 354);
-      setupControlsElement(50);
+    it("clamps the height to CDV_MAX_HEIGHT (TC-052)", () => {
+      // Given: a persisted height above the 600px cap
+      vi.stubGlobal("innerHeight", 2000);
+      dispatchMessage({
+        command: "loadRepos",
+        repos: { [TEST_REPO]: { columnWidths: null, cdvHeight: 5000 } },
+        lastActiveRepo: TEST_REPO
+      });
+      vi.clearAllMocks();
 
       // When: a commit is expanded
       expandCommit(COMMIT_HASH_1);
 
-      // Then: CDV element height is 249px (available < CDV_DEFAULT_HEIGHT, not clamped)
+      // Then: CDV element height is 600px (CDV_MAX_HEIGHT)
       const cdvElem = document.getElementById("commitDetails");
       expect(cdvElem).not.toBeNull();
-      expect(cdvElem!.style.height).toBe("249px");
+      expect(cdvElem!.style.height).toBe("600px");
     });
 
-    it("returns CDV_MIN_HEIGHT when available equals minimum (TC-053)", () => {
-      // Given: innerHeight=205, controlsHeight=50 → available=205-50-55=100 (boundary: == CDV_MIN_HEIGHT)
+    it("clamps the default height to the viewport (TC-053)", () => {
+      // Given: innerHeight=205 → max = max(min(600, 165), 100) = 165
       vi.stubGlobal("innerHeight", 205);
-      setupControlsElement(50);
 
       // When: a commit is expanded
       expandCommit(COMMIT_HASH_1);
 
-      // Then: CDV element height is 100px (available exactly equals CDV_MIN_HEIGHT)
+      // Then: CDV element height is clamped to 165px
       const cdvElem = document.getElementById("commitDetails");
       expect(cdvElem).not.toBeNull();
-      expect(cdvElem!.style.height).toBe("100px");
+      expect(cdvElem!.style.height).toBe("165px");
     });
 
-    it("clamps to CDV_MIN_HEIGHT when available is below minimum (TC-054)", () => {
-      // Given: innerHeight=204, controlsHeight=50 → available=204-50-55=99 (boundary: CDV_MIN_HEIGHT - 1)
-      vi.stubGlobal("innerHeight", 204);
-      setupControlsElement(50);
-
-      // When: a commit is expanded
-      expandCommit(COMMIT_HASH_1);
-
-      // Then: CDV element height is 100px (clamped to CDV_MIN_HEIGHT)
-      const cdvElem = document.getElementById("commitDetails");
-      expect(cdvElem).not.toBeNull();
-      expect(cdvElem!.style.height).toBe("100px");
-    });
-
-    it("clamps to CDV_MIN_HEIGHT with zero viewport (TC-055)", () => {
-      // Given: innerHeight=0 → available is negative (-55)
+    it("keeps at least CDV_MIN_HEIGHT with a zero viewport (TC-054)", () => {
+      // Given: innerHeight=0 → max falls back to CDV_MIN_HEIGHT
       vi.stubGlobal("innerHeight", 0);
 
       // When: a commit is expanded
       expandCommit(COMMIT_HASH_1);
 
-      // Then: CDV element height is 100px (clamped to CDV_MIN_HEIGHT)
+      // Then: CDV element height is 100px (CDV_MIN_HEIGHT)
       const cdvElem = document.getElementById("commitDetails");
       expect(cdvElem).not.toBeNull();
       expect(cdvElem!.style.height).toBe("100px");
-    });
-
-    it("falls back to controlsHeight=0 when #controls element is missing (TC-056)", () => {
-      // Given: innerHeight=280, no #controls element → controlsHeight=0, available=280-0-55=225
-      vi.stubGlobal("innerHeight", 280);
-      removeControlsElement();
-
-      // When: a commit is expanded
-      expandCommit(COMMIT_HASH_1);
-
-      // Then: CDV element height is 225px (viewport - headerHeight - commitRowHeight, without controls)
-      const cdvElem = document.getElementById("commitDetails");
-      expect(cdvElem).not.toBeNull();
-      expect(cdvElem!.style.height).toBe("225px");
     });
   });
 
@@ -2123,9 +2094,16 @@ describe("GitKeizuView frontend integration", () => {
         }
         return origGetBCR.call(this);
       };
-      // Ensure calculateCdvHeight returns CDV_DEFAULT_HEIGHT (250)
+      // Ensure a clean repository state and the default 250px height
+      // (innerHeight=800 → max = min(600, 760) = 600 → default applies).
       vi.stubGlobal("innerHeight", 800);
       setupControlsForScroll(50);
+      dispatchMessage({
+        command: "loadRepos",
+        repos: { [TEST_REPO]: { columnWidths: null } },
+        lastActiveRepo: TEST_REPO
+      });
+      vi.clearAllMocks();
     }
 
     afterEach(() => {
@@ -2227,20 +2205,9 @@ describe("GitKeizuView frontend integration", () => {
     const originalOuterWidth = window.outerWidth;
     const originalOuterHeight = window.outerHeight;
 
-    function setupControlsForResize(height: number): void {
-      let controls = document.getElementById("controls");
-      if (!controls) {
-        controls = document.createElement("div");
-        controls.id = "controls";
-        document.body.appendChild(controls);
-      }
-      Object.defineProperty(controls, "clientHeight", {
-        value: height,
-        configurable: true
-      });
-    }
-
     afterEach(() => {
+      // Close expanded details so the next test starts from a clean state.
+      document.getElementById("commitDetailsClose")?.click();
       document.getElementById("controls")?.remove();
       vi.stubGlobal("innerHeight", originalInnerHeight);
       vi.stubGlobal("outerWidth", originalOuterWidth);
@@ -2249,6 +2216,12 @@ describe("GitKeizuView frontend integration", () => {
 
     beforeEach(() => {
       setupTableLayoutMocks();
+      dispatchMessage({
+        command: "loadRepos",
+        repos: { [TEST_REPO]: { columnWidths: null } },
+        lastActiveRepo: TEST_REPO
+      });
+      vi.clearAllMocks();
     });
 
     it("does not affect CDV when no commit is expanded on resize (TC-063)", () => {
@@ -2263,28 +2236,33 @@ describe("GitKeizuView frontend integration", () => {
     });
 
     it("recalculates CDV height on inner resize when CDV is visible (TC-064)", () => {
-      // Given: CDV visible with innerHeight=800, controlsHeight=50 → height=250px
+      // Given: CDV visible with innerHeight=800 → height=250px
       vi.stubGlobal("innerHeight", 800);
-      setupControlsForResize(50);
       expandCommit(COMMIT_HASH_1);
       const cdvBefore = document.getElementById("commitDetails");
       expect(cdvBefore).not.toBeNull();
       expect(cdvBefore!.style.height).toBe("250px");
+      vi.clearAllMocks();
 
-      // When: inner viewport shrinks (outer dimensions unchanged) and resize fires
+      // When: inner viewport shrinks and resize fires
       vi.stubGlobal("innerHeight", 250);
       window.dispatchEvent(new Event("resize"));
 
-      // Then: CDV height is recalculated (250 - 50 - 55 = 145px)
+      // Then: CDV height is clamped to max(210) = innerHeight - 40 and persisted
       const cdvAfter = document.getElementById("commitDetails");
       expect(cdvAfter).not.toBeNull();
-      expect(cdvAfter!.style.height).toBe("145px");
+      expect(cdvAfter!.style.height).toBe("210px");
+      expect(vscode.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: "saveRepoState",
+          state: expect.objectContaining({ cdvHeight: 210 })
+        })
+      );
     });
 
     it("recalculates CDV height on outer resize when CDV is visible (TC-062)", () => {
-      // Given: CDV visible with innerHeight=800, controlsHeight=50 → height=250px
+      // Given: CDV visible with innerHeight=800 → height=250px
       vi.stubGlobal("innerHeight", 800);
-      setupControlsForResize(50);
       expandCommit(COMMIT_HASH_1);
       const cdvBefore = document.getElementById("commitDetails");
       expect(cdvBefore).not.toBeNull();
@@ -2296,10 +2274,10 @@ describe("GitKeizuView frontend integration", () => {
       vi.stubGlobal("outerHeight", 1080);
       window.dispatchEvent(new Event("resize"));
 
-      // Then: CDV height is recalculated (250 - 50 - 55 = 145px)
+      // Then: CDV height is clamped to max(210) = innerHeight - 40
       const cdvAfter = document.getElementById("commitDetails");
       expect(cdvAfter).not.toBeNull();
-      expect(cdvAfter!.style.height).toBe("145px");
+      expect(cdvAfter!.style.height).toBe("210px");
     });
   });
 
@@ -6310,21 +6288,17 @@ describe("openFile click handler", () => {
     openFileElem!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   }
 
-  function expectReviewedState(reviewed: boolean): void {
-    const toggle = document.querySelector<HTMLButtonElement>(
-      `.code-review-file-toggle[data-code-review-path="src/file.ts"]`
-    );
-    expect(toggle).not.toBeNull();
-    expect(toggle!.textContent).toBe(reviewed ? "Reviewed" : "Not reviewed");
-    expect(toggle!.getAttribute("aria-pressed")).toBe(String(reviewed));
+  function expectReviewedState(reviewed: boolean, active = true): void {
     expect(
       document
         .querySelector('.gitFile[data-newfilepath="src%2Ffile.ts"]')
         ?.classList.contains("gitFileReviewed")
     ).toBe(reviewed);
-    expect(document.querySelector(".code-review-progress-text")?.textContent).toBe(
-      reviewed ? "1/1 reviewed" : "0/1 reviewed"
-    );
+    const button = document.getElementById("commitDetailsCodeReview");
+    expect(button).not.toBeNull();
+    expect(button!.getAttribute("aria-pressed")).toBe(String(active));
+    const base = active ? "End code review" : reviewed ? "Resume code review" : "Start code review";
+    expect(button!.title).toBe(`${base} · ${reviewed ? 1 : 0}/1 reviewed`);
   }
 
   it("marks an opened review file reviewed after a successful open", () => {
@@ -6332,10 +6306,6 @@ describe("openFile click handler", () => {
     startActiveReview();
     openDisplayedFile();
 
-    const focusedToggle = document.querySelector<HTMLButtonElement>(
-      '.code-review-file-toggle[data-code-review-path="src/file.ts"]'
-    );
-    focusedToggle!.focus();
     dispatchMessage({ command: "openFile", status: null });
 
     expect(liveVscode.postMessage).toHaveBeenCalledWith({
@@ -6346,9 +6316,6 @@ describe("openFile click handler", () => {
       reviewed: true
     });
     expectReviewedState(true);
-    expect(document.activeElement).toBe(
-      document.querySelector('.code-review-file-toggle[data-code-review-path="src/file.ts"]')
-    );
   });
 
   it("does not mark the file when opening fails", () => {
@@ -6374,7 +6341,7 @@ describe("openFile click handler", () => {
     expect(liveVscode.postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ command: "setFileReviewed" })
     );
-    expectReviewedState(false);
+    expectReviewedState(false, false);
   });
 
   it("does not mark the file when no review is active", () => {
@@ -6386,7 +6353,7 @@ describe("openFile click handler", () => {
     expect(liveVscode.postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ command: "setFileReviewed" })
     );
-    expectReviewedState(false);
+    expectReviewedState(false, false);
   });
 
   it("does not mark the file when the active review compare hash differs", () => {
@@ -6399,7 +6366,7 @@ describe("openFile click handler", () => {
     expect(liveVscode.postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ command: "setFileReviewed" })
     );
-    expectReviewedState(false);
+    expectReviewedState(false, false);
   });
 
   it("ignores an empty displayed path after a successful open", () => {

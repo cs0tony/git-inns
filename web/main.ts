@@ -6,11 +6,7 @@ import {
 } from "../src/presentationDefaults";
 import { DEFAULT_REPOSITORY_VISIBILITY } from "../src/repositoryVisibility";
 import { getBranchLabels } from "./branchLabels";
-import {
-  type CodeReviewFileState,
-  renderCodeReviewPanel,
-  updateCodeReviewPanel
-} from "./codeReviewController";
+import { updateCodeReviewButton } from "./codeReviewController";
 import {
   type ColumnMenuOption,
   ColumnVisibilityMenu,
@@ -85,6 +81,7 @@ const SCROLL_CENTER_OFFSET = 12;
 
 const CDV_DEFAULT_HEIGHT = 250;
 const CDV_MIN_HEIGHT = 100;
+const CDV_MAX_HEIGHT = 600;
 const CDV_SCROLL_PADDING = 8;
 
 const STASH_NAVIGATION_TIMEOUT_MS = 5000;
@@ -864,22 +861,70 @@ class GitKeizuView {
   }
 
   /* CDV Height Helpers */
-  private calculateCdvHeight(): number {
-    const viewportHeight = window.innerHeight;
-    const controlsHeight = document.getElementById("controls")?.clientHeight ?? 0;
-    const headerHeight = (document.getElementById("tableColHeaders")?.clientHeight ?? 0) + 1;
-    const commitRowHeight = this.config.grid.y;
-    const availableHeight = viewportHeight - controlsHeight - headerHeight - commitRowHeight;
-    return Math.max(Math.min(CDV_DEFAULT_HEIGHT, availableHeight), CDV_MIN_HEIGHT);
+  private clampCdvHeight(height: number): number {
+    const max = Math.max(Math.min(CDV_MAX_HEIGHT, window.innerHeight - 40), CDV_MIN_HEIGHT);
+    return Math.min(Math.max(height, CDV_MIN_HEIGHT), max);
+  }
+
+  private getCdvHeight(): number {
+    const persisted =
+      this.currentRepo === null ? undefined : this.gitRepos[this.currentRepo]?.cdvHeight;
+    return this.clampCdvHeight(persisted ?? CDV_DEFAULT_HEIGHT);
+  }
+
+  private saveCdvHeight(height: number) {
+    if (this.currentRepo === null) return;
+    const repo = this.gitRepos[this.currentRepo];
+    if (repo === undefined || repo.cdvHeight === height) return;
+    this.gitRepos[this.currentRepo] = { ...repo, cdvHeight: height };
+    sendMessage({
+      command: "saveRepoState",
+      repo: this.currentRepo,
+      state: this.gitRepos[this.currentRepo]
+    });
   }
 
   private updateCommitDetailsHeight() {
     if (this.expandedCommit === null) return;
     const cdvElem = document.getElementById("commitDetails");
     if (!cdvElem) return;
-    const height = this.calculateCdvHeight();
+    const height = this.getCdvHeight();
+    this.saveCdvHeight(height);
     cdvElem.style.height = `${height}px`;
     this.renderGraph();
+  }
+
+  private bindCdvHeightResize(): void {
+    document.querySelectorAll<HTMLElement>("#commitDetails .cdvHeightResize").forEach((handle) => {
+      handle.addEventListener("mousedown", (e) => this.startCdvHeightDrag(e));
+    });
+  }
+
+  private startCdvHeightDrag(e: MouseEvent): void {
+    if (e.button !== 0 || this.currentRepo === null) return;
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = this.getCdvHeight();
+    let height = startHeight;
+    const onMove = (ev: MouseEvent) => {
+      const next = this.clampCdvHeight(startHeight + (ev.clientY - startY));
+      if (next === height) return;
+      height = next;
+      const cdvElem = document.getElementById("commitDetails");
+      if (cdvElem !== null) cdvElem.style.height = `${next}px`;
+      this.renderGraph();
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("mouseleave", onLeave);
+      this.saveCdvHeight(height);
+    };
+    // Ending the drag outside the webview must not leave it stuck open.
+    const onLeave = () => onUp();
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.addEventListener("mouseleave", onLeave);
   }
 
   /* Renderers */
@@ -1762,7 +1807,7 @@ class GitKeizuView {
       insertAfter(elem, this.expandedCommit.srcElem);
     }
 
-    const cdvHeight = this.calculateCdvHeight();
+    const cdvHeight = this.getCdvHeight();
     elem.style.height = `${cdvHeight}px`;
 
     if (this.expandedCommit.loading) {
@@ -1771,9 +1816,10 @@ class GitKeizuView {
           ? t("commitDetails.uncommittedChanges")
           : t("commitDetails.label");
       elem.innerHTML =
-        `<td data-column="graph"></td><td colspan="${this.getVisibleColumnCount()}">` +
+        `<td data-column="graph"><div class="cdvHeightResize"></div></td><td colspan="${this.getVisibleColumnCount()}">` +
         `<div id="cdvLoading">${svgIcons.loading} ${t("loading.commitDetails", loadingLabel)}</div>` +
-        `<div id="commitDetailsClose">${svgIcons.close}</div>` +
+        `<div id="commitDetailsRail"><div id="commitDetailsClose">${svgIcons.close}</div></div>` +
+        '<div class="cdvHeightResize"></div>' +
         "</td>";
       document.getElementById("commitDetailsClose")!.addEventListener("click", () => {
         this.hideCommitDetails();
@@ -1853,14 +1899,18 @@ class GitKeizuView {
     );
 
     const html =
-      `<td data-column="graph"></td><td colspan="${this.getVisibleColumnCount()}">` +
+      `<td data-column="graph"><div class="cdvHeightResize"></div></td><td colspan="${this.getVisibleColumnCount()}">` +
       `<div id="commitDetailsBody" class="${getCommitDetailsBodyClassName(presentation)}">` +
       this.buildCommitDetailsControlsHtml(presentation) +
       `<div id="commitDetailsSummary">${summaryHtml}</div>` +
-      `<div id="codeReviewMount" class="code-review-mount"></div>` +
       filesSectionHtml +
-      this.buildExternalDiffButtonHtml() +
+      "</div>" +
+      '<div id="commitDetailsRail">' +
       `<div id="commitDetailsClose">${svgIcons.close}</div>` +
+      this.buildCodeReviewButtonHtml() +
+      this.buildExternalDiffButtonHtml() +
+      "</div>" +
+      '<div class="cdvHeightResize"></div>' +
       "</td>";
 
     let elem = document.getElementById("commitDetails");
@@ -1873,7 +1923,7 @@ class GitKeizuView {
       insertAfter(elem, this.expandedCommit.srcElem);
     }
 
-    const cdvHeight = this.calculateCdvHeight();
+    const cdvHeight = this.getCdvHeight();
     elem.style.height = `${cdvHeight}px`;
     elem.classList.toggle("commitDetailsRight", presentation.location === "right");
 
@@ -1887,7 +1937,9 @@ class GitKeizuView {
     this.bindCommitDetailsPresentationListeners();
     this.bindParentHashListeners();
     this.bindExternalDiffListener();
-    this.renderCodeReviewPanel();
+    this.bindCodeReviewButtonListener();
+    this.bindCdvHeightResize();
+    this.updateCodeReviewButtonState();
   }
 
   private buildExternalDiffButtonHtml(): string {
@@ -1935,6 +1987,12 @@ class GitKeizuView {
       `<button type="button" class="commitDetailsSegment${active ? " selected" : ""}" ` +
       `data-presentation-field="${field}" data-presentation-value="${value}" ` +
       `aria-pressed="${active}">${escapeHtml(label)}</button>`;
+    // Behavior fields are on/off toggles, so render one pressed-state button
+    // instead of two identically labelled segments.
+    const toggle = (field: "compactFolders" | "autoCenter", label: string, active: boolean) =>
+      `<button type="button" class="commitDetailsSegment commitDetailsToggle${active ? " selected" : ""}" ` +
+      `data-presentation-field="${field}" data-presentation-value="${String(!active)}" ` +
+      `aria-pressed="${active}">${escapeHtml(label)}</button>`;
     const group = (label: string, controls: string) =>
       `<span class="commitDetailsControlGroup" role="group" aria-label="${escapeHtml(label)}">${controls}</span>`;
 
@@ -1972,18 +2030,12 @@ class GitKeizuView {
       ) +
       group(
         t("commitDetails.presentation.behavior"),
-        option(
+        toggle(
           "compactFolders",
-          String(presentation.compactFolders),
           t("commitDetails.presentation.compactFolders"),
           presentation.compactFolders
         ) +
-          option(
-            "autoCenter",
-            String(presentation.autoCenter),
-            t("commitDetails.presentation.autoCenter"),
-            presentation.autoCenter
-          )
+          toggle("autoCenter", t("commitDetails.presentation.autoCenter"), presentation.autoCenter)
       ) +
       "</div>"
     );
@@ -2050,88 +2102,74 @@ class GitKeizuView {
     });
   }
 
-  private renderCodeReviewPanel(): void {
-    const mount = document.getElementById("codeReviewMount");
-    if (
-      mount === null ||
-      this.currentRepo === null ||
-      this.expandedCommit === null ||
-      this.expandedCommit.commitDetails === null ||
-      this.expandedCommit.hash === UNCOMMITTED_CHANGES_HASH
-    ) {
-      return;
-    }
+  /* Code review is tracked with a single rail button: clicking it starts or
+     ends the review for the expanded commit (or commit range), while the
+     reviewed checkmarks stay in the file list below. */
+  private isCodeReviewPossible(): boolean {
+    return (
+      this.expandedCommit !== null &&
+      this.expandedCommit.commitDetails !== null &&
+      this.expandedCommit.hash !== UNCOMMITTED_CHANGES_HASH
+    );
+  }
 
-    const repoState = this.gitRepos[this.currentRepo];
+  private buildCodeReviewButtonHtml(): string {
+    if (!this.isCodeReviewPossible()) return "";
+    return (
+      `<button type="button" id="commitDetailsCodeReview" class="commitDetailsControlBtn" aria-pressed="false">` +
+      `${svgIcons.checklist}</button>`
+    );
+  }
+
+  private updateCodeReviewButtonState(): void {
+    const button = document.getElementById("commitDetailsCodeReview");
+    const expanded = this.expandedCommit;
+    if (button === null || expanded === null || expanded.commitDetails === null) return;
+    const repoState = this.currentRepo === null ? undefined : this.gitRepos[this.currentRepo];
     const review = repoState?.codeReview ?? null;
     const active =
       review !== null &&
-      review.commitHash === this.expandedCommit.hash &&
-      review.compareWithHash === this.expandedCommit.compareWithHash;
+      review.commitHash === expanded.hash &&
+      review.compareWithHash === expanded.compareWithHash;
     const filePaths =
       review !== null && active
         ? review.files
-        : this.expandedCommit.commitDetails.fileChanges.map(
+        : expanded.commitDetails.fileChanges.map(
             (change) => change.newFilePath || change.oldFilePath
           );
-    const reviewed = new Set(this.expandedCommit.reviewedFiles);
-    const files: CodeReviewFileState[] = filePaths.map((path) => ({
-      path,
-      reviewed: reviewed.has(path)
-    }));
-    const compareLabel =
-      this.expandedCommit.compareWithHash === null
-        ? abbrevCommit(this.expandedCommit.hash)
-        : `${abbrevCommit(this.expandedCommit.hash)} ↔ ${abbrevCommit(
-            this.expandedCommit.compareWithHash
-          )}`;
-    const callbacks = {
-      onStart: () => {
-        if (this.currentRepo === null || this.expandedCommit === null) return;
+    const reviewed = new Set(expanded.reviewedFiles);
+    const reviewedCount = filePaths.filter((path) => reviewed.has(path)).length;
+    const base = active
+      ? t("codeReview.end")
+      : reviewedCount > 0
+        ? t("codeReview.resume")
+        : t("codeReview.start");
+    const title =
+      filePaths.length > 0
+        ? `${base} · ${t("codeReview.progress", reviewedCount, filePaths.length)}`
+        : base;
+    updateCodeReviewButton(button, { active, title });
+  }
+
+  private bindCodeReviewButtonListener(): void {
+    const button = document.getElementById("commitDetailsCodeReview");
+    if (button === null) return;
+    button.addEventListener("click", () => {
+      if (this.currentRepo === null || this.expandedCommit === null) return;
+      if (button.classList.contains("active")) {
+        sendMessage({ command: "endCodeReview", repo: this.currentRepo });
+      } else {
+        const commitDetails = this.expandedCommit.commitDetails;
+        if (commitDetails === null) return;
         sendMessage({
           command: "startCodeReview",
           repo: this.currentRepo,
           commitHash: this.expandedCommit.hash,
           compareWithHash: this.expandedCommit.compareWithHash,
-          files: filePaths
+          files: commitDetails.fileChanges.map((change) => change.newFilePath || change.oldFilePath)
         });
-      },
-      onEnd: () => {
-        if (this.currentRepo === null) return;
-        sendMessage({ command: "endCodeReview", repo: this.currentRepo });
-      },
-      onToggleReviewed: (path: string, nextReviewed: boolean) => {
-        if (this.currentRepo === null || this.expandedCommit === null) return;
-        sendMessage({
-          command: "setFileReviewed",
-          repo: this.currentRepo,
-          commitHash: this.expandedCommit.hash,
-          filePath: path,
-          reviewed: nextReviewed
-        });
-      },
-      onFocusFile: (path: string) => {
-        const row = document.querySelector<HTMLElement>(
-          `[data-new-file-path="${encodeURIComponent(path)}"]`
-        );
-        row?.click();
       }
-    };
-
-    if (mount.firstElementChild === null) {
-      mount.replaceChildren(renderCodeReviewPanel({ files, active, compareLabel, callbacks }));
-    } else if (mount.firstElementChild instanceof HTMLElement) {
-      updateCodeReviewPanel(mount.firstElementChild, {
-        files,
-        active,
-        compareLabel,
-        callbacks
-      });
-    }
-  }
-
-  public renderCodeReviewPanelPublic(): void {
-    this.renderCodeReviewPanel();
+    });
   }
 
   public updateCodeReview(repo: string, review: GG.ActiveCodeReview | null): void {
@@ -2139,7 +2177,7 @@ class GitKeizuView {
     const state = this.gitRepos[repo];
     if (state === undefined) return;
     this.gitRepos[repo] = { ...state, codeReview: review };
-    this.renderCodeReviewPanel();
+    this.updateCodeReviewButtonState();
   }
 
   public showTagDetails(details: GG.TagDetails): void {
@@ -2264,6 +2302,7 @@ class GitKeizuView {
       this.expandedCommit.reviewedFiles
     );
     this.bindFileViewListeners();
+    this.updateCodeReviewButtonState();
   }
 
   public handleOpenFileResponse(status: GG.GitCommandStatus): void {
@@ -2306,7 +2345,7 @@ class GitKeizuView {
       reviewed: true
     });
     setFileRowReviewed(request.filePath, true);
-    this.renderCodeReviewPanel();
+    this.updateCodeReviewButtonState();
   }
 
   public handleReopenFileResponse(

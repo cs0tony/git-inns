@@ -392,5 +392,9 @@
   "Output Path: ": "Output Path: ",
   "Absolute path, for example /tmp/archive.zip": "Absolute path, for example /tmp/archive.zip",
   "Reset File to Revision...": "Reset File to Revision...",
-  "Reset {0} to its state at commit {1}? The working-tree and index copies will be overwritten.": "Reset {0} to its state at commit {1}? The working-tree and index copies will be overwritten."
+  "Reset {0} to its state at commit {1}? The working-tree and index copies will be overwritten.": "Reset {0} to its state at commit {1}? The working-tree and index copies will be overwritten.",
+  "codeReview.start": "Start code review",
+  "codeReview.resume": "Resume code review",
+  "codeReview.end": "End code review",
+  "codeReview.progress": "{0}/{1} reviewed"
 }

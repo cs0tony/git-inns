@@ -124,7 +124,7 @@ export function generateGitFileTreeHtml(
   for (i = 0; i < keys.length; i++) {
     if (folder.contents[keys[i]].type === "folder") {
       gitFolder = <GitFolder>folder.contents[keys[i]];
-      html += `<li role="none"${!gitFolder.open ? ' class="closed"' : ""}>${generateGitFileTreeHtml(gitFolder, gitFiles)}</li>`;
+      html += `<li role="none"${!gitFolder.open ? ' class="closed"' : ""}>${generateGitFileTreeHtml(gitFolder, gitFiles, reviewedFiles)}</li>`;
     } else {
       gitFile = gitFiles[(<GitFile>folder.contents[keys[i]]).index];
       html += buildFileItemHtml(gitFile, escapeHtml(folder.contents[keys[i]].name), reviewedFiles);

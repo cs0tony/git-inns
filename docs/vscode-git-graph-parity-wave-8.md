@@ -33,65 +33,65 @@ Remaining gaps, grouped:
 
 ### A. Global defaults that today only exist per repository
 
-| ID    | Gap                                                                                          | Notes                                                                 |
-| ----- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| G8-1  | `showTags` / `showStashes` / `showRemoteHeads` / `showUntrackedFiles` global defaults         | Per-repo switches exist in the settings panel; add global fallbacks.  |
-| G8-2  | `fetchAndPrune` default for the toolbar Fetch action                                          | One-click fetch should honour a global prune default.                 |
-| G8-3  | `showCommitsOnlyReferencedByTags`                                                             | `git log` gate plus setting.                                          |
-| G8-4  | `onLoad.scrollToHead`                                                                          | Scroll to HEAD after repository load.                                 |
-| G8-5  | `onLoad.showSpecificBranches` (+ per-repo "Initial Branches" editor in the settings panel)    | Includes glob entries; replaces the single showCurrentBranchByDefault.|
-| G8-6  | ISO date formats (`ISO Date & Time`, `ISO Date Only`)                                          | Extend `dateFormat` enum without renaming values.                     |
-| G8-7  | `sign.commits` / `sign.tags` — GPG-sign commits/tags created by Git Keizu operations           | `-S` for merge/rebase/cherry-pick/reset/revert, `-s` vs `-a` for tags.|
-| G8-8  | `graph.uncommittedChanges` display style                                                       | Open circle at uncommitted changes or at checked-out commit.          |
-| G8-9  | `enhancedAccessibility` — letter badges (A/M/D/R/U) in Commit Details                          | Wave 7 added colour-independent badges; add the opt-in letter mode.   |
+| ID   | Gap                                                                                        | Notes                                                                  |
+| ---- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| G8-1 | `showTags` / `showStashes` / `showRemoteHeads` / `showUntrackedFiles` global defaults      | Per-repo switches exist in the settings panel; add global fallbacks.   |
+| G8-2 | `fetchAndPrune` default for the toolbar Fetch action                                       | One-click fetch should honour a global prune default.                  |
+| G8-3 | `showCommitsOnlyReferencedByTags`                                                          | `git log` gate plus setting.                                           |
+| G8-4 | `onLoad.scrollToHead`                                                                      | Scroll to HEAD after repository load.                                  |
+| G8-5 | `onLoad.showSpecificBranches` (+ per-repo "Initial Branches" editor in the settings panel) | Includes glob entries; replaces the single showCurrentBranchByDefault. |
+| G8-6 | ISO date formats (`ISO Date & Time`, `ISO Date Only`)                                      | Extend `dateFormat` enum without renaming values.                      |
+| G8-7 | `sign.commits` / `sign.tags` — GPG-sign commits/tags created by Git Keizu operations       | `-S` for merge/rebase/cherry-pick/reset/revert, `-s` vs `-a` for tags. |
+| G8-8 | `graph.uncommittedChanges` display style                                                   | Open circle at uncommitted changes or at checked-out commit.           |
+| G8-9 | `enhancedAccessibility` — letter badges (A/M/D/R/U) in Commit Details                      | Wave 7 added colour-independent badges; add the opt-in letter mode.    |
 
 ### B. Dialog defaults and input behaviour
 
-| ID   | Gap                                                                                       |
-| ---- | ------------------------------------------------------------------------------------------- |
-| G8-10| Persisted defaults: `addTag.type`, `addTag.pushToRemote`, `deleteBranch.forceDelete`, `applyStash.reinstateIndex`, `popStash.reinstateIndex`, `fetchIntoLocalBranch.forceFetch`, `resetCurrentBranchToCommit.mode`, `resetUncommittedChanges.mode`, `merge.squashMessageFormat` |
-| G8-11| Rebase options: `ignoreDate`, and interactive rebase launched in an integrated terminal       |
-| G8-12| `dialog.general.referenceInputSpaceSubstitution` (None / Hyphen / Underscore)                 |
+| ID    | Gap                                                                                                                                                                                                                                                                             |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G8-10 | Persisted defaults: `addTag.type`, `addTag.pushToRemote`, `deleteBranch.forceDelete`, `applyStash.reinstateIndex`, `popStash.reinstateIndex`, `fetchIntoLocalBranch.forceFetch`, `resetCurrentBranchToCommit.mode`, `resetUncommittedChanges.mode`, `merge.squashMessageFormat` |
+| G8-11 | Rebase options: `ignoreDate`, and interactive rebase launched in an integrated terminal                                                                                                                                                                                         |
+| G8-12 | `dialog.general.referenceInputSpaceSubstitution` (None / Hyphen / Underscore)                                                                                                                                                                                                   |
 
 ### C. Push / tag semantics
 
-| ID    | Gap                                                                                          |
-| ----- | ---------------------------------------------------------------------------------------------- |
-| G8-13 | Push modes: Normal / Force With Lease (`--force-with-lease`) / Force, plus explicit Set Upstream |
+| ID    | Gap                                                                                                             |
+| ----- | --------------------------------------------------------------------------------------------------------------- |
+| G8-13 | Push modes: Normal / Force With Lease (`--force-with-lease`) / Force, plus explicit Set Upstream                |
 | G8-14 | Tag push: multi-remote picker (currently hardcoded to `origin`), and a "commit not on remote" pre-check warning |
-| G8-15 | Tag delete: optional "also delete on remote" with remote picker                                |
-| G8-16 | Remote-branch "Fetch into local branch" with force-fetch overwrite confirmation                |
+| G8-15 | Tag delete: optional "also delete on remote" with remote picker                                                 |
+| G8-16 | Remote-branch "Fetch into local branch" with force-fetch overwrite confirmation                                 |
 
 ### D. Context menu completeness
 
-| ID   | Gap                                                                                          |
-| ---- | ---------------------------------------------------------------------------------------------- |
-| G8-17| Branch/tag/remote-branch "Create Archive" (archive is commit-only today)                        |
-| G8-18| "View Issue" action on branch and remote-branch menus using the issue-link template             |
-| G8-19| "Select in / Unselect from Branches Dropdown" actions                                           |
-| G8-20| Commit menu "Copy Commit Subject"                                                               |
-| G8-21| File menu: "View File at this Revision", "View Diff with Working File", "Copy Absolute / Relative File Path" |
-| G8-22| Commit menu "Rebase current branch on this Commit" (currently branch-menu only)                 |
+| ID    | Gap                                                                                                          |
+| ----- | ------------------------------------------------------------------------------------------------------------ |
+| G8-17 | Branch/tag/remote-branch "Create Archive" (archive is commit-only today)                                     |
+| G8-18 | "View Issue" action on branch and remote-branch menus using the issue-link template                          |
+| G8-19 | "Select in / Unselect from Branches Dropdown" actions                                                        |
+| G8-20 | Commit menu "Copy Commit Subject"                                                                            |
+| G8-21 | File menu: "View File at this Revision", "View Diff with Working File", "Copy Absolute / Relative File Path" |
+| G8-22 | Commit menu "Rebase current branch on this Commit" (currently branch-menu only)                              |
 
 ### E. Commit Details View ergonomics
 
-| ID   | Gap                                                                                              |
-| ---- | -------------------------------------------------------------------------------------------------- |
-| G8-23| Draggable Commit Details height (100–600 px, per repository) and draggable summary/files divider    |
-| G8-24| "Last File Viewed" marker in the file tree/list                                                     |
-| G8-25| Code review entries expire after 90 days of inactivity                                              |
-| G8-26| Diff-editor title command `git-keizu.openFile` ("Open File" from a `git-keizu:` diff URI)           |
+| ID    | Gap                                                                                              |
+| ----- | ------------------------------------------------------------------------------------------------ |
+| G8-23 | Draggable Commit Details height (100–600 px, per repository) and draggable summary/files divider |
+| G8-24 | "Last File Viewed" marker in the file tree/list                                                  |
+| G8-25 | Code review entries expire after 90 days of inactivity                                           |
+| G8-26 | Diff-editor title command `git-keizu.openFile` ("Open File" from a `git-keizu:` diff URI)        |
 
 ### F. Repository settings and discovery
 
-| ID   | Gap                                                                                                  |
-| ---- | ------------------------------------------------------------------------------------------------------ |
-| G8-27| Custom repository display name (edit/remove, used in the repo dropdown)                                 |
-| G8-28| Per-repo overrides for reflog-only commits and first-parent traversal in the settings panel             |
-| G8-29| Per-remote "hide branches" (`hideRemotes`) filtering the Branches dropdown                               |
-| G8-30| Issue-link auto-detection from existing commit messages + "Use Globally" default                         |
-| G8-31| Auto-import of `git-keizu.config.json` via FileSystemWatcher (export/import is manual today)             |
-| G8-32| Pull Request settings: destination remote / owner / project-id fields for deeper provider inference      |
+| ID    | Gap                                                                                                 |
+| ----- | --------------------------------------------------------------------------------------------------- |
+| G8-27 | Custom repository display name (edit/remove, used in the repo dropdown)                             |
+| G8-28 | Per-repo overrides for reflog-only commits and first-parent traversal in the settings panel         |
+| G8-29 | Per-remote "hide branches" (`hideRemotes`) filtering the Branches dropdown                          |
+| G8-30 | Issue-link auto-detection from existing commit messages + "Use Globally" default                    |
+| G8-31 | Auto-import of `git-keizu.config.json` via FileSystemWatcher (export/import is manual today)        |
+| G8-32 | Pull Request settings: destination remote / owner / project-id fields for deeper provider inference |
 
 Non-goals: anonymous lifecycle telemetry (deliberately omitted), deprecated legacy setting
 aliases (Git Keizu keeps its own namespace), and any change that renames existing settings.

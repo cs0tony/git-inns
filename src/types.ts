@@ -167,6 +167,7 @@ export interface GitRepoState {
   encoding?: FileEncoding;
   columnVisibility?: ColumnVisibility;
   commitOrdering?: RepoCommitOrdering;
+  cdvHeight?: number;
   fileEncodings?: Record<string, FileEncoding>;
   fileViewType?: "tree" | "list";
   recentActions?: RecentActionId[];

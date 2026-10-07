@@ -233,39 +233,52 @@ body.unableToLoad p {
   height: 2px;
   background-color: rgba(128, 128, 128, 0.2);
 }
-/* Summary panel */
-.commitDetailsControls {
+/* The body fills the details cell and lays out the controls bar, summary and
+   file list on a grid, so the panels always start below the controls however
+   tall they render. The right inset reserves a rail for the close and
+   external-diff buttons. */
+#commitDetailsBody {
   position: absolute;
-  left: 0;
-  right: 32px;
-  top: 0;
-  z-index: 1;
+  inset: 0 32px 2px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 45%) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "controls controls"
+    "summary  files";
+}
+#commitDetailsBody.commitDetailsRight {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 45%);
+  grid-template-areas:
+    "controls controls"
+    "files    summary";
+}
+/* Controls bar */
+.commitDetailsControls {
+  grid-area: controls;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 6px 10px;
+  padding: 5px 10px;
   box-sizing: border-box;
-  overflow-x: auto;
   border-bottom: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.2));
   background: var(--vscode-editorWidget-background, transparent);
-  scrollbar-width: thin;
+  font-size: 12px;
 }
 .commitDetailsControlGroup {
   display: inline-flex;
-  flex: 0 0 auto;
   overflow: hidden;
   border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
-  border-radius: 6px;
-  background: var(--vscode-input-background, transparent);
+  border-radius: 4px;
 }
 .commitDetailsSegment {
-  min-width: 34px;
-  padding: 2px 8px;
+  padding: 1px 8px;
   border: 0;
   background: transparent;
   color: var(--vscode-descriptionForeground);
   font: inherit;
-  line-height: 18px;
+  line-height: 16px;
   cursor: pointer;
 }
 .commitDetailsSegment + .commitDetailsSegment {
@@ -275,24 +288,65 @@ body.unableToLoad p {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
 }
+.commitDetailsToggle::before {
+  content: "✓";
+  margin-right: 4px;
+  opacity: 0;
+}
+.commitDetailsToggle.selected::before {
+  opacity: 1;
+}
 .commitDetailsSegment:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -2px;
 }
+/* Summary panel */
 #commitDetailsSummary {
-  position: absolute;
-  left: 0;
-  top: 38px;
-  bottom: 2px;
-  width: 45%;
+  grid-area: summary;
+  min-width: 0;
+  min-height: 0;
   padding: 10px;
-  box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
   text-overflow: ellipsis;
-  border-left: 1px solid rgba(128, 128, 128, 0.2);
   border-right: 1px solid rgba(128, 128, 128, 0.2);
   user-select: text;
+}
+#commitDetailsBody.commitDetailsRight #commitDetailsSummary {
+  border-right: 0;
+  border-left: 1px solid rgba(128, 128, 128, 0.2);
+}
+/* Right rail for the close / code review / external diff buttons */
+#commitDetailsRail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 2px;
+  width: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 4px;
+  box-sizing: border-box;
+}
+/* The close button only needs absolute positioning in the loading state,
+   where it is a direct child of the cell. */
+#commitDetailsRail > #commitDetailsClose {
+  position: static;
+}
+/* Bottom drag handle for resizing the details height */
+.cdvHeightResize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 2;
+}
+.cdvHeightResize:hover {
+  background-color: rgba(128, 128, 128, 0.25);
 }
 .commitDetailsSummaryTop {
   display: inline-table;
@@ -371,17 +425,11 @@ body.unableToLoad p {
 }
 /* File list panel */
 #commitDetailsFiles {
-  position: absolute;
-  right: 32px;
-  top: 38px;
-  bottom: 2px;
-  left: 45%;
-  border-right: 1px solid rgba(128, 128, 128, 0.2);
+  grid-area: files;
+  min-width: 0;
   overflow-x: hidden;
-  overflow-y: scroll;
-  padding-top: 8px;
-  padding-right: 8px;
-  padding-bottom: 10px;
+  overflow-y: auto;
+  padding: 8px 8px 10px 10px;
   box-sizing: border-box;
 }
 #commitDetailsFiles ul {
@@ -420,11 +468,14 @@ body.unableToLoad p {
   width: 24px;
   height: 24px;
   cursor: pointer;
+  opacity: 0.6;
+}
+#commitDetailsClose:hover {
+  opacity: 1;
 }
 .commitDetailsControlBtn {
-  position: absolute;
-  right: 36px;
-  top: 44px;
+  position: static;
+  flex: 0 0 auto;
   width: 24px;
   height: 24px;
   border: 0;
@@ -433,6 +484,12 @@ body.unableToLoad p {
   color: var(--vscode-editor-foreground);
   cursor: pointer;
 }
+#commitDetailsCodeReview.active {
+  background-color: rgba(128, 128, 128, 0.25);
+}
+#commitDetailsCodeReview.active:hover {
+  background-color: rgba(128, 128, 128, 0.35);
+}
 .commitDetailsCompactFolders #commitDetailsFiles li {
   margin-top: 0;
   padding-top: 1px;
@@ -440,16 +497,6 @@ body.unableToLoad p {
 }
 .commitDetailsCompactFolders #commitDetailsFiles ul {
   -webkit-padding-start: 22px;
-}
-#commitDetails.commitDetailsRight #commitDetailsSummary {
-  left: auto;
-  right: 32px;
-  width: 40%;
-  border-left: 1px solid rgba(128, 128, 128, 0.2);
-}
-#commitDetails.commitDetailsRight #commitDetailsFiles {
-  left: 0;
-  right: calc(40% + 32px);
 }
 .commitDetailsControlBtn:focus-visible {
   outline: 1px solid var(--vscode-focusBorder, var(--vscode-editor-foreground));
